@@ -1,0 +1,398 @@
+import React, { useEffect, useState, useCallback, useMemo, cache } from 'react';
+import { View, Text, Pressable, Image, StyleSheet, Animated, Easing, Platform, ImageBackground, FlatList, ScrollView, ActivityIndicator } from 'react-native';
+import { Loaderx, LoadingGif } from '../funcs/functions_stateful';
+import { useFocusEffect } from '@react-navigation/native';
+import { namer, styles } from '../funcs/static';
+import { _http_request, help, hostServer, llStorage } from '../funcs/functions';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useHeaderHeight } from '@react-navigation/elements';
+import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
+import IIcon from 'react-native-vector-icons/Ionicons';
+import FastImage from 'react-native-fast-image'
+
+
+export function Screen_chat({ navigation }: { navigation: any }) {
+  const getProfile = llStorage.currentProfile.get()?.currentUser;
+  const __MAPPER = llStorage.CONFIG.get()?.mapper;
+
+  const [getNewMatches, setNewMatches] = useState<any>(null);
+  const [getEngagedMessages, setEngagedMessages] = useState<any>([]);
+  const [getCountLikes, setCountLikes] = useState<number>(0);
+  const headerHeight = useHeaderHeight();
+  const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
+  const [activeFilter, setActiveFilter] = useState<'all' | 'yourTurn' | 'verified' | 'unread'>('all');
+  const [visibleMessages, setVisibleMessages] = useState<number>(6);
+  const MESSAGE_PAGE_SIZE = 10;
+  const hasLikes = getCountLikes > 0;
+  const hasNewMatches = Array.isArray(getNewMatches) && getNewMatches.length > 0;
+  const hasConnections = hasLikes || hasNewMatches;
+
+  const bounceAnim = new Animated.Value(0);
+  const bounceInterpolate = bounceAnim.interpolate({
+    inputRange: [0, 0.8, 1],
+    outputRange: [0, -10, 0]
+  });
+
+  const pendingRepliesCount = useMemo(() => {
+    return (getEngagedMessages ?? []).filter((item: any) => !item?.convo_from_me).length;
+  }, [getEngagedMessages]);
+
+  const verifiedMatchesCount = useMemo(() => {
+    return (getEngagedMessages ?? []).filter((item: any) => item?.user_verfied === 1).length;
+  }, [getEngagedMessages]);
+
+  const filteredMessages = useMemo(() => {
+    const list = getEngagedMessages ?? [];
+    switch (activeFilter) {
+      case 'yourTurn':
+        return list.filter((item: any) => !item?.convo_from_me);
+      case 'verified':
+        return list.filter((item: any) => item?.user_verfied === 1);
+      case 'unread':
+        return list.filter((item: any) => !item?.convo_from_me && !item?.convo_is_read);
+      case 'all':
+      default:
+        return list;
+    }
+  }, [activeFilter, getEngagedMessages]);
+
+  useEffect(() => {
+    setVisibleMessages((prev) => {
+      const next = Math.min(prev, (filteredMessages ?? []).length || MESSAGE_PAGE_SIZE);
+      return next || MESSAGE_PAGE_SIZE;
+    });
+  }, [filteredMessages]);
+
+  // animation
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 700,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        })
+      ]), { iterations: 3 }).start();
+  });
+
+  const NoConversationsScreen = () => {
+    return (
+      <View style={stylesc.emptyState}>
+        <IIcon name="chatbubble-ellipses-outline" size={48} color="#ccc" />
+        <Text style={stylesc.emptyText}>No Conversations Yet</Text>
+        <Text style={stylesc.emptySubtext}>Start chatting with your matches and spark a new connection!</Text>
+      </View>
+    );
+  };
+
+
+
+  const filtersList = [
+    { id: 'all', label: 'All chats' },
+    { id: 'yourTurn', label: 'Your turn' },
+    { id: 'unread', label: 'Unread' },
+    { id: 'verified', label: 'Verified' },
+  ] as const;
+
+  const countNewMatches = getNewMatches?.length ?? 0;
+  const countTotalConvo = getEngagedMessages?.length ?? 0;
+
+  const renderHeroSection = useCallback(() => {
+    if (help.randomInt(0, 13) !== 8) return null;
+
+    return (
+      <View style={{ backgroundColor: '#0f172a', borderRadius: 18, padding: 16, overflow: 'hidden' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={{ color: '#cbd5e1', fontSize: 12 }}>Welcome back</Text>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', textTransform: "capitalize" }}>{getProfile?.user_fullname || 'You'}</Text>
+            {countTotalConvo > 0 && <Text style={{ color: '#cbd5e1', fontSize: 13 }}>You have {countTotalConvo} open conversation.</Text>}
+            {countNewMatches > 0 && <Text style={{ color: '#cbd5e1', marginTop: 4, fontSize: 13 }}>You have {countNewMatches} new connection. Message them before the sparks fade.</Text>}
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', marginTop: 12, gap: 10 }}>
+          <Pressable onPress={() => navigation.navigate(namer.navigation.likes)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <MaterialCommunityIcons name='lightning-bolt-outline' size={20} color="#fff" />
+            <Text style={{ color: '#fff', fontWeight: '700' }}>Boost visibility</Text>
+          </Pressable>
+          {!activeSubscription && (
+            <Pressable onPress={() => navigation.navigate(namer.navigation.coin, { tab: 'vip' })} style={{ flex: 1, backgroundColor: '#0ea5e9', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <IIcon name="diamond" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Unlock premium</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  }, [activeSubscription, getEngagedMessages, getNewMatches, getProfile, pendingRepliesCount, verifiedMatchesCount]);
+
+  const renderFiltersRow = useCallback(() => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
+      {filtersList.map((filter) => {
+        const isActive = activeFilter === filter.id;
+        return (
+          <Pressable key={filter.id} onPress={() => setActiveFilter(filter.id)} style={{
+            paddingHorizontal: 12,
+            paddingVertical: 9,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: isActive ? '#1d4ed8' : '#e5e7eb',
+            backgroundColor: isActive ? '#e0e7ff' : '#f8fafc'
+          }}>
+            <Text style={{ color: isActive ? '#1d4ed8' : '#334155', fontWeight: '600', fontSize: 12 }}>{filter.label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  ), [activeFilter, filtersList]);
+
+  // Prepare data for FlatList sections
+  const flatListData = [
+    { type: 'hero', id: 'hero-section' },
+    ...(hasConnections ? [
+      { type: 'header', id: 'connections-header', title: 'New connections' },
+      { type: 'connections', id: 'connections-content', data: getNewMatches, countLikes: getCountLikes },
+      { type: 'header', id: 'messages-header', title: 'Chats' },
+    ] : []),
+    { type: 'filters', id: 'filters-row' },
+    { type: 'messages', id: 'messages-content', data: filteredMessages }
+  ];
+
+  const renderConnectionsSection = useCallback(() => {
+    const matches = hasNewMatches ? getNewMatches : [];
+
+    if (!hasLikes && !hasNewMatches) return null;
+    return (
+      <View style={{ backgroundColor: '#fff', borderRadius: 16, gap: 10, }}>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          {hasLikes && (
+            <Animated.View style={{ transform: [{ translateY: bounceInterpolate }] }}>
+              <Pressable onPress={() => navigation.navigate(namer.navigation.likes)} style={{ width: 110, height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: '#0ea5e9', justifyContent: 'center', alignItems: 'center' }}>
+                <ImageBackground progressiveRenderingEnabled={true} blurRadius={Platform.OS === "android" ? 60 : 30}
+                  style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
+                  source={{ cache: 'force-cache', uri: String(__MAPPER?.img_domain[0] + getProfile?.user_image?.[0]?.p) }} >
+                  <View style={{ backgroundColor: 'rgba(15,23,42,0.7)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>+{getCountLikes}</Text>
+                  </View>
+                  <Text style={{ color: '#fff', marginTop: 10, fontWeight: '700' }}>See likes</Text>
+                </ImageBackground>
+              </Pressable>
+            </Animated.View>
+          )}
+
+          <View style={{ flex: 1, minHeight: 180 }}>
+            {hasNewMatches ? (
+              <FlatList horizontal showsHorizontalScrollIndicator={false}
+                data={matches} removeClippedSubviews={false}
+                keyExtractor={(item, index) => `match-${item?.match_id}-${index}`}
+                renderItem={({ item }) => (
+                  <Pressable style={{ width: 120 }} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
+                    <View style={{ borderRadius: 10, overflow: 'hidden', backgroundColor: '#e2e8f0', height: 180, justifyContent: 'flex-end' }}>
+                      <FastImage style={{ position: 'absolute', width: '100%', height: '100%' }} source={{ cache: FastImage.cacheControl.immutable, uri: String(__MAPPER?.img_domain[0] + item?.user_image?.p) }} />
+                      <View style={{ backgroundColor: 'rgba(0,0,0,0.4)', padding: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffffff', textTransform: 'capitalize', flex: 1 }} numberOfLines={2}>
+                          {item?.user_fullname}{item?.user_dob ? `, ${help.getageFromDOB(item.user_dob)}` : ''}
+                        </Text>
+                        {item?.user_verfied === 1 && (<IIcon name="checkmark-done-circle-sharp" size={16} color="#38bdf8" />)}
+                      </View>
+                    </View>
+                  </Pressable>
+                )}
+                contentContainerStyle={{ gap: 12 }}
+                scrollEnabled
+                nestedScrollEnabled
+              />
+            ) : (
+              <View style={{ flex: 1, height: 180, backgroundColor: '#f8fafc', borderRadius: 16, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', padding: 12, gap: 6 }}>
+                <IIcon name="sparkles-outline" size={30} color="#94a3b8" />
+                <Text style={{ color: '#0f172a', fontWeight: '700' }}>No new connections yet</Text>
+                <Text style={{ color: '#475569', fontSize: 12, textAlign: 'center' }}>Keep swiping to spark new conversations.</Text>
+                <Pressable onPress={() => navigation.navigate(namer.navigation.peoples)} style={{ marginTop: 4, backgroundColor: '#0ea5e9', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 }}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Continue swiping</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  }, [bounceInterpolate, getCountLikes, getNewMatches, getProfile]);
+
+  const renderMessagesSection = useCallback(() => {
+    if (filteredMessages.length === 0) {
+      return <NoConversationsScreen />;
+    }
+
+    const displayedMessages = filteredMessages.slice(0, visibleMessages);
+    return (
+      <View style={{ gap: 12, marginBottom: 10 }}>
+        {displayedMessages.map((item: any, index: any) => {
+          const isYourTurn = !item?.convo_from_me;
+          const isVerified = item?.user_verfied === 1;
+          const lastMessage = () => {
+            if (item?.user_lastmessage?.t === "text") {
+              return <Text>{item?.user_lastmessage?.str}</Text>
+            } else if (item?.user_lastmessage?.t === "image") {
+              return <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}><MIcon name="camera-outline" size={18} /><Text style={{ fontSize: 12, fontWeight: 600 }}>PHOTO</Text></View>
+            } else if (item?.user_lastmessage?.t === "audio") {
+              return <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                <View style={{ flexDirection: "row" }}>
+                  <MIcon name="waveform" size={22} />
+                  <MIcon name="waveform" size={22} style={{ marginLeft: -8 }} />
+                </View>
+                <Text style={{ fontSize: 12, fontWeight: 600 }}>VOICE NOTE</Text></View>
+            } else {
+              return <MIcon name="file-outline" size={20} />
+            }
+          };
+          //console.log(item?.user_lastmessage);
+          return (
+            <Pressable key={`message-${item?.match_id}-${index}`} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+                <FastImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: '#e2e8f0' }} source={{ uri: String(__MAPPER?.img_domain[0] + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', textTransform: 'capitalize', color: '#0f172a' }} numberOfLines={1}>{item?.user_fullname}</Text>
+                      {isVerified && <IIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" />}
+                    </View>
+                    {item?.user_lastmessage_date && <Text style={{ fontSize: 11, color: '#64748b' }}>{help.timeAgo(item?.user_lastmessage_date)}</Text>}
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontSize: 13, color: '#475569', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{lastMessage()}</Text>
+                    {isYourTurn && (
+                      <View style={{ backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                        <Text style={{ fontSize: 11, color: '#0369a1', fontWeight: '700' }}>Your turn</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {item?.user_distance && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#f8fafc' }}><Text style={{ color: '#475569', fontSize: 11 }}>{item.user_distance} away</Text></View>}
+                  </View>
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+        {visibleMessages < filteredMessages.length && (
+          <View style={{ alignItems: 'center', paddingVertical: 12, width: '100%' }}>
+            <ActivityIndicator size="small" color="#1d4ed8" />
+            <Text style={{ marginTop: 6, color: '#475569', fontSize: 12 }}>Loading more conversations...</Text>
+          </View>
+        )}
+      </View>
+    );
+  }, [filteredMessages, navigation, visibleMessages]);
+
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    switch (item.type) {
+      case 'hero':
+        return renderHeroSection();
+      case 'header':
+        return (<Text style={{ fontSize: 17, fontWeight: '700', marginTop: item.id === 'messages-header' ? 5 : 0, color: '#0f172a' }}>{item.title}</Text>);
+      case 'filters':
+        return renderFiltersRow();
+      case 'connections':
+        return renderConnectionsSection();
+      case 'messages':
+        return renderMessagesSection();
+      default:
+        return null;
+    }
+  }, [renderConnectionsSection, renderFiltersRow, renderHeroSection, renderMessagesSection]);
+
+  useFocusEffect(React.useCallback(() => {
+    _http_request({
+      customApiUrl: hostServer() + "/api/core/v1/getChatLists",
+      reqType: 'POST',
+    }).then((response: any) => {
+      setTimeout(() => {
+        Loaderx.hide();
+        setNewMatches((prev: any) => {
+          const incoming = response?.chatsListings?.withoutmessages;
+          if (incoming === null || incoming === undefined || !Array.isArray(incoming)) {
+            return prev ?? [];
+          }
+          return incoming;
+        });
+        setEngagedMessages((prev: any) => {
+          const incoming = response?.chatsListings?.withmessages;
+          if (incoming === null || incoming === undefined || (!Array.isArray(incoming))) {
+            return prev ?? [];
+          }
+          return incoming;
+        });
+        setCountLikes((prev: number) => {
+          const incoming = response?.chatsListings?.countLkikes;
+          if (incoming === null || incoming === undefined || incoming === '') {
+            return prev;
+          }
+          return incoming;
+        });
+      }, getNewMatches ? 0 : 1000);
+    });
+  }, []));
+
+  if (getNewMatches === null) {
+    return <LoadingGif loadingState={0} />
+  }
+
+  return (
+    <View style={[styles.container, { paddingTop: headerHeight }]}>
+      <View style={styles.zcircle1} />
+      <View style={styles.zcircle2} />
+      <View style={styles.zcircle3} />
+
+      <FlatList
+        data={flatListData}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ gap: 15 }}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews={false} // Set to false for better performance with mixed content
+        onEndReached={() => {
+          setTimeout(() => {
+            setVisibleMessages((prev) => {
+              if (prev >= filteredMessages.length) return prev;
+              return Math.min(prev + MESSAGE_PAGE_SIZE, filteredMessages.length || prev + MESSAGE_PAGE_SIZE);
+            });
+          }, 1000);
+        }}
+        onEndReachedThreshold={0.4}
+      />
+    </View>
+  );
+}
+
+const stylesc = StyleSheet.create({
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    marginTop: 12,
+    textAlign: "center"
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 4,
+    textAlign: "center"
+  }
+});
