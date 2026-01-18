@@ -205,7 +205,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
 
     if (getProfile === null) {
-        return <LoadingGif loadingState={0} />
+        return <LoadingGif  />
     }
 
     return (

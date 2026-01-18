@@ -272,3 +272,10 @@ export const namer = {
         */
     }
 }
+
+export const resourceMap = {
+    loading1: require('../assets/images/loading1.gif'),
+    loading2: require('../assets/images/loading2.gif'),
+    loading3: require('../assets/images/loading3.gif')
+};
+

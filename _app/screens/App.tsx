@@ -191,7 +191,7 @@ const MainApp: React.FC = () => {
 
 
   if (getAllGood === false) {
-    return <LoadingGif loadingState={0} />
+    return <LoadingGif />
   }
 
 

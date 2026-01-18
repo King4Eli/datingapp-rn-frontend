@@ -524,8 +524,8 @@ export class llStorage {
 
   }
 
-  public static purchasing_product ={
-    get:()=> this.tempProducts
+  public static purchasing_product = {
+    get: () => this.tempProducts
   }
 
 

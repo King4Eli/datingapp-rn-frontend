@@ -342,7 +342,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   }, []));
 
   if (getNewMatches === null) {
-    return <LoadingGif loadingState={0} />
+    return <LoadingGif  />
   }
 
   return (

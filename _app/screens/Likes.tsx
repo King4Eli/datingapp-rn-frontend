@@ -181,7 +181,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, []));
 
     if (getNewLikes === null) {
-        return <LoadingGif loadingState={0} />;
+        return <LoadingGif   />;
     }
 
     return (

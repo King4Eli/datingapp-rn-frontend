@@ -1,9 +1,9 @@
 // https://ionic.io/ionicons 
 // https://static.enapter.com/rn/icons/material-community.html 
 // https://oblador.github.io/react-native-vector-icons/ 
-import { ActivityIndicator, View, Text, Modal, Pressable, Image, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, Text, Modal, Pressable, Image, StyleSheet, ImageSourcePropType } from 'react-native';
 import { useEffect, useState } from 'react';
-import { styles } from './static';
+import { resourceMap, styles } from './static';
 import React from 'react';
 import FastImage from 'react-native-fast-image';
 
@@ -26,37 +26,22 @@ Loaderx.hide = () => { if (showLoaderFunc) { showLoaderFunc(false); } else { con
 //*****************************
 //
 //
-type LoadingState = 0 | 1 | 2; // Corresponds to array indices
-interface LoadingProps {
-  loadingState: LoadingState;
-  size?: number;
-  backgroundColor?: string;
-}
-export const LoadingGif = ({
-  loadingState = 0,
-  size = 100,
-  backgroundColor = "#fff"
-}: LoadingProps) => {
-  // Pre-require all possible GIFs for better static analysis
-  const loadingGifs = [
-    require('../resources/loading1.gif'),
-    require('../resources/loading2.gif'),
-    require('../resources/loading3.gif'),
-  ];
 
-  // Validate the loadingState to prevent out-of-bounds errors
-  const safeLoadingState = Math.min(Math.max(0, loadingState), 2) as LoadingState;
+export const LoadingGif = ({
+  size = { w: 100, h: 100 },
+  backgroundColor = "#fff",
+  imageG
+}: {
+  size?: { w: number, h: number };
+  backgroundColor?: string;
+  imageG?: ImageSourcePropType
+}) => {
 
   return (
-    <View style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor
-    }}>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor }}>
       <FastImage
-        style={{ width: size, height: size }}
-        source={loadingGifs[safeLoadingState]}
+        style={{ width: size.w, height: size.h }}
+        source={imageG ?? resourceMap.loading1}
       />
     </View>
   );

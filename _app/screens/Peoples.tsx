@@ -4,7 +4,7 @@ import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { View, Text, Pressable, ScrollView, Alert, ImageBackground, TouchableOpacity, StyleSheet, Image, Modal } from 'react-native';
 import { Loaderx, LoadingGif, FullScreenImageModal } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer, colors } from '../funcs/static';
+import { styles, namer, colors, resourceMap } from '../funcs/static';
 import { Screen_editpreference } from './PreferenceEdit';
 import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, preloadImages, screenHeight, screenWidth } from '../funcs/functions';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -431,7 +431,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
     ].filter((item) => item.value);
 
     if (getPeopleToMatch === null) {
-        return <LoadingGif loadingState={0} />
+        return <LoadingGif imageG={resourceMap.loading2} />
     }
     return (
         <View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight }]}>
