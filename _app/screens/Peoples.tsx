@@ -431,7 +431,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
     ].filter((item) => item.value);
 
     if (getPeopleToMatch === null) {
-        return <LoadingGif imageG={resourceMap.loading2} />
+        return <LoadingGif imageG={resourceMap.loading2} size={{ w: 200, h: 200 }} />
     }
     return (
         <View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight }]}>

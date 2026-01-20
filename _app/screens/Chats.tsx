@@ -22,7 +22,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
   const [activeFilter, setActiveFilter] = useState<'all' | 'yourTurn' | 'verified' | 'unread'>('all');
   const [visibleMessages, setVisibleMessages] = useState<number>(6);
-  const MESSAGE_PAGE_SIZE = 10;
+  const CHATS_PAGE_SIZE = 5;
   const hasLikes = getCountLikes > 0;
   const hasNewMatches = Array.isArray(getNewMatches) && getNewMatches.length > 0;
   const hasConnections = hasLikes || hasNewMatches;
@@ -58,8 +58,8 @@ export function Screen_chat({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     setVisibleMessages((prev) => {
-      const next = Math.min(prev, (filteredMessages ?? []).length || MESSAGE_PAGE_SIZE);
-      return next || MESSAGE_PAGE_SIZE;
+      const next = Math.min(prev, (filteredMessages ?? []).length || CHATS_PAGE_SIZE);
+      return next || CHATS_PAGE_SIZE;
     });
   }, [filteredMessages]);
 
@@ -342,7 +342,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   }, []));
 
   if (getNewMatches === null) {
-    return <LoadingGif  />
+    return <LoadingGif />
   }
 
   return (
@@ -365,7 +365,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           setTimeout(() => {
             setVisibleMessages((prev) => {
               if (prev >= filteredMessages.length) return prev;
-              return Math.min(prev + MESSAGE_PAGE_SIZE, filteredMessages.length || prev + MESSAGE_PAGE_SIZE);
+              return Math.min(prev + CHATS_PAGE_SIZE, filteredMessages.length || prev + CHATS_PAGE_SIZE);
             });
           }, 1000);
         }}
