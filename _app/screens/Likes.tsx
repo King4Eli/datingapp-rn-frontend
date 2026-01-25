@@ -181,7 +181,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, []));
 
     if (getNewLikes === null) {
-        return <LoadingGif   />;
+        return <LoadingGif />;
     }
 
     return (
@@ -237,21 +237,20 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         </View>}
                         renderItem={({ item, index }) => (
                             <View style={{ width: layout.itemWidth, marginRight: (index % layout.numColumns) < (layout.numColumns - 1) ? 12 : 0 }}>
-                                <Pressable
-                                    style={[stylesoy.card, { width: '100%', height: layout.itemHeight, }]}
+                                <Pressable style={[stylesoy.card, { width: '100%', height: layout.itemHeight, position: "relative" }]}
                                     onPress={() => {
                                         navigation.push(
                                             activeSubscription ? namer.navigation.peoplesOnePerson : namer.navigation.subscription, {
                                             getOnePersonId: item?.likedUserId,
                                             likedMatchedId: item?.likedMatchedId
                                         });
-                                    }}
-                                >
+                                    }}>
                                     <View style={{ flex: 1, }}>
                                         <View style={{ flex: 1 }}>
                                             <FastImage style={stylesoy.image}
                                                 source={{ cache: FastImage.cacheControl.immutable, uri: __MAPPER?.img_domain[0] + item?.likedUserImages?.p }} />
                                             {!activeSubscription && <BlurView
+                                                pointerEvents="none"
                                                 style={StyleSheet.absoluteFill}
                                                 blurType="light"
                                                 blurAmount={15}
@@ -261,13 +260,13 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                         <View style={stylesoy.topChips}>
                                             {isSuperlike(item) && (
                                                 <View style={[stylesoy.pill, { backgroundColor: '#e11d48', opacity: 0.9 }]}>
-                                                    <IIcon name="diamond" size={18} color="#fff" />
+                                                    <IIcon name="diamond" size={17} color="#fff" />
                                                     <Text style={[stylesoy.pillText, { color: '#fff' }]}>Super Like</Text>
                                                 </View>
                                             )}
                                             {item?.verified && (
                                                 <View style={[stylesoy.pill, { borderRadius: 15, paddingHorizontal: 3, paddingVertical: 3 }]}>
-                                                    <IIcon name="checkmark-done-circle-sharp" size={18} color="#6e89ffff" style={{ backgroundColor: "#fff", borderRadius: 15 }} />
+                                                    <IIcon name="checkmark-done-circle-sharp" size={20} color="rgb(100, 128, 254)" style={{ backgroundColor: "#fff", borderRadius: 15 }} />
                                                 </View>
                                             )}
                                             {item?.distance && (
@@ -278,7 +277,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                             )}
                                         </View>
                                         <View style={stylesoy.infoContainer}>
-                                            <Text style={stylesoy.name}>{item?.likedUserFullname}, {help.getageFromDOB(item?.likedUserDob)}</Text>
+                                            <Text style={stylesoy.name}>{item?.likedUserFullname[0] + '*'.repeat(Math.max(0, item?.likedUserFullname?.length - 1))},  {help.getageFromDOB(item?.likedUserDob)}</Text>
                                         </View>
                                     </View>
                                 </Pressable>
@@ -301,20 +300,13 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                     />
 
                     {!activeSubscription && <View style={{ position: "absolute", bottom: 24, left: 0, right: 0, alignItems: "center" }}>
-                        <Animated.View
-                            style={{
-                                transform: [{ translateY: bounceInterpolatex }],
-                            }}
-                        ><Pressable
+                        <Animated.View style={{ transform: [{ translateY: bounceInterpolatex }] }}><Pressable
                             style={[styles.pressableButton, { flexDirection: "row", borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 6 }]}
-                            onPress={() =>
-                                navigation.push(namer.navigation.coin)
-                            }>
-                                <MaterialCommunityIcons name="heart-outline" size={24} color="#fff" />
+                            onPress={() => navigation.push(namer.navigation.coin)}>
+                            <MaterialCommunityIcons name="heart-outline" size={24} color="#fff" />
 
-                                <Text style={styles.pressableButtonText}>See who likes you</Text>
-                            </Pressable>
-                        </Animated.View>
+                            <Text style={styles.pressableButtonText}>See who likes you</Text>
+                        </Pressable></Animated.View>
                     </View>}
 
                 </>
@@ -361,7 +353,6 @@ const stylesoy = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: 'rgba(0,0,0,0.55)',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
@@ -380,7 +371,7 @@ const stylesoy = StyleSheet.create({
         padding: 10,
     },
     name: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '700',
         color: '#fff',
         marginBottom: 4,

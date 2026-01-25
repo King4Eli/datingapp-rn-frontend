@@ -199,7 +199,7 @@ export const logReport = async ({ type, extra, useraction, url, logMessage, stac
   try {
     const logD = {
       "type": type,
-      "error": {
+      "_error": {
         "url": url,
         "description": logMessage,
         "extras": extra,
@@ -241,7 +241,7 @@ export const logReport = async ({ type, extra, useraction, url, logMessage, stac
       });
     } catch (e: any) {
       console.log("logReport fetch error:", e.message);
-      logD.error.extras += " |||| logReport fetch error: " + e.message;
+      logD._error.extras += " |||| logReport fetch error: " + e.message;
       saveLogToLocal(JSON.stringify(logD));
     }
   } catch (error: any) {
