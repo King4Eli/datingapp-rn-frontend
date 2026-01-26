@@ -409,19 +409,19 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
     const highlightFields = !currentPerson ? [] : [
         { icon: <IIcon name="location-outline" size={18} color="#0ea5e9" />, value: currentPerson?.user_location?.city },
         { icon: <MIcon name="ruler" size={18} color="#0ea5e9" />, value: currentPerson?.user_bio_height ? help.cmToFtIn(currentPerson?.user_bio_height) : null },
-        { icon: <IIcon name="heart-circle-outline" size={18} color="#0ea5e9" />, value: currentPerson?.bio_intent },
-        { icon: <MIcon name="flag-outline" size={18} color="#0ea5e9" />, value: currentPerson?.bio_ethnicity },
+        { icon: <IIcon name="heart-circle-outline" size={18} color="#0ea5e9" />, value: __MAPPER?.bio_intent?.[currentPerson?.user_bio_relationshipgoal] },
+        { icon: <MIcon name="flag-outline" size={18} color="#0ea5e9" />, value: currentPerson?.user_bio_ethnicity },
     ].filter((item) => item.value);
 
     const detailFields = !currentPerson ? [] : [
-        { icon: <MIcon name="candle" size={22} color="#0ea5e9" />, value: currentPerson?.bio_religion },
-        { icon: <IIcon name="barbell-outline" size={22} color="#0ea5e9" />, value: currentPerson?.bio_bodytype },
-        { icon: <MIcon name="baby-carriage" size={22} color="#0ea5e9" />, value: currentPerson?.bio_children },
-        { icon: <IIcon name="wine-outline" size={22} color="#0ea5e9" />, value: currentPerson?.bio_drinking },
-        { icon: <MIcon name="smoking" size={22} color="#0ea5e9" />, value: currentPerson?.bio_smoking },
-        { icon: <IIcon name="transgender-outline" size={22} color="#fe6fa6" />, value: currentPerson?.bio_gender },
-        { icon: <MIcon name="gavel" size={22} color="#0ea5e9" />, value: currentPerson?.bio_politicalview },
-        { icon: <MIcon name="dog-side" size={18} color="#0ea5e9" />, value: currentPerson?.bio_haspet },
+        { icon: <MIcon name="candle" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_religion?.[currentPerson?.user_bio_religion] },
+        { icon: <IIcon name="barbell-outline" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_bodytype?.[currentPerson?.user_bio_bodytype] },
+        { icon: <MIcon name="baby-carriage" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_children?.[currentPerson?.user_bio_children] },
+        { icon: <IIcon name="wine-outline" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_drinking?.[currentPerson?.user_bio_drinking] },
+        { icon: <MIcon name="smoking" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_smoking?.[currentPerson?.user_bio_smoking] },
+        { icon: <IIcon name="transgender-outline" size={22} color="#fe6fa6" />, value: __MAPPER?.bio_gender?.[currentPerson?.user_bio_gender] },
+        { icon: <MIcon name="gavel" size={22} color="#0ea5e9" />, value: __MAPPER?.bio_politics?.[currentPerson?.user_bio_politicalview] },
+        { icon: <MIcon name="dog-side" size={18} color="#0ea5e9" />, value: __MAPPER?.bio_pets?.[currentPerson?.user_bio_haspet] },
     ].filter((item) => item.value);
 
     const writableFields = !currentPerson ? [] : [
@@ -502,7 +502,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                         {highlightFields.map((field, idx) => (
                                             <View key={idx} style={deckStyles.chip}>
                                                 {field.icon}
-                                                <Text style={deckStyles.chipText}> {field.value}</Text>
+                                                <Text style={deckStyles.chipText}>{field.value}</Text>
                                             </View>
                                         ))}
                                     </View>
@@ -519,7 +519,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                     {detailFields.map((field, idx) => (
                                         <View key={idx} style={deckStyles.detailItem}>
                                             {field.icon}
-                                            <Text style={deckStyles.detailText}>{field.value}</Text>
+                                            <Text style={[deckStyles.detailText, { textTransform: "capitalize", paddingRight: 1 }]}>{field.value}</Text>
                                         </View>
                                     ))}
                                 </View>

@@ -388,10 +388,10 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           );
         }}
         ListHeaderComponent={
-          <View style={{ gap: 12 }}>
+          <View style={{ gap: 10, paddingTop: 12 }}>
             {renderHeroSection()}
-            {filteredMessages.length > 0 && <Text style={{ fontSize: 17, fontWeight: '700', marginTop: 5, color: '#0f172a' }}>Chats</Text>}
             {renderConnectionsSection()}
+            {filteredMessages.length > 0 && <Text style={{ fontSize: 17, fontWeight: '700', }}>Conversations</Text>}
             {renderFiltersRow()}
           </View>
         }
@@ -405,7 +405,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           ) : null
         }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ gap: 15, paddingBottom: 20 }}
+        contentContainerStyle={{ gap: 6, paddingBottom: 20 }}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={5}

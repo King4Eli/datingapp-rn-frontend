@@ -170,7 +170,8 @@ const MainApp: React.FC = () => {
       <TabBottom.Screen name={namer.navigation.chat} component={Screen_chat}
         options={{
           headerTransparent: true,
-          tabBarIcon: () => <IIcon name="chatbubble-ellipses-outline" size={30} color="#4F8EF7" />
+          tabBarIcon: () => <IIcon name="chatbubble-ellipses-outline" size={30} color="#4F8EF7" />,
+          headerTitleAlign: 'center',
         }} />
       <TabBottom.Screen name={namer.navigation.peoples} component={Peoples_Screen}
         options={{
