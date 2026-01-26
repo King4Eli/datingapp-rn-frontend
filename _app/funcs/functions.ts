@@ -188,7 +188,7 @@ export const displsyNotification = async (title: string, body?: string) => {
 
 
 // Log function for debugging
-export const logReport = async ({ type, extra, useraction, url, logMessage, stackTrace, reporteduserId }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any, reporteduserId?: string }): Promise<void> => {
+export const logReport = ({ type, extra, useraction, url, logMessage, stackTrace, reporteduserId }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any, reporteduserId?: string }): void => {
   const saveLogToLocal = async (stringify: string) => {
     return;
     const aja = await AsyncStorage.getItem(namer.storage.applog) ?? "[]";
@@ -196,57 +196,61 @@ export const logReport = async ({ type, extra, useraction, url, logMessage, stac
     aju.push(stringify);
     await AsyncStorage.setItem(namer.storage.applog, aju);
   }
-  try {
-    const logD = {
-      "type": type,
-      "_error": {
-        "url": url,
-        "description": logMessage,
-        "extras": extra,
-        "stackMessage": stackTrace,
-      },
-      "device": llStorage.deviceSpec.get(),
-      "user": {
-        "reporteduser": reporteduserId,
-        "useraction": useraction,
-      },
-      "app": {
-        "version_app": DeviceInfo.getVersion(),
-        "version_bundle": appjson.appversion,
-        "buildNumber_app": DeviceInfo.getBuildNumber(),
-        "buildNumber_bundle": appjson.bundlebuildnumber,
-        "displayName_app": DeviceInfo.getApplicationName(),
-        "displayName_bundle": appjson.name,
-        "appPackageName": DeviceInfo.getBundleId(),
-        "appVersionName": DeviceInfo.getReadableVersion(),
-        "FirstInstallTime": await DeviceInfo.getFirstInstallTime(),
-        "LastUpdateTime": await DeviceInfo.getLastUpdateTime(),
-      },
-    }
 
+  (async () => {
     try {
-      console.log("logReport:", logD);
-      const res = await fetch(hostServer() + '/api/core/v1/pushLogReport', {
-        method: 'POST', // Explicitly set method
-        headers: {
-          'Content-Type': 'application/json', // Specify content type
-          'Accept': 'application/json', // Specify accepted response type
-          'X-omi-Auth': sessionManager.getCurrentSession()?.x_omi_payload ?? '',
-          'X-omi-Hash': sessionManager.getCurrentSession()?.x_omi_payload_hash ?? ''
+      const logD = {
+        "type": type,
+        "_error": {
+          "url": url,
+          "description": logMessage,
+          "extras": extra,
+          "stackMessage": stackTrace,
         },
-        body: JSON.stringify({ // Properly stringify the entire body
-          action: 'generateLogStats',
-          scripts: JSON.stringify(logD) // No need to stringify logD twice
-        })
-      });
-    } catch (e: any) {
-      console.log("logReport fetch error:", e.message);
-      logD._error.extras += " |||| logReport fetch error: " + e.message;
-      saveLogToLocal(JSON.stringify(logD));
+        "device": llStorage.deviceSpec.get(),
+        "user": {
+          "reporteduser": reporteduserId,
+          "useraction": useraction,
+        },
+        "app": {
+          "version_app": DeviceInfo.getVersion(),
+          "version_bundle": appjson.appversion,
+          "buildNumber_app": DeviceInfo.getBuildNumber(),
+          "buildNumber_bundle": appjson.bundlebuildnumber,
+          "displayName_app": DeviceInfo.getApplicationName(),
+          "displayName_bundle": appjson.name,
+          "appPackageName": DeviceInfo.getBundleId(),
+          "appVersionName": DeviceInfo.getReadableVersion(),
+          "FirstInstallTime": await DeviceInfo.getFirstInstallTime(),
+          "LastUpdateTime": await DeviceInfo.getLastUpdateTime(),
+        },
+      }
+
+      try {
+        console.log("logReport:", logD);
+        const res = await fetch(hostServer() + '/api/core/v1/pushLogReport', {
+          method: 'POST', // Explicitly set method
+          headers: {
+            'Content-Type': 'application/json', // Specify content type
+            'Accept': 'application/json', // Specify accepted response type
+            'X-omi-Auth': sessionManager.getCurrentSession()?.x_omi_payload ?? '',
+            'X-omi-Hash': sessionManager.getCurrentSession()?.x_omi_payload_hash ?? ''
+          },
+          body: JSON.stringify({ // Properly stringify the entire body
+            action: 'generateLogStats',
+            scripts: JSON.stringify(logD) // No need to stringify logD twice
+          })
+        });
+      } catch (e: any) {
+        console.log("logReport fetch error:", e.message);
+        logD._error.extras += " |||| logReport fetch error: " + e.message;
+        saveLogToLocal(JSON.stringify(logD));
+      }
+    } catch (error: any) {
+      console.error("logReport: fetching device info", error.message);
     }
-  } catch (error: any) {
-    console.error("logReport: fetching device info", error.message);
-  }
+  })();
+
 };
 
 

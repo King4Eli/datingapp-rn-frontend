@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { _http_request, hostServer, llStorage } from '../funcs/functions';
+import { _http_request, hostServer, llStorage, logReport } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 
 type CoinPack = {
@@ -95,7 +95,12 @@ export const Screen_Coin = ({ navigation }: { navigation: any }) => {
     }).catch((error: any) => {
       Loaderx.hide();
       Alert.alert('Error', 'Network error. Please try again.');
-      console.error('Payment error:', error);
+      logReport({
+        type: 'http',
+        useraction: 'coin purchase',
+        logMessage: 'Network error during coin purchase',
+        stackTrace: error
+      });
     });
   };
 

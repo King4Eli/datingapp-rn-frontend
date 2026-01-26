@@ -213,7 +213,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
             setIsRecording(true);
         } catch (error: any) {
-            console.log('Error starting recorder:', error);
+            logReport({
+                type: "function",
+                useraction: "startVoiceNote",
+                logMessage: 'Error starting recorder:',
+                stackTrace: error
+            });
             // Clean up on error
             Sound.removeRecordBackListener();
             setIsRecording(false);
@@ -268,8 +273,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 setRecordingMs(0);
             }
         } catch (error: any) {
-            console.log('Error stopping recorder:', error);
-
+            logReport({
+                type: "function",
+                useraction: "stopVoiceNote",
+                logMessage: 'Error stopping recorder:',
+                stackTrace: error
+            });
             // Handle specific error cases
             if (error?.message?.includes('Recorder not started') ||
                 error?.message?.includes('path is unavailable')) {
@@ -430,7 +439,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     };
 
     const requestPresignedUpload = async (filepath: string, contentType: string) => {
-        console.log("zzzzzzzz", `${img_domain}/api/generate-upload-url`)
         const data = await _http_request({
             customApiUrl: `${img_domain}/api/generate-upload-url`,
             reqType: 'POST',
@@ -444,7 +452,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         }
         return data;
     };
-    console.log(getUser2Deets)
+
     const uploadWithPresigned = async (descriptor: UploadDescriptor): Promise<UploadedMedia> => {
         // Fix content type for Android audio files
         let contentType = descriptor.type;
@@ -453,9 +461,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         if (descriptor.mediaType === 'audio' && descriptor.name.endsWith('.mp4')) {
             contentType = 'audio/mp4'; // or 'audio/aac'
         }
-        console.log("aaaaaaa")
+        //console.log("aaaaaaa")
         const presigned = await requestPresignedUpload(descriptor.targetPath, contentType);
-        console.log("bbbbbbb", presigned.url)
+        //console.log("bbbbbbb", presigned.url)
         // Create FormData
         const formData = new FormData();
 
@@ -483,7 +491,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
             const encodedPath = encodeFilePath(descriptor.targetPath);
 
-            console.log("cccccccc")
+            //console.log("cccccccc")
             return {
                 mediaType: descriptor.mediaType,
                 src: {
@@ -517,7 +525,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     matchID: funt.matchId,
                 }
             }).then((response) => {
-                //console.log(response)
                 if (response?.code === 200) {
                     setConversations(response?.chatsMessageListings?.reverse() ?? getConversations);
                     setUser2Deets(response?.u2deets ?? getUser2Deets);
@@ -525,6 +532,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     convoHelper.matchId.set(funt.matchId);
                 } else if (response !== null) {
                     Alert.alert('Error!', response?.message);
+                    logReport({
+                        type: "http code-" + response.code,
+                        useraction: "getConversation",
+                        logMessage: response?.message ?? 'Failed to fetch conversation',
+                        stackTrace: response
+                    });
                 }
             }).finally(() => {
                 setTimeout(() => {
@@ -584,7 +597,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             Sound.removePlayBackListener();
             Sound.removePlaybackEndListener();
         } catch (error) {
-            console.log('Error in safeStopAllAudio:', error);
+            logReport({
+                type: "function",
+                useraction: "safeStopAllAudio",
+                logMessage: 'Error in safeStopAllAudio: Failed to stop audio',
+                stackTrace: error
+            })
         }
     };
 
@@ -605,7 +623,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 await Sound.pausePlayer();
                 setAudioPlayback(prev => ({ ...prev, isPlaying: false }));
             } catch (error) {
-                console.log('Error pausing player:', error);
+                logReport({
+                    type: "function",
+                    useraction: "handleAudioPress",
+                    logMessage: 'Error pausing player',
+                    stackTrace: error
+                });
                 setAudioPlayback({ id: null, position: 0, duration: 0, isPlaying: false });
             }
             return;
@@ -642,7 +665,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             });
 
         } catch (error) {
-            console.log('Error playing audio:', error);
+            logReport({
+                type: "function",
+                useraction: "handleAudioPress",
+                logMessage: "Error playing audio",
+                stackTrace: error
+            });
             Toastx.show({
                 message: 'Unable to play audio',
                 type: 'error'
@@ -667,10 +695,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <Pressable
                     style={{ padding: 4 }}
                     onPress={() => {
-                        // open voice call screen or function
-                        console.log("voice call");
-                    }}
-                >
+                        Toastx.show({ message: "voice call coming soon", type: "success" });
+                    }} >
                     <IonIcon name="call-outline" size={25} color="#4F8EF7" />
                 </Pressable>
 
@@ -678,10 +704,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <Pressable
                     style={{ padding: 4 }}
                     onPress={() => {
-                        // open video call screen or function
-                        console.log("video call");
-                    }}
-                >
+                        Toastx.show({ message: "Video call coming soon", type: "success" });
+                    }} >
                     <IonIcon name="videocam-outline" size={26} color="#4F8EF7" />
                 </Pressable>
 
@@ -765,14 +789,20 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         let uploadedMedia: UploadedMedia[] = [];
         try {
             for (const descriptor of uploadDescriptors) {
-                console.log("111111")
+                //console.log("111111")
                 const aa = await uploadWithPresigned(descriptor);
-                console.log("222222")
+                //console.log("222222")
                 uploadedMedia.push(aa);
             }
         } catch (error) {
             Toastx.show({ message: 'Unable to upload media. Please try again.', type: 'error' });
-            console.log("j,", error);
+            logReport({
+                type: "function",
+                useraction: "uploadWithPresigned",
+                logMessage: "Unknown error during uploadWithPresigned",
+                stackTrace: error
+            });
+
             setConvoSendingstatus(null);
             setIsUploadingMedia(false);
             return;
@@ -884,7 +914,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 setConvoSendingstatus(null);
             }
         } catch (error) {
-            //console.error('Send message error:', error);
+            logReport({
+                type: "function",
+                useraction: "sendMessage",
+                logMessage: 'Send message error: ',
+                stackTrace: error
+            });
             // Remove optimistic update on error
             setConversations((prev) => prev.filter(msg =>
                 !outgoingMessages.some(out => out.messageId === msg.messageId)
@@ -994,7 +1029,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                 let imgPath = img?.p;
                                 if (!funt.isLocalFile(img)) {
                                     imgPath = (img_server + img?.p) || img?.p;
-                                    //console.log(imgPath)
                                 }
 
                                 return (
@@ -1021,7 +1055,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const pendingTimeLabel = (pendingPlayback && pendingLabels.durationLabel)
         ? `${pendingLabels.posLabel} / ${pendingLabels.durationLabel}`
         : pendingLabels.posLabel;
-    console.log(img_server + getUser2Deets?.image?.p)
+
     return (<>
         <View style={[styles.container, {}]}>
 
@@ -1204,7 +1238,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
                     <View style={[styles.conversation_textInputContainer, { marginVertical: 5 }]}>
                         <TouchableOpacity onPress={async () => {
-                            //console.log(CONFIG.imgSelectUploadLimit - (getInputImageVideo.length || 0))
                             const hs = await mediaHandler.handleSelectFromGallery({
                                 mediaType: 'photo',
                                 includeBase64: false,
@@ -1221,7 +1254,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                         const incoming = (hs || []).filter(
                                             item => !prev.some(p => p.uri === item.uri)
                                         );
-                                        //console.log(incoming);
                                         return [...prev, ...incoming].slice(0, CONFIG.imgSelectUploadLimit);
                                     });
                                 }

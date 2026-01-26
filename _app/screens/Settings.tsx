@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, namer, styles } from '../funcs/static';
-import { __init__app, _http_request, hostServer, llStorage } from '../funcs/functions';
+import { __init__app, _http_request, hostServer, llStorage, logReport } from '../funcs/functions';
 import appJson from '../../app.json';
 import RNRestart from 'react-native-restart';
 import DeviceInfo from 'react-native-device-info';
@@ -390,6 +390,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   }
                 } catch (err) {
                   setError("Network error. Please try again.");
+                  logReport({
+                    type: "function",
+                    useraction: "pushNewEmail",
+                    logMessage: "Network error during email change",
+                    stackTrace: err
+                  });
                 } finally {
                   setIsLoading(false);
                 }
@@ -460,6 +466,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   }
                 } catch (err) {
                   Toastx.show({ type: "error", message: "Failed to resend code" });
+                  logReport({
+                    type: "function",
+                    useraction: "resendEmailVerificationCode",
+                    logMessage: "Failed to resend email verification code",
+                    stackTrace: err
+                  });
                 } finally {
                   setIsLoading(false);
                 }
@@ -515,6 +527,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     }
                   } catch (err) {
                     setError("Network error. Please try again.");
+                    logReport({
+                      type: "function",
+                      useraction: "updateEmail",
+                      logMessage: "Network error during email update",
+                      stackTrace: err
+                    });
                   } finally {
                     setIsLoading(false);
                   }
@@ -649,6 +667,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   }
                 } catch (err) {
                   setError("Network error. Please try again.");
+                  logReport({
+                    type: "function",
+                    useraction: "pushNewPhonenumber",
+                    logMessage: "Network error during phone number change",
+                    stackTrace: err
+                  });
                 } finally {
                   setIsLoading(false);
                 }
@@ -720,6 +744,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   }
                 } catch (err) {
                   Toastx.show({ type: "error", message: "Failed to resend code" });
+                  logReport({
+                    type: "function",
+                    useraction: "resendPhoneVerificationCode",
+                    logMessage: "Failed to resend phone verification code",
+                    stackTrace: err
+                  });
                 } finally {
                   setIsLoading(false);
                 }
@@ -776,6 +806,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     }
                   } catch (err) {
                     setError("Network error. Please try again.");
+                    logReport({
+                      type: "function",
+                      useraction: "updatePhone",
+                      logMessage: "Network error during phone update",
+                      stackTrace: err
+                    });
                   } finally {
                     setIsLoading(false);
                   }

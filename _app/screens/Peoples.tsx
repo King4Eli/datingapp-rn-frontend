@@ -178,18 +178,19 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                 useraction: "snitch",
                                 logMessage: finalReason,
                                 reporteduserId: getPeopleToMatch?.[0]?.user_id
-                            }).then(() => {
-                                peoples_action("report", 4).then(() => {
-
-                                    bottomSheetRef_reportUser.current?.close();
-                                    Toastx.show({
-                                        type: "success",
-                                        message: reportedUserName + " has been reported!"
-                                    });
-                                    Loaderx.hide();
-                                    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-                                });
                             });
+                            //then 
+                            peoples_action("report", 4).then(() => {
+
+                                bottomSheetRef_reportUser.current?.close();
+                                Toastx.show({
+                                    type: "success",
+                                    message: reportedUserName + " has been reported!"
+                                });
+                                Loaderx.hide();
+                                scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                            });
+
                         } else {
                             Toastx.show({ type: 'info', message: 'Please select a reason to report.' });
                         }
@@ -353,7 +354,6 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                             }
                         }
                         // if its a match
-                        console.log(response) ;
                         if (response?.itisamatch) {
                             setShowItsAMatchModal(true);
                             return;
@@ -666,26 +666,24 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                             </View>
                         </View>
 
-                        <Pressable style={matchStyles.primaryBtn}
-                            onPress={() => {
-                                if (functs.onePersonProfile) {
-                                    navigation.popToTop();
-                                }
-                                const matchId = getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
-                                setShowItsAMatchModal(false);
-                                navigation.push(namer.navigation.conversation, { matchId });
-                            }} >
+                        <Pressable style={matchStyles.primaryBtn} onPress={() => {
+                            if (functs.onePersonProfile) {
+                                navigation.popToTop();
+                            }
+                            const matchId = getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
+                            setShowItsAMatchModal(false);
+                            navigation.push(namer.navigation.conversation, { matchId });
+                        }} >
                             <Text style={matchStyles.primaryBtnText}>Start conversation</Text>
                         </Pressable>
-                        <Pressable style={matchStyles.secondaryBtn}
-                            onPress={() => {
-                                setShowItsAMatchModal(false);
-                                if (!functs.onePersonProfile) {
-                                    functs.refreshPeoples();
-                                } else {
-                                    navigation.popToTop();
-                                }
-                            }} >
+                        <Pressable style={matchStyles.secondaryBtn} onPress={() => {
+                            setShowItsAMatchModal(false);
+                            if (!functs.onePersonProfile) {
+                                functs.refreshPeoples();
+                            } else {
+                                navigation.popToTop();
+                            }
+                        }} >
                             <Text style={matchStyles.secondaryBtnText}>Continue swiping</Text>
                         </Pressable>
                     </View>

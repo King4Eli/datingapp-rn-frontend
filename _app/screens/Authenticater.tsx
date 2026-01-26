@@ -1186,7 +1186,6 @@ export const Auth_InputPhoneNumberPage = () => {
         ref={carouselRef1}
         pages={currentPageToShow}
         onPageChange={(index) => {
-          console.log('Current page:', index);
           setProgressStep(index + 1);
           animatePageChange();
         }}
