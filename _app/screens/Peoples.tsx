@@ -353,9 +353,17 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                             }
                         }
                         // if its a match
-                        if (response?.zismatch === 1) {
+                        console.log(response) ;
+                        if (response?.itisamatch) {
                             setShowItsAMatchModal(true);
                             return;
+                        }
+
+                        // 
+                        if ((getPeopleToMatch?.length ?? 0) <= 2 && !functs.onePersonProfile) {// Refresh the people to match list if there are only 2 or fewer left after the action
+                            setPeopleToMatch(null);
+                            sptmd((prev: boolean) => !prev);
+                            console.log("refresh from server...");
                         }
 
                         if (!functs.onePersonProfile) {
@@ -364,11 +372,6 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                         }
 
                     }).finally(() => {
-                        if ((getPeopleToMatch?.length ?? 0) <= 2 && !functs.onePersonProfile) {// Refresh the people to match list if there are only 2 or fewer left after the action
-                            setPeopleToMatch(null);
-                            sptmd((prev: boolean) => !prev);
-                            console.log("refresh from server...");
-                        }
                         scrollViewRef.current?.scrollTo({ y: 0, animated: true });// Scroll to the top of the scroll view after action
                     });
                     break;
@@ -644,8 +647,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                     if (functs.onePersonProfile) {
                         navigation.popToTop();
                     }
-                }}
-            >
+                }} >
                 <View style={matchStyles.backdrop}>
                     <View style={matchStyles.card}>
                         <View style={styles.zcircle1} />
@@ -664,8 +666,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                             </View>
                         </View>
 
-                        <Pressable
-                            style={matchStyles.primaryBtn}
+                        <Pressable style={matchStyles.primaryBtn}
                             onPress={() => {
                                 if (functs.onePersonProfile) {
                                     navigation.popToTop();
@@ -673,12 +674,10 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                 const matchId = getPeopleToMatch?.[0]?.match_id || functs.likedMatchId;
                                 setShowItsAMatchModal(false);
                                 navigation.push(namer.navigation.conversation, { matchId });
-                            }}
-                        >
+                            }} >
                             <Text style={matchStyles.primaryBtnText}>Start conversation</Text>
                         </Pressable>
-                        <Pressable
-                            style={matchStyles.secondaryBtn}
+                        <Pressable style={matchStyles.secondaryBtn}
                             onPress={() => {
                                 setShowItsAMatchModal(false);
                                 if (!functs.onePersonProfile) {
@@ -686,8 +685,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                 } else {
                                     navigation.popToTop();
                                 }
-                            }}
-                        >
+                            }} >
                             <Text style={matchStyles.secondaryBtnText}>Continue swiping</Text>
                         </Pressable>
                     </View>
@@ -697,7 +695,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
             <CBottomSheet ref={bottomSheetRef_secondview}>
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10 }}>
                     <Text style={styles.title}>Previously Skipped Profiles</Text>
-                    <View style={{ gap: 15 }}>
+                    <View style={{ gap: 10 }}>
                         {getSkippedPeoples.length === 0 ? (<Text style={{ fontSize: 15, textAlign: "center", marginTop: 20 }}>You have not skipped any profiles yet.</Text>) : (getSkippedPeoples.map((skippedPerson, index) => (
                             <View key={index} style={[styles.card]}>
                                 <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
