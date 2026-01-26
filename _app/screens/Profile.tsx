@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useRef, useMemo } from 'react';
+import React, { useState, useLayoutEffect, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LoadingGif } from '../funcs/functions_stateful';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -205,7 +205,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
 
     if (getProfile === null) {
-        return <LoadingGif  />
+        return <LoadingGif />
     }
 
     return (
@@ -300,35 +300,35 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                             const isLocked = activeSubscription && userCurrentTier === tierKey;
                             const isActive = activeSubscription && userCurrentTier === tierKey;
                             const color = [['#000000', '#00000080'], ['#FF9E00', '#FF9E0080']]
-                            const icon = ["diamond-outline","crown-outline"]
-                            
-                            return ( 
-                                    <LinearGradient key={key}
-                                        colors={color[key]}
-                                        style={stylesx.featureCard}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}>
-                                        <View style={{ padding: 16 }}>
-                                            <View style={stylesx.cardHeader}>
-                                                <Text style={stylesx.cardTitle}>{tier.name}</Text>
-                                                <MIcon name={icon[key]} size={20} color="#fff" />
-                                            </View>
+                            const icon = ["diamond-outline", "crown-outline"]
 
-                                            <View style={stylesx.featuresList}>
-                                                {(sqlmapper?.payment_plan?.subscribe?.[1]?.features ?? []).map((feature: any, index: any) => (
-                                                    <View key={index} style={stylesx.featureItem}>
-                                                        <IIcon name="checkmark-circle" size={16} color="#fff" />
-                                                        <Text style={stylesx.featureText}>{feature}</Text>
-                                                    </View>
-                                                ))}
-                                            </View>
-
-                                            <TouchableOpacity style={stylesx.upgradeButton}
-                                                onPress={() => navigation.push(namer.navigation.subscription)} >
-                                                <Text style={stylesx.upgradeButtonText}>Upgrade</Text>
-                                            </TouchableOpacity>
+                            return (
+                                <LinearGradient key={key}
+                                    colors={color[key]}
+                                    style={stylesx.featureCard}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}>
+                                    <View style={{ padding: 16 }}>
+                                        <View style={stylesx.cardHeader}>
+                                            <Text style={stylesx.cardTitle}>{tier.name}</Text>
+                                            <MIcon name={icon[key]} size={20} color="#fff" />
                                         </View>
-                                    </LinearGradient> 
+
+                                        <View style={stylesx.featuresList}>
+                                            {(sqlmapper?.payment_plan?.subscribe?.[1]?.features ?? []).map((feature: any, index: any) => (
+                                                <View key={index} style={stylesx.featureItem}>
+                                                    <IIcon name="checkmark-circle" size={16} color="#fff" />
+                                                    <Text style={stylesx.featureText}>{feature}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+
+                                        <TouchableOpacity style={stylesx.upgradeButton}
+                                            onPress={() => navigation.push(namer.navigation.subscription)} >
+                                            <Text style={stylesx.upgradeButtonText}>Upgrade</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </LinearGradient>
 
                             )
                         })}

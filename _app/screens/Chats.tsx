@@ -25,7 +25,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const CHATS_PAGE_SIZE = 5;
   const hasLikes = getCountLikes > 0;
   const hasNewMatches = Array.isArray(getNewMatches) && getNewMatches.length > 0;
-  const hasConnections = hasLikes || hasNewMatches;
+
 
   const bounceAnim = new Animated.Value(0);
   const bounceInterpolate = bounceAnim.interpolate({
@@ -38,7 +38,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   }, [getEngagedMessages]);
 
   const verifiedMatchesCount = useMemo(() => {
-    return (getEngagedMessages ?? []).filter((item: any) => item?.user_verfied === 1).length;
+    return (getEngagedMessages ?? []).filter((item: any) => item?.user_verfied).length;
   }, [getEngagedMessages]);
 
   const filteredMessages = useMemo(() => {
@@ -47,9 +47,9 @@ export function Screen_chat({ navigation }: { navigation: any }) {
       case 'yourTurn':
         return list.filter((item: any) => !item?.convo_from_me);
       case 'verified':
-        return list.filter((item: any) => item?.user_verfied === 1);
+        return list.filter((item: any) => item?.user_verified);
       case 'unread':
-        return list.filter((item: any) => !item?.convo_from_me && !item?.convo_is_read);
+        return list.filter((item: any) => !item?.last_message_read);
       case 'all':
       default:
         return list;
@@ -154,22 +154,12 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     </ScrollView>
   ), [activeFilter, filtersList]);
 
-  // Prepare data for FlatList sections
-  const flatListData = [
-    { type: 'hero', id: 'hero-section' },
-    ...(hasConnections ? [
-      { type: 'header', id: 'connections-header', title: 'New connections' },
-      { type: 'connections', id: 'connections-content', data: getNewMatches, countLikes: getCountLikes },
-      { type: 'header', id: 'messages-header', title: 'Chats' },
-    ] : []),
-    { type: 'filters', id: 'filters-row' },
-    { type: 'messages', id: 'messages-content', data: filteredMessages }
-  ];
+
 
   const renderConnectionsSection = useCallback(() => {
     const matches = hasNewMatches ? getNewMatches : [];
 
-    if (!hasLikes && !hasNewMatches) return null;
+    //if (!hasLikes && !hasNewMatches) return null;
     return (
       <View style={{ backgroundColor: '#fff', borderRadius: 16, gap: 10, }}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -226,7 +216,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     );
   }, [bounceInterpolate, getCountLikes, getNewMatches, getProfile]);
 
-  const renderMessagesSection = useCallback(() => {
+  const RenderMessages = useCallback(() => {
     if (filteredMessages.length === 0) {
       return <NoConversationsScreen />;
     }
@@ -236,19 +226,20 @@ export function Screen_chat({ navigation }: { navigation: any }) {
       <View style={{ gap: 12, marginBottom: 10 }}>
         {displayedMessages.map((item: any, index: any) => {
           const isYourTurn = !item?.convo_from_me;
-          const isVerified = item?.user_verfied === 1;
+          const isVerified = item?.user_verified;
           const lastMessage = () => {
             if (item?.user_lastmessage?.t === "text") {
               return <Text>{item?.user_lastmessage?.str}</Text>
             } else if (item?.user_lastmessage?.t === "image") {
-              return <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}><MIcon name="camera-outline" size={18} /><Text style={{ fontSize: 12, fontWeight: 600 }}>PHOTO</Text></View>
+              return <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}><MIcon name="camera-outline" size={18} />
+                <Text style={{ fontSize: 12 }}>PHOTO</Text></View>
             } else if (item?.user_lastmessage?.t === "audio") {
               return <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
                 <View style={{ flexDirection: "row" }}>
                   <MIcon name="waveform" size={22} />
                   <MIcon name="waveform" size={22} style={{ marginLeft: -8 }} />
                 </View>
-                <Text style={{ fontSize: 12, fontWeight: 600 }}>VOICE NOTE</Text></View>
+                <Text style={{ fontSize: 12, }}>VOICE NOTE</Text></View>
             } else {
               return <MIcon name="file-outline" size={20} />
             }
@@ -258,7 +249,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
             <Pressable key={`message-${item?.match_id}-${index}`} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
               <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
                 <FastImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: '#e2e8f0' }} source={{ uri: String(__MAPPER?.img_domain[0] + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }} />
-                <View style={{ flex: 1, gap: 6 }}>
+                <View style={{ flex: 1, gap: 5 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                       <Text style={{ fontSize: 16, fontWeight: '700', textTransform: 'capitalize', color: '#0f172a' }} numberOfLines={1}>{item?.user_fullname}</Text>
@@ -267,7 +258,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                     {item?.user_lastmessage_date && <Text style={{ fontSize: 11, color: '#64748b' }}>{help.timeAgo(item?.user_lastmessage_date)}</Text>}
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontSize: 13, color: '#475569', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">{lastMessage()}</Text>
+                    <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }} numberOfLines={1} ellipsizeMode="tail">{lastMessage()}</Text>
                     {isYourTurn && (
                       <View style={{ backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
                         <Text style={{ fontSize: 11, color: '#0369a1', fontWeight: '700' }}>Your turn</Text>
@@ -292,22 +283,6 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     );
   }, [filteredMessages, navigation, visibleMessages]);
 
-  const renderItem = useCallback(({ item }: { item: any }) => {
-    switch (item.type) {
-      case 'hero':
-        return renderHeroSection();
-      case 'header':
-        return (<Text style={{ fontSize: 17, fontWeight: '700', marginTop: item.id === 'messages-header' ? 5 : 0, color: '#0f172a' }}>{item.title}</Text>);
-      case 'filters':
-        return renderFiltersRow();
-      case 'connections':
-        return renderConnectionsSection();
-      case 'messages':
-        return renderMessagesSection();
-      default:
-        return null;
-    }
-  }, [renderConnectionsSection, renderFiltersRow, renderHeroSection, renderMessagesSection]);
 
   useFocusEffect(React.useCallback(() => {
     _http_request({
@@ -331,7 +306,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           return incoming;
         });
         setCountLikes((prev: number) => {
-          const incoming = response?.chatsListings?.countLkikes;
+          const incoming = response?.chatsListings?.countLikes;
           if (incoming === null || incoming === undefined || incoming === '') {
             return prev;
           }
@@ -345,6 +320,8 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     return <LoadingGif />
   }
 
+  // Replace the entire FlatList section (around line 290-330) with this:
+
   return (
     <View style={[styles.container, { paddingTop: headerHeight }]}>
       <View style={styles.zcircle1} />
@@ -352,20 +329,92 @@ export function Screen_chat({ navigation }: { navigation: any }) {
       <View style={styles.zcircle3} />
 
       <FlatList
-        data={flatListData}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+        data={filteredMessages.slice(0, visibleMessages)}
+        keyExtractor={(item, index) => `chat-${item?.match_id}-${index}`}
+        renderItem={({ item, index }) => {
+          const isYourTurn = !item?.convo_from_me;
+          const isVerified = item?.user_verified;
+          const lastMessage = () => {
+            if (item?.user_lastmessage?.t === "text") {
+              return <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }} numberOfLines={1} ellipsizeMode="tail">{item?.user_lastmessage?.str}</Text>
+            } else if (item?.user_lastmessage?.t === "image") {
+              return (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                  <MIcon name="camera-outline" size={18} color="#475569" />
+                  <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>PHOTO</Text>
+                </View>
+              )
+            } else if (item?.user_lastmessage?.t === "audio") {
+              return (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                  <View style={{ flexDirection: "row" }}>
+                    <MIcon name="waveform" size={22} color="#475569" />
+                    <MIcon name="waveform" size={22} color="#475569" style={{ marginLeft: -8 }} />
+                  </View>
+                  <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }}>VOICE NOTE</Text>
+                </View>
+              )
+            } else {
+              return <MIcon name="file-outline" size={20} color="#475569" />
+            }
+          };
+
+          return (
+            <Pressable key={`message-${item?.match_id}-${index}`} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+                <FastImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: '#e2e8f0' }} source={{ uri: String(__MAPPER?.img_domain[0] + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }} />
+                <View style={{ flex: 1, gap: 5 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', textTransform: 'capitalize', color: '#0f172a' }} numberOfLines={1}>{item?.user_fullname}</Text>
+                      {isVerified && <IIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" />}
+                    </View>
+                    {item?.user_lastmessage_date && <Text style={{ fontSize: 11, color: '#64748b' }}>{help.timeAgo(item?.user_lastmessage_date)}</Text>}
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    {lastMessage()}
+                    {isYourTurn && (
+                      <View style={{ backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                        <Text style={{ fontSize: 11, color: '#0369a1', fontWeight: '700' }}>Your turn</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {item?.user_distance && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#f8fafc' }}><Text style={{ color: '#475569', fontSize: 11 }}>{item.user_distance} away</Text></View>}
+                  </View>
+                </View>
+              </View>
+            </Pressable>
+          );
+        }}
+        ListHeaderComponent={
+          <View style={{ gap: 12 }}>
+            {renderHeroSection()}
+            {filteredMessages.length > 0 && <Text style={{ fontSize: 17, fontWeight: '700', marginTop: 5, color: '#0f172a' }}>Chats</Text>}
+            {renderConnectionsSection()}
+            {renderFiltersRow()}
+          </View>
+        }
+        ListEmptyComponent={<NoConversationsScreen />}
+        ListFooterComponent={
+          visibleMessages < filteredMessages.length ? (
+            <View style={{ alignItems: 'center', paddingVertical: 12, width: '100%' }}>
+              <ActivityIndicator size="small" color="#1d4ed8" />
+              <Text style={{ marginTop: 6, color: '#475569', fontSize: 12 }}>Loading more conversations...</Text>
+            </View>
+          ) : null
+        }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ gap: 15 }}
+        contentContainerStyle={{ gap: 15, paddingBottom: 20 }}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={5}
-        removeClippedSubviews={false} // Set to false for better performance with mixed content
+        removeClippedSubviews={false}
         onEndReached={() => {
           setTimeout(() => {
             setVisibleMessages((prev) => {
               if (prev >= filteredMessages.length) return prev;
-              return Math.min(prev + CHATS_PAGE_SIZE, filteredMessages.length || prev + CHATS_PAGE_SIZE);
+              return Math.min(prev + CHATS_PAGE_SIZE, filteredMessages.length);
             });
           }, 1000);
         }}
