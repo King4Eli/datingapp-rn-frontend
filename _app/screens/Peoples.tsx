@@ -15,6 +15,7 @@ import { LinearGradient } from 'react-native-linear-gradient';
 import { CBottomSheetRef, CBottomSheet } from '../funcs/customBottomSheet';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from 'react-native-fast-image';
+import LottieView from 'lottie-react-native';
 
 
 
@@ -434,7 +435,12 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
     ].filter((item) => item.value);
 
     if (getPeopleToMatch === null) {
-        return <LoadingGif imageG={resourceMap.loading2} size={{ w: 200, h: 200 }} />
+        return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><LottieView
+            source={resourceMap.lottie.pulsingLoading}
+            autoPlay
+            loop
+            style={{ width: 220, height: 220 }}
+        /></View>
     }
     return (
         <View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight }]}>
