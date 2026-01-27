@@ -26,7 +26,7 @@ import { SocketClient } from '../funcs/socket_realtimeData';
 import { AppState, Text, Vibration } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import QuickActions from 'react-native-quick-actions';
-import { InappNotification, Toastx } from '../funcs/customNotification';
+import { Toastx } from '../funcs/customNotification';
 import { Screen_social } from './Social';
 import { Screen_Coin } from './Coin';
 
@@ -129,11 +129,10 @@ const MainApp: React.FC = () => {
               const nmessage = (retrivedData?.payload?.firstName ?? "Someone") + " has messaged you";
               if (AppState.currentState === 'active') {
                 Vibration.vibrate(100);
-                InappNotification.show({
-                  message: <>
-                    <Text style={{ fontSize: 16, fontWeight: 600 }}>{nmessage}</Text>
-                    <Text>Tap to view message</Text>
-                  </>,
+                Toastx.show({
+                  title: nmessage,
+                  message: "Tap to view message",
+                  type: 'info',
                   onPress: () => {
                     if (navigationRef.isReady()) {
                       navigationRef.navigate(namer.navigation.conversation, { matchId: retrivedData?.matchId });
@@ -241,7 +240,6 @@ const App = () => (
       <Loaderx />
       <MainApp />
       <Toastx />
-      <InappNotification.NotificationComponent />
     </GestureHandlerRootView>
   </SafeAreaProvider>
 );

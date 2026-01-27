@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
 import { CBottomSheet, CBottomSheetRef } from '../funcs/customBottomSheet';
-import { InappNotification, Toastx } from '../funcs/customNotification';
+import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 
 
@@ -1017,16 +1017,14 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             {/* App Section */}
             <ModernSection title="App" icon="phone-portrait-outline">
               <ModernOption
-                icon="color-palette-outline"
-                title="Appearance"
-                subtitle="Light/Dark mode"
-                onPress={() => Toastx.show({ type: "info", message: "Theme settings coming soon!" })}
-              />
-              <ModernOption
                 icon="language-outline"
                 title="Language"
                 subtitle="English (US)"
-                onPress={() => Toastx.show({ type: "info", message: "Language settings coming soon!" })}
+                onPress={() => Toastx.show({
+                  type: "info",
+                  message: "Language settings coming soon!",
+                  position: "top",
+                })}
               />
             </ModernSection>
 
@@ -1056,31 +1054,28 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   }}
                   danger
                 />
-                <Pressable onPress={() => {
-                  Alert.alert(
-                    "Delete Account?",
-                    "This action cannot be undone. All your data will be permanently deleted.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Delete",
-                        style: "destructive",
-                        onPress: () => {
-                          Toastx.show({ type: "error", message: "Account deletion requested" });
-                        }
-                      },
-                    ]
-                  );
-                }}
-                ><Text style={{ color: "#ff7a7aff", textAlign: "center", marginTop: 20 }}>Delete account !!</Text></Pressable>
               </ModernCard>
+              <Pressable onPress={() => {
+                Alert.alert(
+                  "Delete Account?",
+                  "This action cannot be undone. All your data will be permanently deleted.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: () => {
+                        Toastx.show({ type: "error", message: "Account deletion requested" });
+                      }
+                    },
+                  ]
+                );
+              }} style={{ alignSelf: "flex-start" }}><Text style={{ color: "#ff7a7aff", marginTop: 20, fontSize: 12 }}>delete account</Text></Pressable>
             </View>
 
             {/* App Version */}
             <View style={modernStyles.versionContainer}>
-              <Text style={modernStyles.versionText}>
-                {appJson?.displayName} v{DeviceInfo.getVersion()} ({appJson?.appversion})
-              </Text>
+              <Text style={modernStyles.versionText}> dv-{DeviceInfo.getVersion()} (jv-{appJson?.appversion})</Text>
               <Text style={modernStyles.buildText}>
                 Build {DeviceInfo.getBuildNumber()} • Bundle {appJson?.bundlebuildnumber}
               </Text>
@@ -1169,16 +1164,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <Text>Profile admin url:{"\n"}{hostServer()}</Text>
             </Pressable>
 
-            <Pressable style={modernStyles.dangerSection} onPress={async () => {
-              InappNotification.show({
-                title: 'Message Sent',
-                message: 'Your message has been delivered successfully.',
-                type: 'error',
-                duration: 4000,
-              });
-            }}>
-              <Text>INAPP notify</Text>
-            </Pressable>
+
 
             <Pressable style={modernStyles.dangerSection} onPress={() => {
               RNRestart.restart();
