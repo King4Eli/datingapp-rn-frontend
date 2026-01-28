@@ -18,6 +18,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const [getNewMatches, setNewMatches] = useState<any>(null);
   const [getEngagedMessages, setEngagedMessages] = useState<any>([]);
   const [getCountLikes, setCountLikes] = useState<number>(0);
+  const [getImageLikes, setImageLikes] = useState<[]>([]);
   const headerHeight = useHeaderHeight();
   const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
   const [activeFilter, setActiveFilter] = useState<'all' | 'yourTurn' | 'verified' | 'unread'>('all');
@@ -168,7 +169,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
               <Pressable onPress={() => navigation.navigate(namer.navigation.likes)} style={{ width: 110, height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: '#0ea5e9', justifyContent: 'center', alignItems: 'center' }}>
                 <ImageBackground progressiveRenderingEnabled={true} blurRadius={Platform.OS === "android" ? 60 : 30}
                   style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
-                  source={{ cache: 'force-cache', uri: String(__MAPPER?.img_domain[0] + getProfile?.user_image?.[0]?.p) }} >
+                  source={{ cache: 'default', uri: __MAPPER?.img_domain[0] + String(getImageLikes?.p) }} >
                   <View style={{ backgroundColor: 'rgba(15,23,42,0.7)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' }}>
                     <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>+{getCountLikes}</Text>
                   </View>
@@ -307,6 +308,13 @@ export function Screen_chat({ navigation }: { navigation: any }) {
         });
         setCountLikes((prev: number) => {
           const incoming = response?.chatsListings?.countLikes;
+          if (incoming === null || incoming === undefined || incoming === '') {
+            return prev;
+          }
+          return incoming;
+        });
+        setImageLikes((prev: []) => {
+          const incoming = response?.chatsListings?.imageLikes;
           if (incoming === null || incoming === undefined || incoming === '') {
             return prev;
           }
