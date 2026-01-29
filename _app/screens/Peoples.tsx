@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { View, Text, Pressable, ScrollView, Alert, ImageBackground, TouchableOpacity, StyleSheet, Image, Modal } from 'react-native';
-import { Loaderx, LoadingGif, FullScreenImageModal } from '../funcs/functions_stateful';
+import { Loaderx, FullScreenImageModal } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
 import { Screen_editpreference } from './PreferenceEdit';

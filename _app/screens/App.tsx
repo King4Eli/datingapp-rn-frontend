@@ -12,23 +12,24 @@ import { Screen_chat } from './Chats';
 import { Screen_profile } from './Profile';
 import { Screen_conversation } from './Conversations';
 import { Auth_InputPhoneNumberPage } from './Authenticater';
-import { Loaderx, LoadingGif } from '../funcs/functions_stateful';
+import { Loaderx } from '../funcs/functions_stateful';
 import { Screen_settings } from './Settings';
 import { Screen_editprofile } from './ProfileEdit';
 import { sessionManager, SessionTypes } from '../funcs/SessionContext';
 import { Screen_editpreference } from './PreferenceEdit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Zz_nofilee } from './zz_nofilee';
-import { namer } from '../funcs/static';
+import { namer, resourceMap } from '../funcs/static';
 import { Screen_Subscribe } from './Subscribe';
 import { __init__app, convoHelper, displsyNotification, llStorage, logReport } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
-import { AppState, Text, Vibration } from 'react-native';
+import { AppState, Text, Vibration, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import QuickActions from 'react-native-quick-actions';
 import { Toastx } from '../funcs/customNotification';
 import { Screen_social } from './Social';
 import { Screen_Coin } from './Coin';
+import LottieView from 'lottie-react-native';
 
 // Type definitions for props if needed
 const Stack = createStackNavigator<any>();
@@ -191,7 +192,12 @@ const MainApp: React.FC = () => {
 
 
   if (getAllGood === false) {
-    return <LoadingGif />
+    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><LottieView
+      source={resourceMap.lottie.infinityLoading}
+      autoPlay
+      loop
+      style={{ width: 220, height: 220 }}
+    /></View>
   }
 
 
