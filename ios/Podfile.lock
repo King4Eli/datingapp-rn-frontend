@@ -22,6 +22,36 @@ PODS:
   - libwebp/sharpyuv (1.5.0)
   - libwebp/webp (1.5.0):
     - libwebp/sharpyuv
+  - lottie-ios (4.5.0)
+  - lottie-react-native (7.3.5):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - lottie-ios (= 4.5.0)
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - NitroModules (0.31.10):
     - boost
     - DoubleConversion
@@ -3057,6 +3087,7 @@ DEPENDENCIES:
   - fmt (from `../node_modules/react-native/third-party-podspecs/fmt.podspec`)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - lottie-react-native (from `../node_modules/lottie-react-native`)
   - NitroModules (from `../node_modules/react-native-nitro-modules`)
   - NitroSound (from `../node_modules/react-native-nitro-sound`)
   - RCT-Folly (from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
@@ -3153,6 +3184,7 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - libwebp
+    - lottie-ios
     - SDWebImage
     - SDWebImageWebPCoder
     - SocketRocket
@@ -3175,6 +3207,8 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-v0.14.0
+  lottie-react-native:
+    :path: "../node_modules/lottie-react-native"
   NitroModules:
     :path: "../node_modules/react-native-nitro-modules"
   NitroSound:
@@ -3366,6 +3400,8 @@ SPEC CHECKSUMS:
   glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
   hermes-engine: 739f6774017e9a3d3f786ae6d65eb07eb08024d5
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
+  lottie-ios: a881093fab623c467d3bce374367755c272bdd59
+  lottie-react-native: 9eca117b24506c2a9bf026abf848b6bc73a0b155
   NitroModules: dc0498a88cf704dd691cb49b1f3659726aff2ba5
   NitroSound: 07587534cd752e67a65565e43b49d21523810574
   RCT-Folly: 59ec0ac1f2f39672a0c6e6cecdd39383b764646f
