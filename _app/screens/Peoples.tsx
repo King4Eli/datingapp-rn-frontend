@@ -64,13 +64,6 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
 
     const lottieRef = useRef<LottieView>(null);
 
-    useEffect(() => {
-        if (getLoading) {
-            lottieRef.current?.play();
-        } else {
-            lottieRef.current?.pause();
-        }
-    }, [getLoading]);
 
     const deckStyles = StyleSheet.create({
         cardImage: { width: '100%', height: ((screenHeight * 0.96)) - headerHeight - tabBottomHeight - 14 },
@@ -631,10 +624,12 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                 <IIcon name="diamond" size={30} color="#0ea5e9" />
                             </Pressable>}
                             <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnPrimary]} onPress={() => {
+                                lottieRef.current?.play();
                                 setLoading(true);
                                 peoples_action('like', 0, false).then(async () => {
                                     await sleep(500);
                                     setLoading(false);
+                                    lottieRef.current?.reset();
                                 })
                             }}>
                                 <IIcon name="heart" size={30} color="#22c55e" />
@@ -749,20 +744,13 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                 </ScrollView>
             </CBottomSheet>
 
+
+
             {/* FULLSCREEN */}
-            <FullScreenImageModal
-                visible={!!getFullscreenClickImage}
-                uri={getFullscreenClickImage}
-                onClose={() => setFullscreenClickImage(null)} />
+            <FullScreenImageModal visible={!!getFullscreenClickImage} uri={getFullscreenClickImage} onClose={() => setFullscreenClickImage(null)} />
 
             {/* LOADERs */}
-            {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}>
-                <LottieView ref={lottieRef}
-                    source={resourceMap.lottie.heartpop}
-                    autoPlay
-                    loop
-                    style={{ width: 220, height: 220 }}
-                /></View>}
+            {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}><LottieView ref={lottieRef} source={resourceMap.lottie.heartpop} loop autoPlay style={{ width: 250, height: 250 }} /></View>}
         </View >
     );
 }
