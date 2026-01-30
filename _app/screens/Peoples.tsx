@@ -62,6 +62,15 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
         })
     }
 
+    const lottieRef = useRef<LottieView>(null);
+
+    useEffect(() => {
+        if (getLoading) {
+            lottieRef.current?.play();
+        } else {
+            lottieRef.current?.pause();
+        }
+    }, [getLoading]);
 
     const deckStyles = StyleSheet.create({
         cardImage: { width: '100%', height: ((screenHeight * 0.96)) - headerHeight - tabBottomHeight - 14 },
@@ -747,12 +756,13 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                 onClose={() => setFullscreenClickImage(null)} />
 
             {/* LOADERs */}
-            {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}><LottieView
-                source={resourceMap.lottie.heartpop}
-                autoPlay
-                loop
-                style={{ width: 220, height: 220 }}
-            /></View>}
+            {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}>
+                <LottieView ref={lottieRef}
+                    source={resourceMap.lottie.heartpop}
+                    autoPlay
+                    loop
+                    style={{ width: 220, height: 220 }}
+                /></View>}
         </View >
     );
 }
