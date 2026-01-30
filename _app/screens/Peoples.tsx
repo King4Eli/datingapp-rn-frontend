@@ -627,7 +627,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                 lottieRef.current?.play();
                                 setLoading(true);
                                 peoples_action('like', 0, false).then(async () => {
-                                    await sleep(700);
+                                    await sleep(600);
                                     setLoading(false);
                                     lottieRef.current?.reset();
                                 })

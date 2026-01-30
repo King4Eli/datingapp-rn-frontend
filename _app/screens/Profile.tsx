@@ -137,11 +137,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             return userCurrentTier;
         }
         return (tierKeys[0] || '');
-    });
-    const getAvailableCycles = () => {
-        const tierItems = __product_MAPPER?.[selectedTier] || [];
-        return tierItems.map((item: any) => item.description);
-    };
+    }); 
 
     const sqlmapper = {} as any;
     const headerHeight = useHeaderHeight();
@@ -150,40 +146,25 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
     const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";    //const smallPrk = getProfile.liltab;
-    const superlike = getProfile?.user_effect?.superlike ?? 0;
-    const messagelike = getProfile?.user_effect?.messagelike ?? 0;
-    const spotlight = getProfile?.user_effect?.spotlight ?? 0;
-    const interests = getProfile?.user_interest ?? [];
-    const prompts = getProfile?.user_prompt ?? [];
+ 
 
     const profileCompletion = useMemo(() => {
         const checkpoints = [
-            !!getProfile?.user_bio,
+            getProfile?.user_bio_about?.length >= 3,
             (getProfile?.user_image ?? []).length >= 3,
-            !!getProfile?.user_bio_job,
-            !!getProfile?.user_bio_school,
-            !!getProfile?.user_interest?.length,
-            !!getProfile?.user_prompt?.length,
+            (getProfile?.user_bio_prompt ?? []).length >= 0,
+
+            // !!getProfile?.user_bio_job,
+            // !!getProfile?.user_bio_school,
+
+            //!!getProfile?.user_bio_highesteducation,
+            //!!getProfile?.user_interest?.length,
         ];
         const score = checkpoints.filter(Boolean).length;
+        console.log(score, checkpoints);
         return Math.round((score / checkpoints.length) * 100);
     }, [getProfile]);
 
-    const vibeOptions = ['Romantic', 'Playful', 'Curious', 'Low-key'];
-    const intentOptions = ['Meaningful Dates', 'New Friends', 'Serious Relationship', 'See Where It Goes'];
-
-    const handleShareProfile = () => {
-        Alert.alert('Share profile', 'Copy or share your profile link to invite your crushes.');
-    };
-
-    const handleProfileAudit = () => {
-        Alert.alert('Profile audit requested', 'Our team will review your profile and send quick tips.');
-    };
-
-
-    let sqlmap_superlike = (sqlmapper?.payment_plan?.superlike);
-    let sqlmap_spotlight = (sqlmapper?.payment_plan?.spotlight);
-    let sqlmap_messagelike = (sqlmapper?.payment_plan?.messagelike);
 
 
     useFocusEffect(React.useCallback(() => {
