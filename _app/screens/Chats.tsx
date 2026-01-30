@@ -18,7 +18,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const [getNewMatches, setNewMatches] = useState<any>(null);
   const [getEngagedMessages, setEngagedMessages] = useState<any>([]);
   const [getCountLikes, setCountLikes] = useState<number>(0);
-  const [getImageLikes, setImageLikes] = useState<[]>([]);
+  const [getImageLikes, setImageLikes] = useState<{ p: string, w: string, h: string }>({ p: "", w: "", h: "" });
   const headerHeight = useHeaderHeight();
   const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
   const [activeFilter, setActiveFilter] = useState<'all' | 'yourTurn' | 'verified' | 'unread'>('all');
@@ -313,7 +313,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           }
           return incoming;
         });
-        setImageLikes((prev: []) => {
+        setImageLikes((prev: {}) => {
           const incoming = response?.chatsListings?.imageLikes;
           if (incoming === null || incoming === undefined || incoming === '') {
             return prev;

@@ -277,6 +277,7 @@ export const resourceMap = {
     lottie: {
         pulsingLoading: require('../assets/lottie/pulsing.json'),
         infinityLoading: require('../assets/lottie/infinity.json'),
+        heartpop: require('../assets/lottie/heartpop.json'),
     },
     loading1: require('../assets/images/loading1.gif'),
 };

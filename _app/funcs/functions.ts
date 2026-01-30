@@ -186,6 +186,7 @@ export const displsyNotification = async (title: string, body?: string) => {
 };
 
 
+export const sleep = (ms: number) => new Promise((r: any) => setTimeout(r, ms));
 
 // Log function for debugging
 export const logReport = ({ type, extra, useraction, url, logMessage, stackTrace, reporteduserId }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any, reporteduserId?: string }): void => {

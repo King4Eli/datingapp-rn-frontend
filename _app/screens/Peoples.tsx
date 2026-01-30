@@ -6,7 +6,7 @@ import { Loaderx, FullScreenImageModal } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
 import { Screen_editpreference } from './PreferenceEdit';
-import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, preloadImages, screenHeight, screenWidth } from '../funcs/functions';
+import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, preloadImages, screenHeight, screenWidth, sleep } from '../funcs/functions';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TextInput } from 'react-native-gesture-handler';
@@ -21,6 +21,8 @@ import LottieView from 'lottie-react-native';
 
 export function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
+
+    const [getLoading, setLoading] = useState<Boolean>(false);
 
     const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);
     const [gptmd, sptmd] = useState<boolean>(false);
@@ -46,7 +48,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
             const j = getPeopleToMatch?.filter((v: any) => v.user_id !== getPeopleToMatch?.[0]?.user_id);
             console.log("remove last---", getPeopleToMatch?.length, j?.length)
             setPeopleToMatch(j ?? null);
-        },
+        }
     }
     let tabBottomHeight = 0;
     try {
@@ -105,14 +107,6 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
         secondaryBtn: { paddingVertical: 12 },
         secondaryBtnText: { color: '#38bdf8', fontSize: 15, fontWeight: '700' },
     });
-
-
-
-
-    useEffect(() => {
-        setPhotoIndex(0);
-    }, [getPeopleToMatch?.[0]?.user_id]);
-
 
     const ReportContent = () => {
         const [selectedReason, setSelectedReason] = useState('');
@@ -256,6 +250,12 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
         </View>
     );
 
+
+    useEffect(() => {
+        setPhotoIndex(0);
+    }, [getPeopleToMatch?.[0]?.user_id]);
+
+
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'left',
@@ -327,9 +327,10 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
 
     async function peoples_action(
         what: "like" | "superlike" | "dislike" | "block" | "report",
-        matchStatus: number = 0) {
+        matchStatus: number = 0,
+        showloader: boolean = true) {
         try {
-            Loaderx.show();
+            showloader && Loaderx.show();
             switch (what) {
                 case 'like':
                 case 'superlike':
@@ -620,7 +621,13 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                             {!functs.onePersonProfile && <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnAccent]} onPress={() => peoples_action('superlike', getPeopleToMatch?.[0]?.match_id ? 1 : 5)}>
                                 <IIcon name="diamond" size={30} color="#0ea5e9" />
                             </Pressable>}
-                            <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnPrimary]} onPress={() => peoples_action('like', 0)}>
+                            <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnPrimary]} onPress={() => {
+                                setLoading(true);
+                                peoples_action('like', 0, false).then(async () => {
+                                    await sleep(500);
+                                    setLoading(false);
+                                })
+                            }}>
                                 <IIcon name="heart" size={30} color="#22c55e" />
                             </Pressable>
                         </View>
@@ -732,11 +739,20 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
 
                 </ScrollView>
             </CBottomSheet>
+
+            {/* FULLSCREEN */}
             <FullScreenImageModal
                 visible={!!getFullscreenClickImage}
                 uri={getFullscreenClickImage}
                 onClose={() => setFullscreenClickImage(null)} />
 
+            {/* LOADERs */}
+            {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}><LottieView
+                source={resourceMap.lottie.heartpop}
+                autoPlay
+                loop
+                style={{ width: 220, height: 220 }}
+            /></View>}
         </View >
     );
 }
