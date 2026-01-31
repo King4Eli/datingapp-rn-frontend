@@ -176,7 +176,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         });
     }, []);
 
-    const CircularProgress = ({ size = 108, strokeWidth = 2, progress = 0, color = '#ff6363' }) => {
+    const CircularProgress = ({ size = 108, strokeWidth = 2.5, progress = 0, color = '#ff6363' }) => {
         const radius = (size - strokeWidth) / 2;
         const circumference = radius * 2 * Math.PI;
         const strokeDashoffset = circumference - (progress / 100) * circumference;
@@ -184,14 +184,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         return (
             <Svg width={size} height={size} style={{ position: 'absolute' }}>
                 {/* Background Circle */}
-                <Circle
-                    stroke="#e0e0e0"
-                    fill="none"
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    strokeWidth={strokeWidth}
-                />
+                <Circle stroke="#cecece" fill="none" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} />
                 {/* Progress Circle */}
                 <Circle
                     stroke={color}
@@ -220,44 +213,20 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             <View style={styles.zcircle1} />
             <View style={styles.zcircle2} />
             <View style={styles.zcircle3} />
-            <ScrollView showsVerticalScrollIndicator={false}
-                contentContainerStyle={[styles.conainerScrollView, { paddingBottom: 10 }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.conainerScrollView, { paddingBottom: 10 }]}>
                 <View style={{ gap: 10 }}>
                     <View style={{ gap: 10 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
                             <Pressable onPress={async () => { navigation.push(namer.navigation.editprofile); }}>
-                                <View style={{ position: 'relative', width: 108, height: 108, alignItems: 'center', justifyContent: 'center' }}>
-                                    {/* Circular Progress */}
+                                <View style={{position:"relative", width: 108, height: 108, }}>
                                     <CircularProgress progress={profileCompletion} />
 
-                                    {/* Profile Image */}
-                                    <View style={{
-                                        width: 100,
-                                        height: 100,
-                                        borderRadius: 50,
-                                        borderWidth: 2,
-                                        borderColor: profileCompletion === 100 ? '#ff6363' : 'transparent',
-                                        overflow: 'hidden',
-                                    }}>
-                                        <FastImage
-                                            style={{ width: '100%', height: '100%' }}
-                                            resizeMode='cover'
-                                            source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }}
-                                        />
-                                    </View>
-
-                                    {/* Verified Badge */}
-                                    {userVerified && (
-                                        <View style={{
-                                            position: 'absolute',
-                                            bottom: 0,
-                                            right: 0,
-                                            backgroundColor: 'white',
-                                            borderRadius: 50,
-                                        }}>
+                                    <View style={{ borderRadius: 100,   padding: 4, }}>
+                                        <FastImage style={{ width: 100, height: 100, borderRadius: 100, alignSelf: 'center', }} resizeMode='cover' source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} />
+                                        {userVerified && <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'white', borderRadius: 50 }}>
                                             <IIcon name="checkmark-done-circle-sharp" size={32} color="#4F8EF7" />
-                                        </View>
-                                    )}
+                                        </View>}
+                                    </View>
                                 </View>
                             </Pressable>
 
@@ -420,7 +389,7 @@ const stylesx = StyleSheet.create({
 
 
 
- 
+
 
     featureCard: {
         width: screenWidth * 0.90,
