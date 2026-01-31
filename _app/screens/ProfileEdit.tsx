@@ -12,6 +12,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { AccordionItem } from '../funcs/customAccordion';
 import { CBottomSheetRef, CBottomSheet } from '../funcs/customBottomSheet';
 import { Toastx } from '../funcs/customNotification';
+import LinearGradient from 'react-native-linear-gradient';
 
 
 export function Screen_editprofile({ navigation }: { navigation: any }) {
@@ -231,6 +232,20 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 </View>
                             </View>
 
+                            <LinearGradient colors={["#f95f62", "#f27a9c"]} style={[styles.card, { padding: 0 }]}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 }}>
+                                    <View style={{ gap: 6, flex: 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start', gap: 6, }}>
+                                            <MIcons name='heart-multiple-outline' color={'#f95f62'} size={16} />
+                                            <Text style={{ color: '#f95f62', fontWeight: '600' }}>Vibes & Energy</Text>
+                                        </View>
+                                        <Text style={{ fontSize: 20, color: '#fff', fontWeight: '700' }}>Show your best self today</Text>
+                                        <Text style={{ color: '#ffe7ef', fontSize: 13, lineHeight: 18 }}>Update a prompt and write a bio to make it easy for others to start a conversation with you.</Text>
+                                    </View>
+                                    <MIcons name='flower-tulip-outline' size={82} color={'#fff'} />
+                                </View>
+                            </LinearGradient>
 
 
                             <View style={styles.editprofile_inputborder}>
@@ -546,7 +561,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             </View >
 
             {/* Add new prompt from __MAPPER?.prompts */}
-            <CBottomSheet ref={addNewPrompt_ref} >
+            < CBottomSheet ref={addNewPrompt_ref} >
                 <View style={{ flex: 1, gap: 10 }}>
                     <Text style={{ fontSize: 18, fontWeight: '600', textAlign: "center" }}>Add a new Prompt</Text>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 2 }}>
@@ -594,7 +609,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             </CBottomSheet >
 
             {/* interests */}
-            <CBottomSheet ref={addInterests_ref} >
+            < CBottomSheet ref={addInterests_ref} >
                 <ScrollView contentContainerStyle={[{ gap: 10, paddingVertical: 6 }]} showsVerticalScrollIndicator={false}>
                     {
                         Object.entries(__MAPPER?.bio_interests as Record<string, string[]> ?? {}).map(([category, items]) => (

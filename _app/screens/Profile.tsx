@@ -10,6 +10,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { _http_request, help, llStorage, screenWidth } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
+import Svg, { Circle } from 'react-native-svg';
 
 const style = StyleSheet.create({
     container: { flex: 1 },
@@ -109,7 +110,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
         tierKeys.forEach((tierKey, index) => {
             const tierItems = __product_MAPPER?.[tierKey] || [];
-
+            console.log(__product_MAPPER)
             // Group prices by description
             const prices: Record<string, string> = {};
             tierItems.forEach((item: any) => {
@@ -131,13 +132,6 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         return tierData;
     }, [__product_MAPPER]);
 
-    // Initialize selected tier based on user's current subscription
-    const [selectedTier, setSelectedTier] = useState<string>(() => {
-        if (activeSubscription && userCurrentTier && tierKeys.includes(userCurrentTier)) {
-            return userCurrentTier;
-        }
-        return (tierKeys[0] || '');
-    }); 
 
     const sqlmapper = {} as any;
     const headerHeight = useHeaderHeight();
@@ -146,7 +140,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
     const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";    //const smallPrk = getProfile.liltab;
- 
+
 
     const profileCompletion = useMemo(() => {
         const checkpoints = [
@@ -182,6 +176,38 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         });
     }, []);
 
+    const CircularProgress = ({ size = 108, strokeWidth = 2, progress = 0, color = '#ff6363' }) => {
+        const radius = (size - strokeWidth) / 2;
+        const circumference = radius * 2 * Math.PI;
+        const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+        return (
+            <Svg width={size} height={size} style={{ position: 'absolute' }}>
+                {/* Background Circle */}
+                <Circle
+                    stroke="#e0e0e0"
+                    fill="none"
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    strokeWidth={strokeWidth}
+                />
+                {/* Progress Circle */}
+                <Circle
+                    stroke={color}
+                    fill="none"
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={`${circumference} ${circumference}`}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                />
+            </Svg>
+        );
+    };
 
 
 
@@ -200,11 +226,38 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     <View style={{ gap: 10 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
                             <Pressable onPress={async () => { navigation.push(namer.navigation.editprofile); }}>
-                                <View style={{ borderRadius: 100, borderWidth: 2, padding: 4, borderColor: "#ff6363" }}>
-                                    <FastImage style={{ width: 100, height: 100, borderRadius: 100, alignSelf: 'center', }} resizeMode='cover' source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} />
-                                    {userVerified && <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'white', borderRadius: 50 }}>
-                                        <IIcon name="checkmark-done-circle-sharp" size={32} color="#4F8EF7" />
-                                    </View>}
+                                <View style={{ position: 'relative', width: 108, height: 108, alignItems: 'center', justifyContent: 'center' }}>
+                                    {/* Circular Progress */}
+                                    <CircularProgress progress={profileCompletion} />
+
+                                    {/* Profile Image */}
+                                    <View style={{
+                                        width: 100,
+                                        height: 100,
+                                        borderRadius: 50,
+                                        borderWidth: 2,
+                                        borderColor: profileCompletion === 100 ? '#ff6363' : 'transparent',
+                                        overflow: 'hidden',
+                                    }}>
+                                        <FastImage
+                                            style={{ width: '100%', height: '100%' }}
+                                            resizeMode='cover'
+                                            source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }}
+                                        />
+                                    </View>
+
+                                    {/* Verified Badge */}
+                                    {userVerified && (
+                                        <View style={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            right: 0,
+                                            backgroundColor: 'white',
+                                            borderRadius: 50,
+                                        }}>
+                                            <IIcon name="checkmark-done-circle-sharp" size={32} color="#4F8EF7" />
+                                        </View>
+                                    )}
                                 </View>
                             </Pressable>
 
@@ -225,20 +278,6 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                         </View>
                     </View>
 
-                    <LinearGradient colors={["#f95f62", "#f27a9c"]} style={[styles.card, { padding: 0 }]}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 }}>
-                            <View style={{ gap: 6, flex: 1 }}>
-                                <View style={stylesx.heroBadge}>
-                                    <MIcon name='heart-multiple-outline' color={'#f95f62'} size={16} />
-                                    <Text style={stylesx.heroBadgeText}>Dating energy on</Text>
-                                </View>
-                                <Text style={stylesx.heroTitle}>Show your best self today</Text>
-                                <Text style={stylesx.heroSubtitle}>Update a prompt, share a vibe, and say hi to your newest matches before the spark fades.</Text>
-                            </View>
-                            <MIcon name='flower-tulip-outline' size={82} color={'#fff'} />
-                        </View>
-                    </LinearGradient>
 
                     <View style={[styles.card, stylesx.powerCard]}>
                         <View style={stylesx.powerHeader}>
@@ -260,26 +299,10 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     </View>
 
 
-
-                    <View style={[styles.card, stylesx.sectionCard]}>
-                        <View style={stylesx.sectionHeader}>
-                            <Text style={stylesx.sectionTitle}>Profile progress</Text>
-                            <Text style={stylesx.sectionTag}>{profileCompletion}%</Text>
-                        </View>
-                        <View style={stylesx.progressTrack}>
-                            <View style={[stylesx.progressBar, { width: `${profileCompletion}%` }]} />
-                        </View>
-                        <Text style={stylesx.sectionHint}>Add more photos, prompts, and passions for a stronger spark.</Text>
-
-                    </View>
-
                     {!userSubscriptionStep2 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
 
                         {!userSubscriptionStep1 && tierKeys.map((tierKey, key) => {
                             const tier = tiers[tierKey];
-                            const isSelected = selectedTier === tierKey;
-                            const isLocked = activeSubscription && userCurrentTier === tierKey;
-                            const isActive = activeSubscription && userCurrentTier === tierKey;
                             const color = [['#000000', '#00000080'], ['#FF9E00', '#FF9E0080']]
                             const icon = ["diamond-outline", "crown-outline"]
 
@@ -397,31 +420,8 @@ const stylesx = StyleSheet.create({
 
 
 
+ 
 
-    heroBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        alignSelf: 'flex-start',
-        gap: 6,
-    },
-    heroBadgeText: {
-        color: '#f95f62',
-        fontWeight: '600',
-    },
-    heroTitle: {
-        fontSize: 20,
-        color: '#fff',
-        fontWeight: '700',
-    },
-    heroSubtitle: {
-        color: '#ffe7ef',
-        fontSize: 13,
-        lineHeight: 18,
-    },
     featureCard: {
         width: screenWidth * 0.90,
         flex: 1, // Set fixed height instead of flex
