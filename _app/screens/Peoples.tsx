@@ -35,11 +35,11 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
     const bottomSheetRef_secondview = {
         ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => ['35%','55%', '75%'], [])
+        snap: useMemo(() => ['35%', '55%', '75%'], [])
     };
     const bottomSheetRef_preferenceEdit = {
         ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => ['35%', '75%'], [])
+        snap: useMemo(() => ['75%', '85%'], [])
     };
     const bottomSheetRef_reportUser = {
         ref: useRef<BottomSheet>(null),
@@ -284,28 +284,20 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             headerRight: () => !functs.onePersonProfile && (
                 <View style={{ paddingRight: 10, flexDirection: "row", gap: 14, alignItems: "center" }}>
                     {getSkippedPeoples.length > 0 && <Pressable style={{ gap: 3 }} onPress={() => {
-                        if(getSkippedPeoples?.length > 4){
+                        if (getSkippedPeoples?.length > 4) {
                             bottomSheetRef_secondview.ref.current?.expand();
-                        }else if(getSkippedPeoples?.length > 2){
+                        } else if (getSkippedPeoples?.length > 2) {
                             bottomSheetRef_secondview.ref.current?.snapToIndex(1);
-                        }else{
+                        } else {
                             bottomSheetRef_secondview.ref.current?.snapToIndex(0);
                         }
                     }}>
                         <MIcon name="backup-restore" size={30} color="#204586ff" />
                     </Pressable>}
-                    <Pressable style={{ gap: 3 }} onPress={() => {
-
-                        bottomSheetRef_location.ref.current?.expand();
-
-                    }}>
+                    <Pressable style={{ gap: 3 }} onPress={() => { bottomSheetRef_location.ref.current?.expand(); }}>
                         <IIcon name="location-outline" size={28} color="#204586ff" />
                     </Pressable>
-                    <Pressable style={{ gap: 3 }} onPress={() => {
-
-                        bottomSheetRef_preferenceEdit.ref.current?.snapToIndex(0);
-
-                    }}>
+                    <Pressable style={{ gap: 3 }} onPress={() => { bottomSheetRef_preferenceEdit.ref.current?.snapToIndex(0); }}>
                         <IIcon name="filter-outline" size={30} color="#204586ff" />
                     </Pressable>
                 </View>),
@@ -743,7 +735,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                         </View>
 
                     </ScrollView>
-                    </BottomSheetView>
+                </BottomSheetView>
             </BottomSheet>
             <BottomSheet ref={bottomSheetRef_preferenceEdit.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_preferenceEdit.snap} backdropComponent={bottomsheet_renderBackdrop}>
                 <BottomSheetView style={{ padding: 23 }}>

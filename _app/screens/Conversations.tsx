@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { View, Text, Pressable, TextInput, Alert, FlatList, Platform, TouchableOpacity, KeyboardAvoidingView, PermissionsAndroid, Linking, ImageBackground } from 'react-native';
-import { Loaderx, FullScreenImageModal } from '../funcs/functions_stateful';
+import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Sound, { AudioEncoderAndroidType, AudioSourceAndroidType, AVEncoderAudioQualityIOSType, OutputFormatAndroidType } from 'react-native-nitro-sound';
 import RNFS from 'react-native-fs';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { CBottomSheetRef, CBottomSheet } from '../funcs/customBottomSheet';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from 'react-native-fast-image';
 import { SocketClient } from '../funcs/socket_realtimeData';
@@ -46,7 +46,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
 
-    const bottomSheetRef_convotools = useRef<CBottomSheetRef>(null);
+    const bottomSheetRef_convotools = useRef<BottomSheet>(null);
+    const bottomSheetSnapPoints_convotools = useMemo(() => ['20%'], []);
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<any | null>(null);
     const starterCarouselRef = useRef<FlatList<string>>(null);
     const starterViewConfig = useRef({ viewAreaCoveragePercentThreshold: 60 }).current;
@@ -374,7 +375,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     <IonIcon name="ban-outline" size={20} color="#4F8EF7" />
                     <Text style={{ fontSize: 16, marginLeft: 10 }}>Block User</Text>
                 </Pressable>
-                {/*<Pressable onPress={() => { CBottomSheet.hide(); navigation.navigate("ReportUser", { userId: getUser2Deets?.u2id }); }}
+                {/*<Pressable onPress={() => { bottomSheetRef_convotools.current?.close(); navigation.navigate("ReportUser", { userId: getUser2Deets?.u2id }); }}
                     style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
                     <IonIcon name="warning-outline" size={20} color="#4F8EF7" />
                     <Text style={{ fontSize: 16, marginLeft: 10 }}>Report User</Text>
@@ -713,12 +714,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <Pressable
                     style={{ padding: 4 }}
                     onPress={() => {
-                        bottomSheetRef_convotools?.current?.open({
-                            onClose: () => { },
-                            sheetHeight: 0.2,
-                            closeLabel: <Icon name="close" size={20} />,
-
-                        });
+                        bottomSheetRef_convotools.current?.snapToIndex(0);
                     }}
                 >
                     <IonIcon name="ellipsis-horizontal" size={25} color="#4F8EF7" />
@@ -982,7 +978,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             }} style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
                                 <MaterialCommunityIcons name="play-circle" size={22} color={item.fromMe ? "#000" : "#fff"} />
                                 <Text style={{ color: item.fromMe ? "#000" : "#fff" }}>
-                                    Video{fileSizeLabel ? ` · ${fileSizeLabel}` : ''}{durationFormatted ? ` · ${durationFormatted}` : ''}
+                                    Video{fileSizeLabel ? ` � ${fileSizeLabel}` : ''}{durationFormatted ? ` � ${durationFormatted}` : ''}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -996,7 +992,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             }} style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
                                 <MaterialCommunityIcons name="file" size={20} color={item.fromMe ? "#000" : "#fff"} />
                                 <Text style={{ color: item.fromMe ? "#000" : "#fff" }}>
-                                    {fileOriginalName ?? 'File'}{fileSizeLabel ? ` · ${fileSizeLabel}` : ''}
+                                    {fileOriginalName ?? 'File'}{fileSizeLabel ? ` � ${fileSizeLabel}` : ''}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -1011,7 +1007,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             <View style={{}}>
                                 <Text style={{ color: (item.fromMe) ? "#000" : "#fff", fontWeight: "600" }}>Voice note</Text>
                                 <Text style={{ color: (item.fromMe) ? "#333" : "#dbe7ff", fontSize: 12 }}>
-                                    {audioDisplayLabel}{fileSizeLabel ? ` · ${fileSizeLabel}` : ''}
+                                    {audioDisplayLabel}{fileSizeLabel ? ` � ${fileSizeLabel}` : ''}
                                 </Text>
                             </View>
                         </View>
@@ -1158,8 +1154,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                 style={{ marginVertical: 4 }}
                                 contentContainerStyle={{
                                     gap: 4,
-                                    paddingHorizontal: 6, // 添加水平内边距
-                                    alignItems: 'center'  // 垂直居中
+                                    paddingHorizontal: 6, // ???????
+                                    alignItems: 'center'  // ????
                                 }}
                             >
                                 {getInputImageVideo?.map((ag, index) => {
@@ -1175,7 +1171,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                                 style={{
                                                     position: 'relative',
                                                     borderRadius: 6,
-                                                    overflow: 'hidden', // 确保圆角生效
+                                                    overflow: 'hidden', // ??????
                                                     width: targetWidth,
                                                     height: targetHeight,
                                                 }}
@@ -1273,9 +1269,17 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             </SafeAreaView>
         </View>
 
-        <CBottomSheet ref={bottomSheetRef_convotools} >
-            {funt.convoTools}
-        </CBottomSheet>
+        <BottomSheet
+            ref={bottomSheetRef_convotools}
+            index={-1}
+            enablePanDownToClose
+            snapPoints={bottomSheetSnapPoints_convotools}
+            backdropComponent={bottomsheet_renderBackdrop}
+        >
+            <BottomSheetView style={{ paddingVertical: 8 }}>
+                {funt.convoTools}
+            </BottomSheetView>
+        </BottomSheet>
 
         <FullScreenImageModal
             visible={!!getFullscreenClickImage}
@@ -1284,3 +1288,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     </>
     );
 };
+
+
+

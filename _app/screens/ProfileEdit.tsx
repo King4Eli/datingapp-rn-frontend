@@ -1,6 +1,6 @@
-import React, { useState, useLayoutEffect, useRef } from 'react';
+import React, { useState, useLayoutEffect, useRef, useMemo } from 'react';
 import { View, Text, TextInput, Image, Pressable, KeyboardAvoidingView, Platform, TouchableOpacity, StyleSheet } from 'react-native';
-import { Loaderx, } from '../funcs/functions_stateful';
+import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { ScrollView } from 'react-native-gesture-handler';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { _http_request, help, hostServer, llStorage, mediaHandler } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { AccordionItem } from '../funcs/customAccordion';
-import { CBottomSheetRef, CBottomSheet } from '../funcs/customBottomSheet';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -46,8 +46,10 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const [getPrompts, setPrompts] = useState<Array<{ q: string; a: string; d: string }>>(Array.isArray(getProfile?.user_bio_prompt) ? getProfile.user_bio_prompt : []);
     const [getInterests, setInterests] = useState<string[]>(Array.isArray(getProfile?.user_bio_interests) ? getProfile.user_bio_interests : []);
 
-    const addNewPrompt_ref = useRef<CBottomSheetRef>(null);
-    const addInterests_ref = useRef<CBottomSheetRef>(null);
+    const addNewPrompt_ref = useRef<BottomSheet>(null);
+    const addInterests_ref = useRef<BottomSheet>(null);
+    const addNewPromptSnapPoints = useMemo(() => ['80%'], []);
+    const addInterestsSnapPoints = useMemo(() => ['85%'], []);
     // header
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -334,7 +336,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
 
                             <View style={[styles.editprofile_inputborder,]}>
-                                <Pressable style={{ gap: 6 }} onPress={() => { addInterests_ref.current?.open({ onClose: () => { }, sheetHeight: .85 }); }}>
+                                <Pressable style={{ gap: 6 }} onPress={() => { addInterests_ref.current?.snapToIndex(0); }}>
                                     <View>
                                         <Text style={styles.editprofile_inputtitle}>Interests - {getInterests?.length}/15</Text>
                                         <MIcons name="cursor-default-click-outline" size={19} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
@@ -436,10 +438,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 { // Add new prompt
                                     getPrompts && getPrompts.length < 3 && (
                                         <Pressable style={styles.editprofile_inputborder} onPress={() => {
-                                            addNewPrompt_ref.current?.open({
-                                                onClose: () => { },
-                                                sheetHeight: .8
-                                            });
+                                            addNewPrompt_ref.current?.snapToIndex(0);
                                         }}>
                                             <View style={{ gap: 4, flexDirection: "row", padding: 5, alignItems: "center" }}>
                                                 <MIcons name='plus-circle-outline' size={20} color={'#f95f62'} />
@@ -561,90 +560,111 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             </View >
 
             {/* Add new prompt from __MAPPER?.prompts */}
-            < CBottomSheet ref={addNewPrompt_ref} >
-                <View style={{ flex: 1, gap: 10 }}>
-                    <Text style={{ fontSize: 18, fontWeight: '600', textAlign: "center" }}>Add a new Prompt</Text>
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 2 }}>
-                        <View style={{ gap: 12 }}>
-                            {Object.values(__MAPPER?.bio_prompt ?? {}).filter(prompt => !(getPrompts.map((p: any) => p.q)).includes(prompt)).map((prompt: any, index: number) => (
+            <BottomSheet
+                ref={addNewPrompt_ref}
+                index={-1}
+                enablePanDownToClose
+                snapPoints={addNewPromptSnapPoints}
+                backdropComponent={bottomsheet_renderBackdrop}
+            >
+                <BottomSheetView style={{ padding: 23 }}>
+                    <View style={{ flex: 1, gap: 10 }}>
+                        <Text style={{ fontSize: 18, fontWeight: '600', textAlign: "center" }}>Add a new Prompt</Text>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 2 }}>
+                            <View style={{ gap: 12 }}>
+                                {Object.values(__MAPPER?.bio_prompt ?? {}).filter(prompt => !(getPrompts.map((p: any) => p.q)).includes(prompt)).map((prompt: any, index: number) => (
 
-                                <AccordionItem key={index} title={prompt} titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={""}
-                                    Content={() => {
-                                        const [getNewPrompt_text, setNewPrompt_text] = useState<string>("");
+                                    <AccordionItem key={index} title={prompt} titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={""}
+                                        Content={() => {
+                                            const [getNewPrompt_text, setNewPrompt_text] = useState<string>("");
 
-                                        return (
-                                            <View>
-                                                <TextInput style={[styles.editprofile_input, { minHeight: 100, margin: 6, borderWidth: 1, borderColor: colors.gray2, borderRadius: 8, }]}
-                                                    value={getNewPrompt_text} onChangeText={setNewPrompt_text}
-                                                    placeholder={prompt}
-                                                    maxLength={140} multiline
-                                                />
-                                                <Pressable style={{ alignSelf: "center", marginLeft: "auto", paddingRight: 10 }} onPress={() => {
-                                                    const usedPrompts = getPrompts.map((p: any) => p.q);
-                                                    const todayDate = new Date();
+                                            return (
+                                                <View>
+                                                    <TextInput style={[styles.editprofile_input, { minHeight: 100, margin: 6, borderWidth: 1, borderColor: colors.gray2, borderRadius: 8, }]}
+                                                        value={getNewPrompt_text} onChangeText={setNewPrompt_text}
+                                                        placeholder={prompt}
+                                                        maxLength={140} multiline
+                                                    />
+                                                    <Pressable style={{ alignSelf: "center", marginLeft: "auto", paddingRight: 10 }} onPress={() => {
+                                                        const usedPrompts = getPrompts.map((p: any) => p.q);
+                                                        const todayDate = new Date();
 
-                                                    if (!usedPrompts.includes(prompt as string)) {
-                                                        const dateStr =
-                                                            `${todayDate.getFullYear()}` +
-                                                            `${String(todayDate.getMonth() + 1).padStart(2, "0")}` +
-                                                            `${String(todayDate.getDate()).padStart(2, "0")}` +
-                                                            `${String(todayDate.getHours()).padStart(2, "0")}` +
-                                                            `${String(todayDate.getMinutes()).padStart(2, "0")}` +
-                                                            `${String(todayDate.getSeconds()).padStart(2, "0")}`;
-                                                        setPrompts([...getPrompts, { q: prompt, a: getNewPrompt_text.trim(), d: dateStr }]);
-                                                    }
-                                                    addNewPrompt_ref.current?.close();
-                                                }}>
-                                                    <Text style={{ color: "blue", fontSize: 16 }}>save</Text>
-                                                </Pressable>
-                                            </View>
-                                        )
-                                    }} />
+                                                        if (!usedPrompts.includes(prompt as string)) {
+                                                            const dateStr =
+                                                                `${todayDate.getFullYear()}` +
+                                                                `${String(todayDate.getMonth() + 1).padStart(2, "0")}` +
+                                                                `${String(todayDate.getDate()).padStart(2, "0")}` +
+                                                                `${String(todayDate.getHours()).padStart(2, "0")}` +
+                                                                `${String(todayDate.getMinutes()).padStart(2, "0")}` +
+                                                                `${String(todayDate.getSeconds()).padStart(2, "0")}`;
+                                                            setPrompts([...getPrompts, { q: prompt, a: getNewPrompt_text.trim(), d: dateStr }]);
+                                                        }
+                                                        addNewPrompt_ref.current?.close();
+                                                    }}>
+                                                        <Text style={{ color: "blue", fontSize: 16 }}>save</Text>
+                                                    </Pressable>
+                                                </View>
+                                            )
+                                        }} />
 
-                            )
-                            )}
-                        </View>
-                    </ScrollView>
-                </View>
-            </CBottomSheet >
+                                )
+                                )}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </BottomSheetView>
+            </BottomSheet>
 
             {/* interests */}
-            < CBottomSheet ref={addInterests_ref} >
-                <ScrollView contentContainerStyle={[{ gap: 10, paddingVertical: 6 }]} showsVerticalScrollIndicator={false}>
-                    {
-                        Object.entries(__MAPPER?.bio_interests as Record<string, string[]> ?? {}).map(([category, items]) => (
-                            <View style={{ backgroundColor: "#fafafaff", borderRadius: 8 }} key={category}>
-                                <AccordionItem key={category} title={category} titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                                    subtitle={""}
-                                    Content={() => (<View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                                        {items.map((item: any, idx: number) => {
-                                            const gi = getInterests.includes(item);
-                                            return (
-                                                <TouchableOpacity key={idx} style={[styles.editProfile_chip, gi && { backgroundColor: "blue" }]}
-                                                    onPress={() => {
-                                                        if (getInterests.length <= 15) {
-                                                            setInterests(prev =>
-                                                                prev.includes(item)
-                                                                    ? prev.filter(v => v !== item)   // remove
-                                                                    : [...prev, item]                // add
-                                                            );
-                                                        } else {
-                                                            Toastx.show({ message: "You can only select 15 interests.", type: "info" })
-                                                            addInterests_ref.current?.close();
-                                                        }
-                                                    }}>
-                                                    <Text style={gi && { color: "white", fontWeight: 600 }}>{item}</Text>
-                                                </TouchableOpacity>
-                                            )
-                                        })}
-                                    </View>)} />
-                            </View>
-                        ))
-                    }
+            <BottomSheet
+                ref={addInterests_ref}
+                index={-1}
+                enablePanDownToClose
+                snapPoints={addInterestsSnapPoints}
+                backdropComponent={bottomsheet_renderBackdrop}
+            >
+                <BottomSheetView style={{ padding: 23 }}>
+                    <ScrollView contentContainerStyle={[{ gap: 10, paddingVertical: 6 }]} showsVerticalScrollIndicator={false}>
+                        {
+                            Object.entries(__MAPPER?.bio_interests as Record<string, string[]> ?? {}).map(([category, items]) => (
+                                <View style={{ backgroundColor: "#fafafaff", borderRadius: 8 }} key={category}>
+                                    <AccordionItem key={category} title={category} titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
+                                        subtitle={""}
+                                        Content={() => (<View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                            {items.map((item: any, idx: number) => {
+                                                const gi = getInterests.includes(item);
+                                                return (
+                                                    <TouchableOpacity key={idx} style={[styles.editProfile_chip, gi && { backgroundColor: "blue" }]}
+                                                        onPress={() => {
+                                                            if (getInterests.length <= 15) {
+                                                                setInterests(prev =>
+                                                                    prev.includes(item)
+                                                                        ? prev.filter(v => v !== item)   // remove
+                                                                        : [...prev, item]                // add
+                                                                );
+                                                            } else {
+                                                                Toastx.show({ message: "You can only select 15 interests.", type: "info" })
+                                                                addInterests_ref.current?.close();
+                                                            }
+                                                        }}>
+                                                        <Text style={gi && { color: "white", fontWeight: 600 }}>{item}</Text>
+                                                    </TouchableOpacity>
+                                                )
+                                            })}
+                                        </View>)} />
+                                </View>
+                            ))
+                        }
 
-                </ScrollView>
-            </CBottomSheet >
+                    </ScrollView>
+                </BottomSheetView>
+            </BottomSheet>
 
         </SafeAreaView >
     );
 }
+
+
+
+
+

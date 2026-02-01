@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Linking, Alert, Share, TouchableOpacity, TextInput, Platform, Animated, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
@@ -11,7 +11,7 @@ import DeviceInfo from 'react-native-device-info';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
-import { CBottomSheet, CBottomSheetRef } from '../funcs/customBottomSheet';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 
@@ -59,13 +59,34 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   });
 
   // Use the correct ref type
-  const bottomSheetRef_notifications = useRef<CBottomSheetRef>(null);
-  const bottomSheetRef_feedback = useRef<CBottomSheetRef>(null);
-  const bottomSheetRef_support = useRef<CBottomSheetRef>(null);
-  const bottomSheetRef_payment = useRef<CBottomSheetRef>(null);
-  const bottomSheetRef_null = useRef<CBottomSheetRef>(null);
-  const bottomSheetRef_email = useRef<CBottomSheetRef>(null);
-  const bottomSheetRef_phone = useRef<CBottomSheetRef>(null);
+  const bottomSheetRef_notifications = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['35%', '75%'], [])
+  };
+  const bottomSheetRef_feedback = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['35%', '75%'], [])
+  };
+  const bottomSheetRef_support = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['35%', '75%'], [])
+  };
+  const bottomSheetRef_payment = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['35%', '75%'], [])
+  };
+  const bottomSheetRef_null = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['35%', '75%'], [])
+  };
+  const bottomSheetRef_email = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['35%', '75%'], [])
+  };
+  const bottomSheetRef_phone = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['35%', '75%'], [])
+  };
 
   // Profile header with modern design
   const ProfileHeader = () => (
@@ -232,9 +253,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     <View style={modernStyles.quickActions}>
       <TouchableOpacity
         style={modernStyles.quickAction}
-        onPress={() => bottomSheetRef_support.current?.open({
-          sheetHeight: 0.9,
-        })}
+        onPress={() => bottomSheetRef_support.ref.current?.expand()}
       >
         <LinearGradient
           colors={['#6C63FF', '#8B63FF']}
@@ -249,9 +268,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-        onPress={() => bottomSheetRef_feedback.current?.open({
-          sheetHeight: 0.9,
-        })}
+        onPress={() => bottomSheetRef_feedback.ref.current?.expand()}
       >
         <LinearGradient
           colors={['#34C759', '#4CD964']}
@@ -286,9 +303,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-        onPress={() => bottomSheetRef_payment.current?.open({
-          sheetHeight: 0.9,
-        })}
+        onPress={() => bottomSheetRef_payment.ref.current?.expand()}
       >
         <LinearGradient
           colors={['#FFD166', '#FFB347']}
@@ -871,7 +886,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
   // FIXED: All onPress handlers now properly reference the refs
   return (
-    <View style={modernStyles.container}>
+    <View style={modernStyles.container} >
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <Animated.ScrollView
           showsVerticalScrollIndicator={false}
@@ -894,10 +909,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 title="Email Address"
                 subtitle={getProfile?.user_email}
                 onPress={() => {
-                  bottomSheetRef_email.current?.open({
-                    sheetHeight: 0.7,
-                    stylexj: { paddingHorizontal: 0 }
-                  });
+                  bottomSheetRef_email.ref.current?.expand();
                 }}
               />
               <ModernOption
@@ -905,10 +917,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 title="Phone Number"
                 subtitle={getProfile?.user_phonenumber}
                 onPress={() => {
-                  bottomSheetRef_phone.current?.open({
-                    sheetHeight: 0.7,
-                    stylexj: { paddingHorizontal: 0 }
-                  });
+                  bottomSheetRef_phone.ref.current?.expand();
                 }}
               />
               <ModernOption
@@ -916,19 +925,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 title="Push Notifications"
                 subtitle="Manage alerts and preferences"
                 onPress={() => {
-                  bottomSheetRef_notifications.current?.open({
-                    sheetHeight: 0.9,
-                    onClose: () => {
-                      return;
-                      // _http_request({
-                      //   reqType: 'POST',
-                      //   bodyArray: {
-                      //     //action: //http_namer?.pushSettings,
-                      //     sddta: (llStorage.currentProfile.get()?.currentUser?.settings)
-                      //   }
-                      // });
-                    }
-                  });
+                  bottomSheetRef_notifications.ref.current?.expand();
+
                 }}
               />
             </ModernSection>
@@ -1034,9 +1032,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <ModernOption
                 icon="construct-outline"
                 title="Debug Tools"
-                onPress={() => bottomSheetRef_null.current?.open({
-                  sheetHeight: 0.7,
-                })}
+                onPress={() => bottomSheetRef_null.ref.current?.expand()}
               />
             </ModernSection>
 
@@ -1085,105 +1081,119 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </SafeAreaView>
 
       {/* Custom Bottom Sheets */}
-      <CBottomSheet ref={bottomSheetRef_notifications}>
-        <View style={{ flex: 1, paddingHorizontal: 20 }}>
-          <Text style={modernStyles.sectionTitle}>Notifications</Text>
-          {/* Add notification content here */}
-        </View>
-      </CBottomSheet>
+      <BottomSheet>
+        <BottomSheetView style={{ padding: 23 }}>
+          <View style={{ flex: 1, paddingHorizontal: 20 }}>
+            <Text style={modernStyles.sectionTitle}>Notifications</Text>
+            {/* Add notification content here */}
+          </View>
+        </BottomSheetView>
+      </BottomSheet >
 
-      <CBottomSheet ref={bottomSheetRef_email} >
-        <EmailChangeFlow
-          currentEmail={getProfile?.user_email || ''}
-          onComplete={async () => {
-            // Refresh profile data
-            await __init__app({ doAgain: true });
-            bottomSheetRef_email.current?.close();
-            setProfile(llStorage.currentProfile.get()?.currentUser);
-
-          }}
-          onCancel={() => bottomSheetRef_email.current?.close()}
-        />
-      </CBottomSheet>
-
-      <CBottomSheet ref={bottomSheetRef_phone}>
-        <PhoneChangeFlow
-          currentPhone={getProfile?.user_phonenumber || ''}
-          onComplete={async () => {
-            // Refresh profile data
-            await __init__app({ doAgain: true });
-            bottomSheetRef_phone.current?.close();
-            setProfile(llStorage.currentProfile.get()?.currentUser);
-          }}
-          onCancel={() => bottomSheetRef_phone.current?.close()}
-        />
-      </CBottomSheet>
-
-      <CBottomSheet ref={bottomSheetRef_payment}>
-        <View style={{ flex: 1, paddingHorizontal: 20 }}>
-          <Text style={modernStyles.sectionTitle}>Payments</Text>
-          {/* Add payment content here */}
-        </View>
-      </CBottomSheet>
-
-      <CBottomSheet ref={bottomSheetRef_feedback}>
-        <View style={{ flex: 1 }}>
-          <Text style={modernStyles.sectionTitle}>Feedback</Text>
-          {/* Add feedback content here */}
-        </View>
-      </CBottomSheet>
-
-      <CBottomSheet ref={bottomSheetRef_support}>
-        <View style={{ flex: 1 }}>
-          <Text style={modernStyles.sectionTitle}>Support</Text>
-          {/* Add support content here */}
-        </View>
-      </CBottomSheet>
-
-      <CBottomSheet ref={bottomSheetRef_null}>
-        <View style={{ flex: 1 }}>
-          <Text style={modernStyles.sectionTitle}>Debug Tools</Text>
-          <ScrollView style={[modernStyles.dangerSection, { flex: 1 }]} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-            <Pressable style={modernStyles.dangerSection} onPress={async () => {
+      <BottomSheet>
+        <BottomSheetView style={{ padding: 23 }}>
+          <EmailChangeFlow
+            currentEmail={getProfile?.user_email || ''}
+            onComplete={async () => {
+              // Refresh profile data
               await __init__app({ doAgain: true });
+              bottomSheetRef_email.ref.current?.close();
               setProfile(llStorage.currentProfile.get()?.currentUser);
-              Toastx.show({ type: "info", message: "__init__app updated successfully" });
-            }}>
-              <Text>reload update __init__app fun </Text>
-            </Pressable>
 
-            <Pressable style={modernStyles.dangerSection} onPress={() => { Linking.openURL(__MAPPER?.img_domain[0]); }}>
-              <Text>Image url: {__MAPPER?.img_domain[0]}</Text>
-            </Pressable>
+            }}
+            onCancel={() => bottomSheetRef_email.ref.current?.close()}
+          />
+        </BottomSheetView>
+      </BottomSheet>
 
-            <Pressable style={modernStyles.dangerSection} onPress={async () => {
-              Linking.openURL(
-                hostServer() + '/admin/admin_user_detail.php?id=' + llStorage.currentProfile.get()?.currentUser?.user_id
-              );
-            }}>
-              <Text>Profile admin url:{"\n"}{hostServer()}</Text>
-            </Pressable>
+      <BottomSheet >
+        <BottomSheetView style={{ padding: 23 }}>
+          <PhoneChangeFlow
+            currentPhone={getProfile?.user_phonenumber || ''}
+            onComplete={async () => {
+              // Refresh profile data
+              await __init__app({ doAgain: true });
+              bottomSheetRef_phone.ref.current?.close();
+              setProfile(llStorage.currentProfile.get()?.currentUser);
+            }}
+            onCancel={() => bottomSheetRef_phone.ref.current?.close()}
+          />
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet  >
+        <BottomSheetView style={{ padding: 23 }}>
+          <View style={{ flex: 1, paddingHorizontal: 20 }}>
+            <Text style={modernStyles.sectionTitle}>Payments</Text>
+            {/* Add payment content here */}
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet  >
+        <BottomSheetView style={{ padding: 23 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={modernStyles.sectionTitle}>Feedback</Text>
+            {/* Add feedback content here */}
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet >
+        <BottomSheetView style={{ padding: 23 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={modernStyles.sectionTitle}>Support</Text>
+            {/* Add support content here */}
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet  >
+        <BottomSheetView style={{ padding: 23 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={modernStyles.sectionTitle}>Debug Tools</Text>
+            <ScrollView style={[modernStyles.dangerSection, { flex: 1 }]} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+              <Pressable style={modernStyles.dangerSection} onPress={async () => {
+                await __init__app({ doAgain: true });
+                setProfile(llStorage.currentProfile.get()?.currentUser);
+                Toastx.show({ type: "info", message: "__init__app updated successfully" });
+              }}>
+                <Text>reload update __init__app fun </Text>
+              </Pressable>
+
+              <Pressable style={modernStyles.dangerSection} onPress={() => { Linking.openURL(__MAPPER?.img_domain[0]); }}>
+                <Text>Image url: {__MAPPER?.img_domain[0]}</Text>
+              </Pressable>
+
+              <Pressable style={modernStyles.dangerSection} onPress={async () => {
+                Linking.openURL(
+                  hostServer() + '/admin/admin_user_detail.php?id=' + llStorage.currentProfile.get()?.currentUser?.user_id
+                );
+              }}>
+                <Text>Profile admin url:{"\n"}{hostServer()}</Text>
+              </Pressable>
 
 
 
-            <Pressable style={modernStyles.dangerSection} onPress={() => {
-              RNRestart.restart();
-            }}>
-              <Text>reload app</Text>
-            </Pressable>
+              <Pressable style={modernStyles.dangerSection} onPress={() => {
+                RNRestart.restart();
+              }}>
+                <Text>reload app</Text>
+              </Pressable>
 
-            <Pressable style={modernStyles.dangerSection} onPress={async () => {
-              navigation.navigate("zz_nofile");
-            }}>
-              <Text>Testing null page</Text>
-            </Pressable>
+              <Pressable style={modernStyles.dangerSection} onPress={async () => {
+                navigation.navigate("zz_nofile");
+              }}>
+                <Text>Testing null page</Text>
+              </Pressable>
 
-            <Text style={modernStyles.dangerSection}>bundle ID: {DeviceInfo.getBundleId()}</Text>
+              <Text style={modernStyles.dangerSection}>bundle ID: {DeviceInfo.getBundleId()}</Text>
 
-          </ScrollView>
-        </View>
-      </CBottomSheet>
-    </View>
+            </ScrollView>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+    </View >
   );
 }
 
