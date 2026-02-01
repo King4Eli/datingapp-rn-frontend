@@ -12,58 +12,6 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
 import Svg, { Circle } from 'react-native-svg';
 
-const style = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContainer: { padding: 20, paddingBottom: 40 },
-    hero: { marginBottom: 24 },
-    heroKicker: { color: '#9ca3af', fontSize: 12, letterSpacing: 1 },
-    heroTitle: { color: '#fff', fontSize: 26, fontWeight: '700', marginTop: 6 },
-    heroSubtitle: { color: '#cbd5e1', fontSize: 14, marginTop: 6 },
-    tierRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-    tierCard: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 14,
-        borderWidth: 1,
-        backgroundColor: 'rgba(255,255,255,0.02)',
-        shadowOpacity: 0.18,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 6 },
-    },
-    tierCardDisabled: { opacity: 0.45 },
-    tierHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    tierName: { fontSize: 16, fontWeight: '700' },
-    tierId: { color: '#9ca3af', marginTop: 4, fontSize: 13 },
-    tierPrice: { color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 10 },
-    tierFooter: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
-    tierFooterText: { color: '#cbd5e1', fontSize: 13 },
-    badge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
-    badgeText: { color: '#0f0b14', fontWeight: '700', fontSize: 11 },
-    sectionHeader: { marginBottom: 8 },
-    sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 },
-    sectionHint: { color: '#9ca3af', fontSize: 13 },
-    benefitList: { borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', padding: 14, marginBottom: 20 },
-    benefitItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-    benefitIcon: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-    benefitText: { color: '#e5e7eb', fontSize: 15, flex: 1 },
-    emptyBenefit: { color: '#9ca3af', fontSize: 14 },
-    cycleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-    cyclePill: {
-        flexBasis: '48%',
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#2f3040',
-        backgroundColor: 'rgba(255,255,255,0.02)',
-    },
-    cycleText: { color: '#e5e7eb', fontWeight: '700' },
-    cycleTextSelected: { color: '#0f0b14' },
-    cyclePrice: { color: '#cbd5e1', marginTop: 4, fontSize: 13 },
-    ctaButton: { padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 16 },
-    ctaText: { color: '#0f0b14', fontSize: 17, fontWeight: '800' },
-    ctaSubtext: { color: '#0f0b14', fontSize: 13, marginTop: 4 },
-    disclaimer: { color: '#9ca3af', fontSize: 12, lineHeight: 16, textAlign: 'center' },
-})
 
 export function Screen_profile({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
@@ -186,18 +134,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                 {/* Background Circle */}
                 <Circle stroke="#cecece" fill="none" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} />
                 {/* Progress Circle */}
-                <Circle
-                    stroke={color}
-                    fill="none"
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={`${circumference} ${circumference}`}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                />
+                <Circle stroke={color} fill="none" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} strokeDasharray={`${circumference} ${circumference}`} strokeDashoffset={strokeDashoffset} strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`} />
             </Svg>
         );
     };
@@ -218,10 +155,10 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     <View style={{ gap: 10 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
                             <Pressable onPress={async () => { navigation.push(namer.navigation.editprofile); }}>
-                                <View style={{position:"relative", width: 108, height: 108, }}>
+                                <View style={{ position: "relative", width: 108, height: 108, }}>
                                     <CircularProgress progress={profileCompletion} />
 
-                                    <View style={{ borderRadius: 100,   padding: 4, }}>
+                                    <View style={{ borderRadius: 100, padding: 4, }}>
                                         <FastImage style={{ width: 100, height: 100, borderRadius: 100, alignSelf: 'center', }} resizeMode='cover' source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} />
                                         {userVerified && <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'white', borderRadius: 50 }}>
                                             <IIcon name="checkmark-done-circle-sharp" size={32} color="#4F8EF7" />
@@ -236,14 +173,19 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                         </View>
 
                         <View style={{ flexDirection: "row", gap: 5 }}>
-                            <Pressable onPress={() => { navigation.push(namer.navigation.editprofile); }} style={[ag.bi,]}>
-                                <Text>Edit Profile</Text>
+                            <Pressable onPress={() => navigation.push(namer.navigation.editprofile)}
+                                style={ag.aj} >
+                                <MIcon name="square-edit-outline" size={22} color="#fff" />
+                                <Text style={{ color: "#fff" }}>Edit Profile</Text>
                             </Pressable>
-                            {!userVerified && <Pressable onPress={() => { navigation.push(namer.navigation.editprofile); }}
-                                style={[ag.bi, { backgroundColor: "#b683e9ff", borderWidth: 0 }]}>
-                                <MIcon name="camera" size={22} color="#204586ff" />
-                                <Text style={{ color: "#fff", fontSize: 12, lineHeight: 15 }}>Verify Account</Text>
-                            </Pressable>}
+
+                            {!userVerified && (
+                                <Pressable onPress={() => navigation.push(namer.navigation.editprofile)}
+                                    style={[ag.aj, { backgroundColor: "#b683e9ff" }]} >
+                                    <MIcon name="camera" size={22} color="#ffffff" />
+                                    <Text style={{ color: "#fff", lineHeight: 15 }}>Verify Account</Text>
+                                </Pressable>
+                            )}
                         </View>
                     </View>
 
@@ -494,23 +436,17 @@ const stylesx = StyleSheet.create({
         borderRadius: 999,
     },
 });
-
 const ag = StyleSheet.create({
     aj: {
+        flex: 1, // ← THIS is the fix
         backgroundColor: '#4a90e2',
-        paddingVertical: 12,
+        paddingVertical: 9,
         paddingHorizontal: 8,
-        borderRadius: 10,
+        borderRadius: 19,
+
         alignItems: 'center',
         justifyContent: 'center',
-
-        // 👇 grid-friendly tweaks
-        width: '48%',         // forces 2 per row
-        marginBottom: 12,
+        flexDirection: 'row',
+        gap: 6,
     },
-    bi: {
-        paddingHorizontal: 12, paddingVertical: 2, borderRadius: 10, borderWidth: 2,
-        borderColor: "#bac", flexDirection: "row",
-        alignItems: "center", gap: 5, justifyContent: "center"
-    }
 });
