@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@gorhom/bottom-sheet": "^5.2.8",
     "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/blur": "^4.4.1",
@@ -20,11 +21,11 @@
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/stack": "^7.6.11",
     "axios": "^1.13.2",
-    "buffer": "^6.0.3",
     "lottie-react-native": "^7.3.5",
     "node-fetch": "^3.3.2",
     "node-geocoder": "^4.4.1",
-    "random": "^5.4.1",
+    "buffer": "^6.0.3",
+
     "react": "19.2.0",
     "react-native": "0.83.1",
     "react-native-device-info": "^15.0.1",
@@ -39,7 +40,6 @@
     "react-native-quick-actions": "^0.3.13",
     "react-native-radio-buttons-group": "^3.1.0",
     "react-native-reanimated": "^4.2.1",
-    "react-native-rename": "^3.2.17",
     "react-native-restart": "^0.0.27",
     "react-native-safe-area-context": "^5.6.2",
     "react-native-screens": "^4.18.0",

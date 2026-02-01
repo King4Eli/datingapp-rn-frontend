@@ -6,7 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 
-import { Peoples_Screen } from './Peoples';
+import  Peoples_Screen  from './Peoples';
 import { Screen_likes } from './Likes';
 import { Screen_chat } from './Chats';
 import { Screen_profile } from './Profile';
@@ -23,7 +23,7 @@ import { namer, resourceMap } from '../funcs/static';
 import { Screen_Subscribe } from './Subscribe';
 import { __init__app, convoHelper, displsyNotification, llStorage, logReport } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
-import { AppState, Text, Vibration, View } from 'react-native';
+import { AppState, Vibration, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import QuickActions from 'react-native-quick-actions';
 import { Toastx } from '../funcs/customNotification';

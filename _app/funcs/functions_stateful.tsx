@@ -2,11 +2,13 @@
 // https://static.enapter.com/rn/icons/material-community.html 
 // https://oblador.github.io/react-native-vector-icons/ 
 import { ActivityIndicator, View, Text, Modal, Pressable, Image, StyleSheet, ImageSourcePropType } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { resourceMap, styles } from './static';
 import React from 'react';
 import FastImage from 'react-native-fast-image';
-
+ import { 
+  BottomSheetBackdrop,
+} from '@gorhom/bottom-sheet';
 
 //****************************
 //
@@ -79,6 +81,18 @@ export const FullScreenImageModal: React.FC<{
     </Modal>
   );
 };
+
+export const bottomsheet_renderBackdrop = useCallback(
+  (props: any) => (
+    <BottomSheetBackdrop
+      {...props}
+      appearsOnIndex={0}
+      disappearsOnIndex={-1}
+      pressBehavior="none"   // 🔒 blocks touches
+    />
+  ),
+  []
+);
 //*****************************
 //
 //

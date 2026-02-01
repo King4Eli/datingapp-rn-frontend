@@ -1,25 +1,24 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { View, Text, Pressable, ScrollView, Alert, ImageBackground, TouchableOpacity, StyleSheet, Image, Modal } from 'react-native';
-import { Loaderx, FullScreenImageModal } from '../funcs/functions_stateful';
+import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
 import { Screen_editpreference } from './PreferenceEdit';
-import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, preloadImages, screenHeight, screenWidth, sleep } from '../funcs/functions';
+import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, preloadImages, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TextInput } from 'react-native-gesture-handler';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'react-native-linear-gradient';
-import { CBottomSheetRef, CBottomSheet } from '../funcs/customBottomSheet';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from 'react-native-fast-image';
 import LottieView from 'lottie-react-native';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 
 
-
-export function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
+export default function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
 
     const [getLoading, setLoading] = useState<Boolean>(false);
@@ -34,10 +33,23 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<string | null>(null);
     const [showItsAMatchModal, setShowItsAMatchModal] = useState(false);
 
-    const bottomSheetRef_secondview = useRef<CBottomSheetRef>(null);
-    const bottomSheetRef_preferenceEdit = useRef<CBottomSheetRef>(null);
-    const bottomSheetRef_reportUser = useRef<CBottomSheetRef>(null);
-    const bottomSheetRef_location = useRef<CBottomSheetRef>(null);
+    const bottomSheetRef_secondview = {
+        ref: useRef<BottomSheet>(null),
+        snap: useMemo(() => ['35%','55%', '75%'], [])
+    };
+    const bottomSheetRef_preferenceEdit = {
+        ref: useRef<BottomSheet>(null),
+        snap: useMemo(() => ['35%', '75%'], [])
+    };
+    const bottomSheetRef_reportUser = {
+        ref: useRef<BottomSheet>(null),
+        snap: useMemo(() => ['55%'], [])
+    };
+    const bottomSheetRef_location = {
+        ref: useRef<BottomSheet>(null),
+        snap: useMemo(() => ['35%'], [])
+    };
+
 
     const functs = {
         onePersonProfile: route?.params?.getOnePersonId, //str
@@ -179,7 +191,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                             //then 
                             peoples_action("report", 4).then(() => {
 
-                                bottomSheetRef_reportUser.current?.close();
+                                bottomSheetRef_reportUser.ref.current?.close();
                                 Toastx.show({
                                     type: "success",
                                     message: reportedUserName + " has been reported!"
@@ -272,31 +284,26 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
             headerRight: () => !functs.onePersonProfile && (
                 <View style={{ paddingRight: 10, flexDirection: "row", gap: 14, alignItems: "center" }}>
                     {getSkippedPeoples.length > 0 && <Pressable style={{ gap: 3 }} onPress={() => {
-                        bottomSheetRef_secondview.current?.open({
-                            onClose: () => { },
-                            sheetHeight: .5,
-                            stylexj: { paddingHorizontal: 0, }
-                        });
+                        if(getSkippedPeoples?.length > 4){
+                            bottomSheetRef_secondview.ref.current?.expand();
+                        }else if(getSkippedPeoples?.length > 2){
+                            bottomSheetRef_secondview.ref.current?.snapToIndex(1);
+                        }else{
+                            bottomSheetRef_secondview.ref.current?.snapToIndex(0);
+                        }
                     }}>
                         <MIcon name="backup-restore" size={30} color="#204586ff" />
                     </Pressable>}
                     <Pressable style={{ gap: 3 }} onPress={() => {
 
-                        bottomSheetRef_location.current?.open({
-                            onClose: () => { },
-                            sheetHeight: .3
-                        });
+                        bottomSheetRef_location.ref.current?.expand();
 
                     }}>
                         <IIcon name="location-outline" size={28} color="#204586ff" />
                     </Pressable>
                     <Pressable style={{ gap: 3 }} onPress={() => {
 
-                        bottomSheetRef_preferenceEdit.current?.open({
-                            onClose: () => { },
-                            sheetHeight: .8,
-                            stylexj: { paddingHorizontal: 5 }
-                        });
+                        bottomSheetRef_preferenceEdit.ref.current?.snapToIndex(0);
 
                     }}>
                         <IIcon name="filter-outline" size={30} color="#204586ff" />
@@ -456,11 +463,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                         <Text style={{ fontSize: 13 }}>Try updating your</Text>
                         <Pressable onPress={() => {
 
-                            bottomSheetRef_preferenceEdit.current?.open({
-                                onClose: () => { },
-                                sheetHeight: .86,
-                                stylexj: { paddingHorizontal: 5 }
-                            });
+                            bottomSheetRef_preferenceEdit.ref.current?.expand();
 
                         }}>
                             <Text style={{ color: "#099a", fontSize: 13 }}> preferences.</Text>
@@ -579,7 +582,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                                 <Text style={deckStyles.sectionTitle}>Safety</Text>
                                 <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
                                     <Pressable style={[styles.pressableButton, { backgroundColor: colors.warning, flex: 1 }]} onPress={() => {
-                                        bottomSheetRef_reportUser.current?.open({ sheetHeight: .6 });
+                                        bottomSheetRef_reportUser.ref.current?.expand();
                                     }}>
                                         <Text style={styles.pressableButtonText}>Report</Text>
                                     </Pressable>
@@ -620,7 +623,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                             <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnGhost]} onPress={() => peoples_action('dislike', 2)}>
                                 <IIcon name="close" size={30} color="#f43f5e" />
                             </Pressable>
-                            {!functs.onePersonProfile && <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnAccent]} onPress={() => peoples_action('superlike', getPeopleToMatch?.[0]?.match_id ? 1 : 5)}>
+                            {!functs.onePersonProfile && <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnAccent]} onPress={() => { peoples_action('superlike', getPeopleToMatch?.[0]?.match_id ? 1 : 5); }}>
                                 <IIcon name="diamond" size={30} color="#0ea5e9" />
                             </Pressable>}
                             <Pressable style={[deckStyles.circleBtn, deckStyles.circleBtnPrimary]} onPress={() => {
@@ -643,17 +646,7 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
 
 
 
-            <CBottomSheet ref={bottomSheetRef_reportUser}>
-                <ReportContent />
-            </CBottomSheet>
 
-            <CBottomSheet ref={bottomSheetRef_preferenceEdit}>
-                <Screen_editpreference closeModal={() => { setPeopleToMatch(null); sptmd(!gptmd); bottomSheetRef_preferenceEdit.current?.close(); }} />
-            </CBottomSheet>
-
-            <CBottomSheet ref={bottomSheetRef_location}>
-                <LocationContent />
-            </CBottomSheet>
 
             {/* ITS a matCH */}
             <Modal visible={showItsAMatchModal} transparent animationType="fade"
@@ -705,43 +698,6 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
                 </View>
             </Modal>
 
-            <CBottomSheet ref={bottomSheetRef_secondview}>
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10 }}>
-                    <Text style={styles.title}>Previously Skipped Profiles</Text>
-                    <View style={{ gap: 10 }}>
-                        {getSkippedPeoples.length === 0 ? (<Text style={{ fontSize: 15, textAlign: "center", marginTop: 20 }}>You have not skipped any profiles yet.</Text>) : (getSkippedPeoples.map((skippedPerson, index) => (
-                            <View key={index} style={[styles.card]}>
-                                <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-                                    <FastImage source={{ uri: __MAPPER?.img_domain[0] + skippedPerson?.user_image?.[0]?.p }} style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.gray1 }} />
-                                    <View>
-                                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                            <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{skippedPerson?.user_fullname}</Text>
-                                            {skippedPerson?.user_bio_dob && <Text style={{ fontSize: 14, color: '#909090' }}>, {help.getageFromDOB(skippedPerson?.user_bio_dob)}</Text>}
-                                            {skippedPerson?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={16} color="#4F8EF7" />}
-                                        </View>
-                                        <Text style={{ fontSize: 14, color: '#909090' }}>{skippedPerson?.user_bio_jobrole || ''}</Text>
-                                    </View>
-                                    <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 5 }} >
-                                        <Pressable style={[{ padding: 10, backgroundColor: '#ff7272ff', borderRadius: 25 }]} onPress={() => {
-                                            setSkippedPeoples((prev) => prev.filter((p) => p.user_id !== skippedPerson.user_id));
-                                        }}>
-                                            <IIcon name="close" size={25} color="#fff" />
-                                        </Pressable>
-                                        <Pressable style={[{ padding: 10, backgroundColor: '#79c3ffff', borderRadius: 25 }]} onPress={() => {
-                                            setPeopleToMatch((prev) => [skippedPerson, ...(prev ?? [])]);
-                                            setSkippedPeoples((prev) => prev.filter((p) => p.user_id !== skippedPerson.user_id));
-                                            bottomSheetRef_secondview.current?.close();
-                                        }}>
-                                            <IIcon name="eye" size={25} color="#fff" />
-                                        </Pressable>
-                                    </View>
-                                </View>
-                            </View>)))}
-                    </View>
-
-                </ScrollView>
-            </CBottomSheet>
-
 
 
             {/* FULLSCREEN */}
@@ -749,6 +705,61 @@ export function Peoples_Screen({ route, navigation }: { route: any, navigation: 
 
             {/* LOADERs */}
             {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}><LottieView ref={lottieRef} source={resourceMap.lottie.heartpop} loop autoPlay style={{ width: 250, height: 250 }} /></View>}
+
+
+            <BottomSheet ref={bottomSheetRef_secondview.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_secondview.snap} backdropComponent={bottomsheet_renderBackdrop}>
+                <BottomSheetView style={{ padding: 23 }}>
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10 }}>
+                        <Text style={styles.title}>Previously Skipped Profiles</Text>
+                        <View style={{ gap: 10 }}>
+                            {getSkippedPeoples.length === 0 ? (<Text style={{ fontSize: 15, textAlign: "center", marginTop: 20 }}>You have not skipped any profiles yet.</Text>) : (getSkippedPeoples.map((skippedPerson, index) => (
+                                <View key={index} style={[styles.card]}>
+                                    <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+                                        <FastImage source={{ uri: __MAPPER?.img_domain[0] + skippedPerson?.user_image?.[0]?.p }} style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.gray1 }} />
+                                        <View>
+                                            <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                                <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{skippedPerson?.user_fullname}</Text>
+                                                {skippedPerson?.user_bio_dob && <Text style={{ fontSize: 14, color: '#909090' }}>, {help.getageFromDOB(skippedPerson?.user_bio_dob)}</Text>}
+                                                {skippedPerson?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={16} color="#4F8EF7" />}
+                                            </View>
+                                            <Text style={{ fontSize: 14, color: '#909090' }}>{skippedPerson?.user_bio_jobrole || ''}</Text>
+                                        </View>
+                                        <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 5 }} >
+                                            <Pressable style={[{ padding: 10, backgroundColor: '#ff7272ff', borderRadius: 25 }]} onPress={() => {
+                                                setSkippedPeoples((prev) => prev.filter((p) => p.user_id !== skippedPerson.user_id));
+                                            }}>
+                                                <IIcon name="close" size={25} color="#fff" />
+                                            </Pressable>
+                                            <Pressable style={[{ padding: 10, backgroundColor: '#79c3ffff', borderRadius: 25 }]} onPress={() => {
+                                                setPeopleToMatch((prev) => [skippedPerson, ...(prev ?? [])]);
+                                                setSkippedPeoples((prev) => prev.filter((p) => p.user_id !== skippedPerson.user_id));
+                                                bottomSheetRef_secondview.ref.current?.close();
+                                            }}>
+                                                <IIcon name="eye" size={25} color="#fff" />
+                                            </Pressable>
+                                        </View>
+                                    </View>
+                                </View>)))}
+                        </View>
+
+                    </ScrollView>
+                    </BottomSheetView>
+            </BottomSheet>
+            <BottomSheet ref={bottomSheetRef_preferenceEdit.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_preferenceEdit.snap} backdropComponent={bottomsheet_renderBackdrop}>
+                <BottomSheetView style={{ padding: 23 }}>
+                    <Screen_editpreference closeModal={() => { setPeopleToMatch(null); sptmd(!gptmd); bottomSheetRef_preferenceEdit.ref.current?.close(); }} />
+                </BottomSheetView>
+            </BottomSheet>
+            <BottomSheet ref={bottomSheetRef_reportUser.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_reportUser.snap} backdropComponent={bottomsheet_renderBackdrop}>
+                <BottomSheetView style={{ padding: 23 }}>
+                    <ReportContent />
+                </BottomSheetView>
+            </BottomSheet>
+            <BottomSheet ref={bottomSheetRef_location.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_location.snap} backdropComponent={bottomsheet_renderBackdrop}>
+                <BottomSheetView style={{ padding: 23 }}>
+                    <LocationContent />
+                </BottomSheetView>
+            </BottomSheet>
         </View >
     );
 }

@@ -31,8 +31,7 @@ export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-        paddingHorizontal: 7,
-        position: 'relative',
+        paddingHorizontal: 7, 
     },
     conainerScrollView: {
         paddingHorizontal: 7,
