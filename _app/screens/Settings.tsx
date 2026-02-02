@@ -1,12 +1,11 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Linking, Alert, Share, TouchableOpacity, TextInput, Platform, Animated, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, namer, styles } from '../funcs/static';
+import { namer, styles } from '../funcs/static';
 import { __init__app, _http_request, hostServer, llStorage, logReport } from '../funcs/functions';
 import appJson from '../../app.json';
-import RNRestart from 'react-native-restart';
 import DeviceInfo from 'react-native-device-info';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -43,26 +42,27 @@ const MODERN_COLORS = {
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState(llStorage.currentProfile.get()?.currentUser);
-  const __MAPPER = llStorage.CONFIG.get()?.mapper;
 
   const [getAllowOnlyVerified, setAllowOnlyVerified] = useState(getProfile?.messagefromonlyverified ?? false);
   const [getSnoozeAccount, setSnoozeAccount] = useState(getProfile?.snooze ?? false);
+  const [privacyShowInDiscovery, setPrivacyShowInDiscovery] = useState(true);
+  const [privacyShowLastActive, setPrivacyShowLastActive] = useState(true);
+  const [privacyShowDistance, setPrivacyShowDistance] = useState(true);
+  const [privacyAllowMessageRequests, setPrivacyAllowMessageRequests] = useState(true);
+  const [notifyPushEnabled, setNotifyPushEnabled] = useState(true);
+  const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
 
   const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
   const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
   const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [1, 0.9],
-    extrapolate: 'clamp',
-  });
+  const headerOpacity = scrollY.interpolate({ inputRange: [0, 100], outputRange: [1, 0.9], extrapolate: 'clamp' });
 
   // Use the correct ref type
-  const bottomSheetRef_notifications = {
+  const bottomSheetRef_push = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%', '75%'], [])
+    snap: useMemo(() => ['45%', '80%'], [])
   };
   const bottomSheetRef_feedback = {
     ref: useRef<BottomSheet>(null),
@@ -87,6 +87,138 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const bottomSheetRef_phone = {
     ref: useRef<BottomSheet>(null),
     snap: useMemo(() => ['35%', '75%'], [])
+  };
+  const bottomSheetRef_privacy = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['45%', '85%'], [])
+  };
+
+  const PRIVACY_STORAGE_KEY = 'privacy_settings_v1';
+  const NOTIFICATION_STORAGE_KEY = 'notification_settings_v1';
+  const privacyDefaults = {
+    showInDiscovery: true,
+    showLastActive: true,
+    showDistance: true,
+    allowMessageRequests: true,
+  };
+  const notificationDefaults = {
+    pushEnabled: true,
+    emailEnabled: true,
+  };
+
+  useEffect(() => {
+    const loadPrivacySettings = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(PRIVACY_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        setPrivacyShowInDiscovery(parsed?.showInDiscovery ?? privacyDefaults.showInDiscovery);
+        setPrivacyShowLastActive(parsed?.showLastActive ?? privacyDefaults.showLastActive);
+        setPrivacyShowDistance(parsed?.showDistance ?? privacyDefaults.showDistance);
+        setPrivacyAllowMessageRequests(parsed?.allowMessageRequests ?? privacyDefaults.allowMessageRequests);
+      } catch (err) {
+        logReport({
+          type: "function",
+          useraction: "loadPrivacySettings",
+          logMessage: "Failed to load privacy settings",
+          stackTrace: err
+        });
+      }
+    };
+    const loadNotificationSettings = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(NOTIFICATION_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        setNotifyPushEnabled(parsed?.pushEnabled ?? notificationDefaults.pushEnabled);
+        setNotifyEmailEnabled(parsed?.emailEnabled ?? notificationDefaults.emailEnabled);
+      } catch (err) {
+        logReport({
+          type: "function",
+          useraction: "loadNotificationSettings",
+          logMessage: "Failed to load notification settings",
+          stackTrace: err
+        });
+      }
+    };
+    loadPrivacySettings();
+    loadNotificationSettings();
+  }, []);
+
+  const savePrivacySettings = async () => {
+    try {
+      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify({
+        showInDiscovery: privacyShowInDiscovery,
+        showLastActive: privacyShowLastActive,
+        showDistance: privacyShowDistance,
+        allowMessageRequests: privacyAllowMessageRequests,
+      }));
+      Toastx.show({ type: "success", message: "Privacy settings saved" });
+      bottomSheetRef_privacy.ref.current?.close();
+    } catch (err) {
+      Toastx.show({ type: "error", message: "Failed to save privacy settings" });
+      logReport({
+        type: "function",
+        useraction: "savePrivacySettings",
+        logMessage: "Failed to save privacy settings",
+        stackTrace: err
+      });
+    }
+  };
+
+  const resetPrivacySettings = async () => {
+    setPrivacyShowInDiscovery(privacyDefaults.showInDiscovery);
+    setPrivacyShowLastActive(privacyDefaults.showLastActive);
+    setPrivacyShowDistance(privacyDefaults.showDistance);
+    setPrivacyAllowMessageRequests(privacyDefaults.allowMessageRequests);
+    try {
+      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify(privacyDefaults));
+      Toastx.show({ type: "success", message: "Privacy settings reset" });
+    } catch (err) {
+      Toastx.show({ type: "error", message: "Failed to reset privacy settings" });
+      logReport({
+        type: "function",
+        useraction: "resetPrivacySettings",
+        logMessage: "Failed to reset privacy settings",
+        stackTrace: err
+      });
+    }
+  };
+
+  const saveNotificationSettings = async () => {
+    try {
+      await AsyncStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify({
+        pushEnabled: notifyPushEnabled,
+        emailEnabled: notifyEmailEnabled,
+      }));
+      Toastx.show({ type: "success", message: "Notification settings saved" });
+      bottomSheetRef_push.ref.current?.close();
+    } catch (err) {
+      Toastx.show({ type: "error", message: "Failed to save notification settings" });
+      logReport({
+        type: "function",
+        useraction: "saveNotificationSettings",
+        logMessage: "Failed to save notification settings",
+        stackTrace: err
+      });
+    }
+  };
+
+  const resetNotificationSettings = async () => {
+    setNotifyPushEnabled(notificationDefaults.pushEnabled);
+    setNotifyEmailEnabled(notificationDefaults.emailEnabled);
+    try {
+      await AsyncStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(notificationDefaults));
+      Toastx.show({ type: "success", message: "Notification settings reset" });
+    } catch (err) {
+      Toastx.show({ type: "error", message: "Failed to reset notification settings" });
+      logReport({
+        type: "function",
+        useraction: "resetNotificationSettings",
+        logMessage: "Failed to reset notification settings",
+        stackTrace: err
+      });
+    }
   };
 
   // Profile header with modern design
@@ -321,15 +453,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
 
   // Email Change Flow Component
-  const EmailChangeFlow = ({
-    currentEmail,
-    onComplete,
-    onCancel
-  }: {
-    currentEmail: string,
-    onComplete: () => void,
-    onCancel: () => void
-  }) => {
+  const EmailChangeFlow = ({ currentEmail, onComplete, onCancel }: { currentEmail: string, onComplete: () => void, onCancel: () => void }) => {
     const [step, setStep] = useState(0);
     const [newEmail, setNewEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
@@ -567,12 +691,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       }
     ];
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ControlledCarousel
-          ref={carouselRef}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} >
+        <ControlledCarousel ref={carouselRef} initialPage={0} onPageChange={setStep}
           pages={steps.map((stepConfig, index) => (
             <View key={index} style={{ flex: 1, paddingHorizontal: 10 }}>
               <View style={modernStyles.flowHeader}>
@@ -581,10 +701,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               </View>
               {stepConfig.content}
             </View>
-          ))}
-          initialPage={0}
-          onPageChange={setStep}
-        />
+          ))} />
 
         <View style={modernStyles.stepIndicator}>
           {steps.map((_, index) => (
@@ -847,12 +964,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     ];
 
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ControlledCarousel
-          ref={carouselRef}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} >
+        <ControlledCarousel ref={carouselRef} initialPage={0} onPageChange={setStep}
           pages={steps.map((stepConfig, index) => (
             <View key={index} style={{ flex: 1, paddingHorizontal: 10 }}>
               <View style={modernStyles.flowHeader}>
@@ -861,20 +974,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               </View>
               {stepConfig.content}
             </View>
-          ))}
-          initialPage={0}
-          onPageChange={setStep}
-        />
+          ))} />
 
         <View style={modernStyles.stepIndicator}>
           {steps.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                modernStyles.stepDot,
-                index === step && modernStyles.stepDotActive
-              ]}
-            />
+            <View key={index} style={[modernStyles.stepDot, index === step && modernStyles.stepDotActive]} />
           ))}
         </View>
       </KeyboardAvoidingView>
@@ -926,7 +1030,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 title="Push Notifications"
                 subtitle="Manage alerts and preferences"
                 onPress={() => {
-                  bottomSheetRef_notifications.ref.current?.expand();
+                  bottomSheetRef_push.ref.current?.expand();
 
                 }}
               />
@@ -957,7 +1061,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 icon="lock-closed-outline"
                 title="Privacy Settings"
                 subtitle="Control who sees your profile"
-                onPress={() => Toastx.show({ type: "info", message: "Privacy settings coming soon!" })}
+                onPress={() => bottomSheetRef_privacy.ref.current?.expand()}
               />
               <ModernOption
                 icon="flag-outline"
@@ -988,55 +1092,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 onPress={() => Linking.openURL(hostServer() + "/static_page/privacy.php")}
                 rightElement={<IIcon size={20} name='open-outline' />}
               />
-              <ModernOption
-                icon="download-outline"
-                title="Download Your Data"
-                subtitle="Get a copy of your personal information"
-                onPress={() => {
-                  Alert.alert(
-                    "Download Data",
-                    "Your data will be prepared and sent to your email. This may take a few minutes.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Request Download",
-                        onPress: () => {
-                          Toastx.show({
-                            type: "success",
-                            message: "Data download requested. You'll receive an email when it's ready."
-                          });
-                        }
-                      },
-                    ]
-                  );
-                }}
-              />
             </ModernSection>
 
-            {/* App Section */}
-            <ModernSection title="App" icon="phone-portrait-outline">
-              <ModernOption
-                icon="language-outline"
-                title="Language"
-                subtitle="English (US)"
-                onPress={() => Toastx.show({
-                  type: "info",
-                  message: "Language settings coming soon!",
-                  position: "top",
-                })}
-              />
-            </ModernSection>
-
-            {/* Developer Options (Hidden unless enabled) */}
-
-            <ModernSection title="Developer" icon="code-slash-outline">
-              <ModernOption
-                icon="construct-outline"
-                title="Debug Tools"
-                onPress={() => bottomSheetRef_debug.ref.current?.expand()}
-              />
-            </ModernSection>
-
+            
 
             {/* Logout & Delete Section */}
             <View style={modernStyles.dangerSection}>
@@ -1070,6 +1128,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               }} style={{ alignSelf: "flex-start" }}><Text style={{ color: "#ff7a7aff", marginTop: 20, fontSize: 12 }}>delete account</Text></Pressable>
             </View>
 
+
+            {/* Developer Options (Hidden unless enabled) */}
+            <ModernOption icon="code-slash-outline" title="Debug Tools"
+              onPress={() => navigation.push("zz_devv")} />
+
+
             {/* App Version */}
             <View style={modernStyles.versionContainer}>
               <Text style={modernStyles.versionText}> dv-{DeviceInfo.getVersion()} (jv-{appJson?.appversion})</Text>
@@ -1082,47 +1146,173 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </SafeAreaView>
 
       {/* Custom Bottom Sheets */}
-      <BottomSheet index={-1}>
-        <BottomSheetView style={{ padding: 23 }}>
-          <View style={{ flex: 1, paddingHorizontal: 20 }}>
-            <Text style={modernStyles.sectionTitle}>Notifications</Text>
-            {/* Add notification content here */}
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
 
-      <BottomSheet index={-1}>
-        <BottomSheetView style={{ padding: 23 }}>
-          <EmailChangeFlow
-            currentEmail={getProfile?.user_email || ''}
+      <BottomSheet ref={bottomSheetRef_email.ref} enablePanDownToClose index={-1}
+        snapPoints={bottomSheetRef_email.snap}
+        backdropComponent={bottomsheet_renderBackdrop}>
+        <BottomSheetView >
+          <EmailChangeFlow currentEmail={getProfile?.user_email || ''}
+            onCancel={() => bottomSheetRef_email.ref.current?.close()}
             onComplete={async () => {
               // Refresh profile data
               await __init__app({ doAgain: true });
               bottomSheetRef_email.ref.current?.close();
               setProfile(llStorage.currentProfile.get()?.currentUser);
 
-            }}
-            onCancel={() => bottomSheetRef_email.ref.current?.close()}
-          />
+            }} />
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet index={-1}>
-        <BottomSheetView style={{ padding: 23 }}>
-          <PhoneChangeFlow
-            currentPhone={getProfile?.user_phonenumber || ''}
+      <BottomSheet ref={bottomSheetRef_phone.ref} enablePanDownToClose index={-1}
+        snapPoints={bottomSheetRef_phone.snap}
+        backdropComponent={bottomsheet_renderBackdrop} >
+        <BottomSheetView>
+          <PhoneChangeFlow currentPhone={getProfile?.user_phonenumber || ''}
             onComplete={async () => {
               // Refresh profile data
               await __init__app({ doAgain: true });
               bottomSheetRef_phone.ref.current?.close();
               setProfile(llStorage.currentProfile.get()?.currentUser);
             }}
-            onCancel={() => bottomSheetRef_phone.ref.current?.close()}
-          />
+            onCancel={() => bottomSheetRef_phone.ref.current?.close()} />
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet index={-1}>
+      <BottomSheet ref={bottomSheetRef_privacy.ref} index={-1} enablePanDownToClose
+        snapPoints={bottomSheetRef_privacy.snap}
+        backdropComponent={bottomsheet_renderBackdrop} >
+        <BottomSheetView >
+          <View style={{ flex: 1 }}>
+            <Text style={modernStyles.sectionTitle}>Privacy Settings</Text>
+            <Text style={[modernStyles.optionSubtitle, { marginTop: 6 }]}>
+              Choose what other people can see on your profile.
+            </Text>
+
+            <View style={{ marginTop: 16 }}>
+              <ModernSwitch
+                icon="compass-outline"
+                title="Show me in discovery"
+                subtitle="Hide your profile from new people"
+                value={privacyShowInDiscovery}
+                onValueChange={setPrivacyShowInDiscovery}
+              />
+              <ModernSwitch
+                icon="time-outline"
+                title="Show last active"
+                subtitle="Let matches see when you were last online"
+                value={privacyShowLastActive}
+                onValueChange={setPrivacyShowLastActive}
+              />
+              <ModernSwitch
+                icon="location-outline"
+                title="Show distance"
+                subtitle="Display your distance on your profile"
+                value={privacyShowDistance}
+                onValueChange={setPrivacyShowDistance}
+              />
+              <ModernSwitch
+                icon="chatbubble-ellipses-outline"
+                title="Allow message requests"
+                subtitle="People can message you before matching"
+                value={privacyAllowMessageRequests}
+                onValueChange={setPrivacyAllowMessageRequests}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[modernStyles.secondaryButton, { marginTop: 12 }]}
+              onPress={() => {
+                Alert.alert(
+                  "Download Data",
+                  "Your data will be prepared and sent to your email. This may take a few minutes.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Request Download",
+                      onPress: () => {
+                        Toastx.show({
+                          type: "success",
+                          message: "Data download requested. You'll receive an email when it's ready."
+                        });
+                      }
+                    },
+                  ]
+                );
+              }}
+            >
+              <Text style={modernStyles.secondaryButtonText}>Download Your Data</Text>
+            </TouchableOpacity>
+
+            <View style={[modernStyles.buttonRow, { marginTop: 18 }]}>
+              <TouchableOpacity
+                style={[modernStyles.secondaryButton, { flex: 1 }]}
+                onPress={resetPrivacySettings}
+              >
+                <Text style={modernStyles.secondaryButtonText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[modernStyles.primaryButton, { flex: 1 }]}
+                onPress={savePrivacySettings}
+              >
+                <Text style={modernStyles.primaryButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet ref={bottomSheetRef_push.ref} index={-1} enablePanDownToClose
+        snapPoints={bottomSheetRef_push.snap}
+        backdropComponent={bottomsheet_renderBackdrop} >
+        <BottomSheetView style={{ padding: 23 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={modernStyles.sectionTitle}>Push Notifications</Text>
+            <Text style={[modernStyles.optionSubtitle, { marginTop: 6 }]}>
+              Choose how you receive updates and alerts.
+            </Text>
+
+            <View style={{ marginTop: 16 }}>
+              <ModernSwitch
+                icon="notifications-outline"
+                title="Push notifications"
+                subtitle="Allow alerts on your device"
+                value={notifyPushEnabled}
+                onValueChange={setNotifyPushEnabled}
+              />
+              <ModernSwitch
+                icon="mail-outline"
+                title="Email notifications"
+                subtitle="Receive updates by email"
+                value={notifyEmailEnabled}
+                onValueChange={setNotifyEmailEnabled}
+              />
+            </View>
+
+            <View style={[modernStyles.buttonRow, { marginTop: 18 }]}>
+              <TouchableOpacity
+                style={[modernStyles.secondaryButton, { flex: 1 }]}
+                onPress={resetNotificationSettings}
+              >
+                <Text style={modernStyles.secondaryButtonText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[modernStyles.primaryButton, { flex: 1 }]}
+                onPress={saveNotificationSettings}
+              >
+                <Text style={modernStyles.primaryButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <BottomSheet
+        ref={bottomSheetRef_payment.ref}
+        index={-1}
+        snapPoints={bottomSheetRef_payment.snap}
+        backdropComponent={bottomsheet_renderBackdrop}
+        enablePanDownToClose
+      >
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1, paddingHorizontal: 20 }}>
             <Text style={modernStyles.sectionTitle}>Payments</Text>
@@ -1131,7 +1321,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet index={-1}>
+      <BottomSheet
+        ref={bottomSheetRef_feedback.ref}
+        index={-1}
+        snapPoints={bottomSheetRef_feedback.snap}
+        backdropComponent={bottomsheet_renderBackdrop}
+        enablePanDownToClose
+      >
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Feedback</Text>
@@ -1140,57 +1336,17 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet index={-1}>
+      <BottomSheet
+        ref={bottomSheetRef_support.ref}
+        index={-1}
+        snapPoints={bottomSheetRef_support.snap}
+        backdropComponent={bottomsheet_renderBackdrop}
+        enablePanDownToClose
+      >
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Support</Text>
             {/* Add support content here */}
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
-
-      <BottomSheet index={-1} ref={bottomSheetRef_debug.ref} snapPoints={bottomSheetRef_debug.snap} backdropComponent={bottomsheet_renderBackdrop}>
-        <BottomSheetView style={{ padding: 23 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={modernStyles.sectionTitle}>Debug Tools</Text>
-            <ScrollView style={[modernStyles.dangerSection, { flex: 1 }]} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-              <Pressable style={modernStyles.dangerSection} onPress={async () => {
-                await __init__app({ doAgain: true });
-                setProfile(llStorage.currentProfile.get()?.currentUser);
-                Toastx.show({ type: "info", message: "_ _init__app updated successfully" });
-              }}>
-                <Text>reload update __init__app fun </Text>
-              </Pressable>
-
-              <Pressable style={modernStyles.dangerSection} onPress={() => { Linking.openURL(__MAPPER?.img_domain[0]); }}>
-                <Text>Image url: {__MAPPER?.img_domain[0]}</Text>
-              </Pressable>
-
-              <Pressable style={modernStyles.dangerSection} onPress={async () => {
-                Linking.openURL(
-                  hostServer() + '/admin/admin_user_detail.php?id=' + llStorage.currentProfile.get()?.currentUser?.user_id
-                );
-              }}>
-                <Text>Profile admin url:{"\n"}{hostServer()}</Text>
-              </Pressable>
-
-
-
-              <Pressable style={modernStyles.dangerSection} onPress={() => {
-                RNRestart.restart();
-              }}>
-                <Text>reload app</Text>
-              </Pressable>
-
-              <Pressable style={modernStyles.dangerSection} onPress={async () => {
-                navigation.navigate("zz_nofile");
-              }}>
-                <Text>Testing null page</Text>
-              </Pressable>
-
-              <Text style={modernStyles.dangerSection}>bundle ID: {DeviceInfo.getBundleId()}</Text>
-
-            </ScrollView>
           </View>
         </BottomSheetView>
       </BottomSheet>

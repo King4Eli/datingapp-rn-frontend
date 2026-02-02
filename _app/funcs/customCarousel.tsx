@@ -51,19 +51,9 @@ export const ControlledCarousel = forwardRef<CarouselRef, ControlledCarouselProp
 
     return (
       <View style={{ flex: 1 }}>
-        <FlatList
-          ref={flatListRef}
-          data={pages}
-          renderItem={({ item, index }) => (
-            <View style={{ width: screenWidth, flex: 1, }} key={index}>
-              {item}
-            </View>
-          )}
-          keyExtractor={(_, index) => `page-${index}`}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          scrollEnabled={false} // Disable manual scrolling
+        <FlatList ref={flatListRef} data={pages} keyExtractor={(_, index) => `page-${index}`}
+          horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+          scrollEnabled={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
           snapToAlignment="center"
@@ -73,6 +63,11 @@ export const ControlledCarousel = forwardRef<CarouselRef, ControlledCarouselProp
             offset: screenWidth * index,
             index,
           })}
+          renderItem={({ item, index }) => (
+            <View style={{ width: screenWidth, flex: 1, }} key={index}>
+              {item}
+            </View>
+          )}
         />
       </View>
     );

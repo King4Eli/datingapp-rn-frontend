@@ -6,7 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 
-import  Peoples_Screen  from './Peoples';
+import Peoples_Screen from './Peoples';
 import { Screen_likes } from './Likes';
 import { Screen_chat } from './Chats';
 import { Screen_profile } from './Profile';
@@ -30,6 +30,7 @@ import { Toastx } from '../funcs/customNotification';
 import { Screen_social } from './Social';
 import { Screen_Coin } from './Coin';
 import LottieView from 'lottie-react-native';
+import { Zz_devv } from './zz_devv';
 
 // Type definitions for props if needed
 const Stack = createStackNavigator<any>();
@@ -202,27 +203,27 @@ const MainApp: React.FC = () => {
       <NavigationContainer ref={navigationRef}>
         <Stack.Navigator initialRouteName={currentSession?.x_omi_payload_hash ? "Home" : namer.navigation.login}>
 
-          {!currentSession?.x_omi_payload_hash ? (<>
-            <Stack.Screen name={namer.navigation.login} component={Auth_InputPhoneNumberPage} options={{ headerShown: false }} />
-          </>) : (<>
+          {!currentSession?.x_omi_payload_hash ?
+            (<Stack.Screen name={namer.navigation.login} component={Auth_InputPhoneNumberPage} options={{ headerShown: false }} />) : (<>
 
-            <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
-            <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '' }} />
-            <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
-            <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
-            <Stack.Screen name={namer.navigation.coin} component={Screen_Coin} />
-            <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
-            <Stack.Screen name={namer.navigation.subscription} component={Screen_Subscribe} options={{
-              headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {
-                fontSize: 20,
-                fontWeight: 'bold',
-                color: '#fff',
-                fontFamily: 'Helvetica',
-              }, headerStyle: { backgroundColor: '#1a1919ff' }
-            }} />
+              <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
+              <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '' }} />
+              <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
+              <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
+              <Stack.Screen name={namer.navigation.coin} component={Screen_Coin} />
+              <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
+              <Stack.Screen name={namer.navigation.subscription} component={Screen_Subscribe} options={{
+                headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {
+                  fontSize: 20,
+                  fontWeight: 'bold',
+                  color: '#fff',
+                  fontFamily: 'Helvetica',
+                }, headerStyle: { backgroundColor: '#1a1919ff' }
+              }} />
+              <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
 
-          </>)}
-          <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
+            </>)}
+          <Stack.Screen name={"zz_devv"} component={Zz_devv} options={{}} />
           <Stack.Screen name={"zz_nofile"} component={Zz_nofilee} options={{}} />
 
         </Stack.Navigator>

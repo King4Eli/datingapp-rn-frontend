@@ -1,110 +1,284 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { _http_request, hostServer, llStorage, logReport } from '../funcs/functions';
-import { Loaderx } from '../funcs/functions_stateful';
+import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import * as RNIap from 'react-native-iap';
 
 type CoinPack = {
   id: string;
   label: string;
-  coins?: number;
-  price?: number;
-  description?: string;
+  coins: number;
+  sku: string;
   highlight?: string;
+  description?: string;
   color: string;
 };
 
-const fallbackCoinPacks: CoinPack[] = [
-  { id: 'starter', label: 'Starter', coins: 20, color: '#609dff' },
-  { id: 'popular', label: 'Popular', coins: 60, highlight: 'Best value', color: '#7cff62' },
-  { id: 'power', label: 'Power', coins: 120, color: '#ff6767' },
-  { id: 'whale', label: 'Whale', coins: 250, highlight: 'Top up big', color: '#fff460' },
-];
-
 export const Screen_Coin = ({ navigation }: { navigation: any }) => {
   const profile = llStorage.currentProfile.get()?.currentUser;
-  const __product_MAPPER = llStorage.purchasing_product?.get()?.onetime?.cointoken?.[0];
 
-  const COIN_PRICE = Number(__product_MAPPER?.price ?? 0.1);
+  // IMPORTANT: Coins are digital goods -> do not offer card checkout on iOS/Android to avoid policy violations.
+  const allowCardCheckout = false;
 
-  const formatPrice = (pack: CoinPack) => {
-    if (typeof pack.price === 'number' && Number.isFinite(pack.price)) {
-      return `$${pack.price.toFixed(2)} total`;
-    }
-    if (typeof pack.coins === 'number') {
-      const price = Math.max(0.01, Number((pack.coins * COIN_PRICE).toFixed(2)));
-      return `$${price.toFixed(2)} total`;
-    }
-    return 'Contact support';
-  };
+  const purchaseSheetRef = useRef<BottomSheet>(null);
+  const purchaseSheetSnap = useMemo(() => ['35%', '60%'], []);
+
+  // Your real SKUs must exist in Play Console / App Store Connect
+  const coinPacks: CoinPack[] = useMemo(
+    () => [
+      { id: 'starter', label: 'Starter', coins: 20, sku: 'com.placeholder.coin.starter', color: '#609dff' },
+      { id: 'popular', label: 'Popular', coins: 60, sku: 'com.placeholder.coin.popular', highlight: 'Best value', color: '#7cff62' },
+      { id: 'power', label: 'Power', coins: 120, sku: 'com.placeholder.coin.power', color: '#ff6767' },
+      { id: 'whale', label: 'Whale', coins: 250, sku: 'com.placeholder.coin.whale', highlight: 'Top up big', color: '#fff460' },
+    ],
+    []
+  );
+
+  const IAP_SKUS = useMemo(() => coinPacks.map(p => p.sku), [coinPacks]);
+
+  const [selectedPack, setSelectedPack] = useState<CoinPack | null>(coinPacks[0] ?? null);
+
+  const [iapReady, setIapReady] = useState(false);
+  const [iapProductsBySku, setIapProductsBySku] = useState<Record<string, RNIap.Product>>({});
+  const [iapLoading, setIapLoading] = useState(false);
+
+  const [pendingPack, setPendingPack] = useState<CoinPack | null>(null);
 
   const balance = profile?.user_effect?.coins ?? 0;
 
-  const coinPacks = useMemo<CoinPack[]>(() => {
-    const onceProducts = Array.isArray(__product_MAPPER) ? __product_MAPPER : [];
-    if (onceProducts.length === 0) {
-      return fallbackCoinPacks;
-    }
+  const storePriceForPack = useCallback(
+    (pack: CoinPack) => {
+      const p = iapProductsBySku[pack.sku];
+      // iOS/Android fields vary slightly by lib/version; keep fallback
+      return (p as any)?.localizedPrice || (p as any)?.oneTimePurchaseOfferDetails?.formattedPrice || '';
+    },
+    [iapProductsBySku]
+  );
 
-    // For now, return fallback since you don't have the transformation logic
-    return fallbackCoinPacks;
-  }, [__product_MAPPER]); // Add dependency
+  const formatPrice = useCallback(
+    (pack: CoinPack) => {
+      const storePrice = storePriceForPack(pack);
+      if (storePrice) return `${storePrice} total`;
+      return '...';
+    },
+    [storePriceForPack]
+  );
 
-  // Initialize selectedPack when coinPacks changes
-  const [selectedPack, setSelectedPack] = useState<CoinPack | null>(null);
-
+  // ---------- IAP Init ----------
   useEffect(() => {
-    if (coinPacks.length > 0 && !selectedPack) {
-      setSelectedPack(coinPacks[0]);
-    }
-  }, [coinPacks, selectedPack]);
+    let mounted = true;
 
-  const price = useMemo(() => {
-    if (!selectedPack) return '';
-    return formatPrice(selectedPack);
-  }, [selectedPack]);
+    const initIap = async () => {
+      try {
+        setIapLoading(true);
+        const ok = await RNIap.initConnection();
+        if (!ok) throw new Error('IAP connection failed');
 
-  const handleBuy = () => {
-    if (!selectedPack) {
-      Alert.alert('Error', 'Please select a coin pack');
+        if (Platform.OS === 'android') {
+          // Clears pending/failed purchases so they can be repurchased
+          await RNIap.flushFailedPurchasesCachedAsPendingAndroid();
+        }
+
+        // Fetch product metadata (pricing/title)
+        const products = await RNIap.getProducts({ skus: IAP_SKUS });
+
+        if (!mounted) return;
+
+        const map: Record<string, RNIap.Product> = {};
+        (products ?? []).forEach(p => {
+          map[(p as any).productId || (p as any).sku] = p;
+        });
+
+        setIapProductsBySku(map);
+        setIapReady(true);
+      } catch (error) {
+        if (!mounted) return;
+        setIapReady(false);
+        logReport({
+          type: 'iap',
+          useraction: 'init',
+          logMessage: 'Failed to initialize IAP',
+          stackTrace: error,
+        });
+      } finally {
+        if (mounted) setIapLoading(false);
+      }
+    };
+
+    initIap();
+
+    return () => {
+      mounted = false;
+      try {
+        RNIap.endConnection();
+      } catch {}
+    };
+  }, [IAP_SKUS]);
+
+  // ---------- IAP Listeners (REQUIRED) ----------
+  useEffect(() => {
+    const subUpdated = RNIap.purchaseUpdatedListener(async purchase => {
+      // purchase can be emitted even if user left/reopened app
+      try {
+        setIapLoading(true);
+
+        const receipt = (purchase as any)?.transactionReceipt;
+        const purchaseToken = (purchase as any)?.purchaseToken;
+        const productId = (purchase as any)?.productId || (purchase as any)?.sku;
+
+        // Ensure we know which pack this is for
+        const pack = pendingPack || coinPacks.find(p => p.sku === productId) || null;
+        if (!pack) throw new Error('Unknown product purchased');
+
+        if (!receipt && !purchaseToken) throw new Error('Missing receipt/token');
+
+        Loaderx.show();
+
+        // You MUST validate on backend:
+        // - Android: purchaseToken + productId (+ packageName) -> Play Developer API verify
+        // - iOS: transactionReceipt -> App Store verification / server API
+        const res = await _http_request({
+          reqType: 'POST',
+          customApiUrl: `${hostServer()}/api/secure/gateway/coin/iap/verify`,
+          bodyArray: {
+            product_id: pack.id,
+            sku: pack.sku,
+            platform: Platform.OS,
+            receipt: receipt ?? null,
+            purchaseToken: purchaseToken ?? null,
+            transactionId: (purchase as any)?.transactionId ?? null,
+          },
+        });
+
+        if (res?.code !== 200) {
+          throw new Error(res?.message ?? 'Verification failed');
+        }
+
+        // VERY IMPORTANT: coins are consumable
+        await RNIap.finishTransaction({ purchase, isConsumable: true });
+
+        await llStorage.currentProfile.load();
+
+        setTimeout(() => {
+          Loaderx.hide();
+          Alert.alert('Success', res?.message ?? 'Coins added!');
+          purchaseSheetRef.current?.close();
+          navigation.goBack();
+        }, 400);
+      } catch (error: any) {
+        Loaderx.hide();
+        Alert.alert('IAP Error', error?.message ?? 'Unable to complete purchase.');
+        logReport({
+          type: 'iap',
+          useraction: 'purchaseUpdated',
+          logMessage: 'IAP purchase handler failed',
+          stackTrace: error,
+        });
+      } finally {
+        setPendingPack(null);
+        setIapLoading(false);
+      }
+    });
+
+    const subError = RNIap.purchaseErrorListener(error => {
+      setPendingPack(null);
+      setIapLoading(false);
+      Loaderx.hide();
+      Alert.alert('Purchase failed', error?.message ?? 'Please try again.');
+      logReport({
+        type: 'iap',
+        useraction: 'purchaseError',
+        logMessage: 'IAP purchase error',
+        stackTrace: error,
+      });
+    });
+
+    return () => {
+      subUpdated.remove();
+      subError.remove();
+    };
+  }, [coinPacks, navigation, pendingPack]);
+
+  // ---------- Card checkout (only if allowed) ----------
+  const handleBuyViaHttp = async () => {
+    if (!selectedPack) return;
+
+    if (!allowCardCheckout) {
+      Alert.alert('Unavailable', 'Card payments are not available for this purchase on this platform.');
       return;
     }
 
-    const payload: Record<string, any> = { product_id: selectedPack.id };
-    if (selectedPack.coins) payload.length = selectedPack.coins;
+    try {
+      Loaderx.show();
+      const res: any = await _http_request({
+        reqType: 'POST',
+        customApiUrl: `${hostServer()}/api/secure/gateway/coin/card`,
+        bodyArray: { product_id: selectedPack.id, length: selectedPack.coins },
+      });
 
-    Loaderx.show();
-    _http_request({
-      reqType: 'POST',
-      customApiUrl: `${hostServer()}/api/secure/gateway/coin`,
-      bodyArray: payload,
-    }).then((res: any) => {
       if (res?.code === 200) {
-        llStorage.currentProfile.load().then(() => {
-          setTimeout(() => {
-            Loaderx.hide();
-            Alert.alert('Success', res?.message ?? 'Coins added!');
-            navigation.goBack();
-          }, 700);
-        });
+        await llStorage.currentProfile.load();
+        setTimeout(() => {
+          Loaderx.hide();
+          Alert.alert('Success', res?.message ?? 'Coins added!');
+          navigation.goBack();
+        }, 400);
       } else {
         Loaderx.hide();
         Alert.alert('Payment failed', res?.message ?? 'Please try again.');
       }
-    }).catch((error: any) => {
+    } catch (error: any) {
       Loaderx.hide();
       Alert.alert('Error', 'Network error. Please try again.');
       logReport({
         type: 'http',
-        useraction: 'coin purchase',
+        useraction: 'coin card purchase',
         logMessage: 'Network error during coin purchase',
-        stackTrace: error
+        stackTrace: error,
       });
-    });
+    }
   };
 
-  // Early return if no packs are available
+  // ---------- IAP Purchase (ONLY initiate here) ----------
+  const handleBuyViaIap = async () => {
+    if (!selectedPack) return;
+
+    if (!iapReady) {
+      Alert.alert('Unavailable', 'In-app purchases are not ready yet.');
+      return;
+    }
+
+    // Must have product present from store fetch (optional but safer)
+    if (!iapProductsBySku[selectedPack.sku]) {
+      Alert.alert('Unavailable', 'This product is not available in the store yet.');
+      return;
+    }
+
+    try {
+      setIapLoading(true);
+      setPendingPack(selectedPack);
+
+      // Do NOT read receipt here; listener receives the real purchase.
+      await RNIap.requestPurchase({
+        sku: selectedPack.sku,
+        andDangerouslyFinishTransactionAutomaticallyIOS: false,
+      });
+    } catch (error: any) {
+      setPendingPack(null);
+      setIapLoading(false);
+      Alert.alert('IAP Error', error?.message ?? 'Unable to start purchase.');
+      logReport({
+        type: 'iap',
+        useraction: 'requestPurchase',
+        logMessage: 'IAP requestPurchase failed',
+        stackTrace: error,
+      });
+    }
+  };
+
   if (!selectedPack) {
     return (
       <LinearGradient colors={['#0f0b14', '#131325', '#0f111a']} style={styles.container}>
@@ -125,7 +299,7 @@ export const Screen_Coin = ({ navigation }: { navigation: any }) => {
         </View>
 
         <View style={styles.packGrid}>
-          {coinPacks.map((pack) => {
+          {coinPacks.map(pack => {
             const isSelected = pack.id === selectedPack.id;
             return (
               <TouchableOpacity
@@ -146,13 +320,10 @@ export const Screen_Coin = ({ navigation }: { navigation: any }) => {
                     </View>
                   )}
                 </View>
-                {typeof pack.coins === 'number' ? (
-                  <Text style={styles.packCoins}>{pack.coins} coins</Text>
-                ) : (
-                  <Text style={styles.packCoins}>{pack.label}</Text>
-                )}
-                {pack.description ? <Text style={styles.packMeta}>{pack.description}</Text> : null}
+
+                <Text style={styles.packCoins}>{pack.coins} coins</Text>
                 <Text style={styles.packPrice}>{formatPrice(pack)}</Text>
+
                 <View style={styles.packFooter}>
                   <IIcon name="flash-outline" size={16} color={pack.color} />
                   <Text style={styles.packFooterText}>Faster matches</Text>
@@ -165,19 +336,59 @@ export const Screen_Coin = ({ navigation }: { navigation: any }) => {
         <TouchableOpacity
           activeOpacity={0.92}
           style={[styles.ctaButton, { backgroundColor: selectedPack.color }]}
-          onPress={handleBuy}
+          onPress={() => purchaseSheetRef.current?.expand()}
         >
-          <Text style={styles.ctaText}>
-            {selectedPack.coins ? `Purchase ${selectedPack.coins} coins` : `Purchase ${selectedPack.label}`}
-          </Text>
-          <Text style={styles.ctaSubtext}>{price}</Text>
+          <Text style={styles.ctaText}>Purchase {selectedPack.coins} coins</Text>
+          <Text style={styles.ctaSubtext}>{formatPrice(selectedPack)}</Text>
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
-          Payments are charged to your account. Purchases are final. Coins may be used for boosts, spotlights, and
-          premium actions.
+          Purchases are final. Coins may be used for boosts, spotlights, and premium actions.
         </Text>
       </ScrollView>
+
+      <BottomSheet
+        ref={purchaseSheetRef}
+        index={-1}
+        snapPoints={purchaseSheetSnap}
+        backdropComponent={bottomsheet_renderBackdrop}
+        enablePanDownToClose
+      >
+        <BottomSheetView style={styles.sheetContainer}>
+          <Text style={styles.sheetTitle}>Choose payment method</Text>
+          <Text style={styles.sheetSubtitle}>
+            {selectedPack.coins} coins • {formatPrice(selectedPack)}
+          </Text>
+
+          {allowCardCheckout && (
+            <TouchableOpacity
+              style={[styles.sheetButton, styles.sheetButtonPrimary]}
+              onPress={handleBuyViaHttp}
+              disabled={iapLoading}
+            >
+              <Text style={styles.sheetButtonTextPrimary}>Pay with card</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.sheetButton,
+              styles.sheetButtonSecondary,
+              (!iapReady || iapLoading) && styles.sheetButtonDisabled,
+            ]}
+            onPress={handleBuyViaIap}
+            disabled={!iapReady || iapLoading}
+          >
+            <Text style={styles.sheetButtonTextSecondary}>
+              {iapReady ? 'Pay with in-app purchase' : 'IAP unavailable'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.sheetCancel} onPress={() => purchaseSheetRef.current?.close()}>
+            <Text style={styles.sheetCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </BottomSheet>
     </LinearGradient>
   );
 };
@@ -203,7 +414,6 @@ const styles = StyleSheet.create({
   packHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   packLabel: { fontSize: 15, fontWeight: '700' },
   packCoins: { color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 10 },
-  packMeta: { color: '#9ca3af', fontSize: 12, marginTop: 6 },
   packPrice: { color: '#e5e7eb', fontSize: 14, marginTop: 6 },
   packFooter: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
   packFooterText: { color: '#cbd5e1', fontSize: 13 },
@@ -213,13 +423,25 @@ const styles = StyleSheet.create({
   ctaText: { color: '#0f0b14', fontSize: 17, fontWeight: '800' },
   ctaSubtext: { color: '#0f0b14', fontSize: 13, marginTop: 4 },
   disclaimer: { color: '#9ca3af', fontSize: 12, lineHeight: 16, textAlign: 'center' },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center'
+
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { color: '#9ca3af', fontSize: 16 },
+
+  sheetContainer: { padding: 20 },
+  sheetTitle: { color: '#111827', fontSize: 18, fontWeight: '700' },
+  sheetSubtitle: { color: '#6b7280', fontSize: 13, marginTop: 6, marginBottom: 16 },
+  sheetButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  loadingText: {
-    color: '#9ca3af',
-    fontSize: 16
-  },
-}); 
+  sheetButtonPrimary: { backgroundColor: '#111827' },
+  sheetButtonSecondary: { backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  sheetButtonDisabled: { opacity: 0.5 },
+  sheetButtonTextPrimary: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  sheetButtonTextSecondary: { color: '#111827', fontSize: 15, fontWeight: '700' },
+  sheetCancel: { alignItems: 'center', marginTop: 6 },
+  sheetCancelText: { color: '#6b7280', fontSize: 14 },
+});
