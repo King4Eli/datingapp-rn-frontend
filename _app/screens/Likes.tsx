@@ -3,13 +3,14 @@ import { View, Text, Pressable, Dimensions, StyleSheet, Animated, Easing, FlatLi
 import { _http_request, help, hostServer, llStorage, screenWidth } from '../funcs/functions';
 import { useFocusEffect } from '@react-navigation/native';
 import { LoadingGif } from '../funcs/functions_stateful';
-import { styles, namer } from '../funcs/static';
+import { styles, namer, resourceMap } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
 
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
+import LottieView from 'lottie-react-native';
 
 export function Screen_likes({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
@@ -181,7 +182,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, []));
 
     if (getNewLikes === null) {
-        return <LoadingGif />;
+        return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
     }
 
     return (

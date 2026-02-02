@@ -14,6 +14,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
+import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 
 
 // Modern color palette
@@ -75,7 +76,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     ref: useRef<BottomSheet>(null),
     snap: useMemo(() => ['35%', '75%'], [])
   };
-  const bottomSheetRef_null = {
+  const bottomSheetRef_debug = {
     ref: useRef<BottomSheet>(null),
     snap: useMemo(() => ['35%', '75%'], [])
   };
@@ -1032,7 +1033,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <ModernOption
                 icon="construct-outline"
                 title="Debug Tools"
-                onPress={() => bottomSheetRef_null.ref.current?.expand()}
+                onPress={() => bottomSheetRef_debug.ref.current?.expand()}
               />
             </ModernSection>
 
@@ -1081,16 +1082,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </SafeAreaView>
 
       {/* Custom Bottom Sheets */}
-      <BottomSheet>
+      <BottomSheet index={-1}>
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1, paddingHorizontal: 20 }}>
             <Text style={modernStyles.sectionTitle}>Notifications</Text>
             {/* Add notification content here */}
           </View>
         </BottomSheetView>
-      </BottomSheet >
+      </BottomSheet>
 
-      <BottomSheet>
+      <BottomSheet index={-1}>
         <BottomSheetView style={{ padding: 23 }}>
           <EmailChangeFlow
             currentEmail={getProfile?.user_email || ''}
@@ -1106,7 +1107,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet >
+      <BottomSheet index={-1}>
         <BottomSheetView style={{ padding: 23 }}>
           <PhoneChangeFlow
             currentPhone={getProfile?.user_phonenumber || ''}
@@ -1121,7 +1122,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet  >
+      <BottomSheet index={-1}>
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1, paddingHorizontal: 20 }}>
             <Text style={modernStyles.sectionTitle}>Payments</Text>
@@ -1130,7 +1131,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet  >
+      <BottomSheet index={-1}>
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Feedback</Text>
@@ -1139,7 +1140,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet >
+      <BottomSheet index={-1}>
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Support</Text>
@@ -1148,7 +1149,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet  >
+      <BottomSheet index={-1} ref={bottomSheetRef_debug.ref} snapPoints={bottomSheetRef_debug.snap} backdropComponent={bottomsheet_renderBackdrop}>
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Debug Tools</Text>
@@ -1156,7 +1157,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <Pressable style={modernStyles.dangerSection} onPress={async () => {
                 await __init__app({ doAgain: true });
                 setProfile(llStorage.currentProfile.get()?.currentUser);
-                Toastx.show({ type: "info", message: "__init__app updated successfully" });
+                Toastx.show({ type: "info", message: "_ _init__app updated successfully" });
               }}>
                 <Text>reload update __init__app fun </Text>
               </Pressable>

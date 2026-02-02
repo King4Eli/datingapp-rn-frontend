@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback, useMemo, cache } from 'react';
 import { View, Text, Pressable, Image, StyleSheet, Animated, Easing, Platform, ImageBackground, FlatList, ScrollView, ActivityIndicator } from 'react-native';
-import { Loaderx, LoadingGif } from '../funcs/functions_stateful';
+import { Loaderx } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
-import { namer, styles } from '../funcs/static';
+import { namer, resourceMap, styles } from '../funcs/static';
 import { _http_request, help, hostServer, llStorage } from '../funcs/functions';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
 import IIcon from 'react-native-vector-icons/Ionicons';
 import FastImage from 'react-native-fast-image'
+import LottieView from 'lottie-react-native';
 
 
 export function Screen_chat({ navigation }: { navigation: any }) {
@@ -325,7 +326,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   }, []));
 
   if (getNewMatches === null) {
-    return <LoadingGif />
+    return <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}><LottieView source={resourceMap.lottie.infinityLoading} autoPlay loop style={{ width: 220, height: 220 }} /></View>
   }
 
   // Replace the entire FlatList section (around line 290-330) with this:

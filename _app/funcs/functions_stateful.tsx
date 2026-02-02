@@ -1,14 +1,12 @@
 // https://ionic.io/ionicons 
 // https://static.enapter.com/rn/icons/material-community.html 
 // https://oblador.github.io/react-native-vector-icons/ 
-import { ActivityIndicator, View, Text, Modal, Pressable, Image, StyleSheet, ImageSourcePropType } from 'react-native';
+import { ActivityIndicator, View, Text, Modal, Pressable, Image, StyleSheet } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { resourceMap, styles } from './static';
+import { styles } from './static';
 import React from 'react';
-import FastImage from 'react-native-fast-image';
- import { 
-  BottomSheetBackdrop,
-} from '@gorhom/bottom-sheet';
+
+import { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
 //****************************
 //
@@ -29,83 +27,29 @@ Loaderx.hide = () => { if (showLoaderFunc) { showLoaderFunc(false); } else { con
 //
 //
 
-export const LoadingGif = ({
-  size = { w: 100, h: 100 },
-  backgroundColor = "#fff",
-  imageG
-}: {
-  size?: { w: number, h: number };
-  backgroundColor?: string;
-  imageG?: ImageSourcePropType
-}) => {
 
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor }}>
-      <FastImage
-        style={{ width: size.w, height: size.h }}
-        source={imageG ?? resourceMap.loading1}
-      />
-    </View>
-  );
-};
 // modal image full screen
 //
 //*****************************
-export const FullScreenImageModal: React.FC<{
-  visible: boolean;
-  uri: string | null;
-  onClose: () => void;
-}> = ({ visible, uri, onClose }) => {
+export const FullScreenImageModal: React.FC<{ visible: boolean; uri: string | null; onClose: () => void; }> = ({ visible, uri, onClose }) => {
   if (!uri) return null;
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      statusBarTranslucent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent statusBarTranslucent animationType="fade" onRequestClose={onClose} >
       <View style={[styles.container, { backgroundColor: 'black' }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-          <Image
-            source={{ uri }}
-            style={{
-              width: '100%',
-              height: '100%',
-            }}
-            resizeMode="contain"
-          />
+          <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
         </Pressable>
       </View>
     </Modal>
   );
 };
 
-export const bottomsheet_renderBackdrop = useCallback(
-  (props: any) => (
-    <BottomSheetBackdrop
-      {...props}
-      appearsOnIndex={0}
-      disappearsOnIndex={-1}
-      pressBehavior="none"   // 🔒 blocks touches
-    />
-  ),
-  []
-);
+export const bottomsheet_renderBackdrop = useCallback((props: any) =>
+(<BottomSheetBackdrop {...props}
+  appearsOnIndex={0}
+  disappearsOnIndex={-1}
+  pressBehavior="none"   // 🔒 blocks touches
+/>), []);
 //*****************************
 //
 //
-class ErrPage {
-  Server_err = () => {
-    return (
-      <>
-        <Text>There has been a server error please try again</Text>
-        <Pressable style={styles.pressableButton} >
-          <Text>Try again</Text>
-        </Pressable>
-      </>
-    )
-  }
-}
-
