@@ -1,27 +1,26 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { View, Text, Pressable, ScrollView, Alert, ImageBackground, TouchableOpacity, StyleSheet, Image, Modal } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
-import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, preloadImages, screenHeight, sleep } from '../funcs/functions';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, screenHeight, sleep } from '../funcs/functions';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TextInput } from 'react-native-gesture-handler';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'react-native-linear-gradient';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from 'react-native-fast-image';
 import LottieView from 'lottie-react-native';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 
 
 export default function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
 
     const [getLoading, setLoading] = useState<Boolean>(false);
-
     const [getPeopleToMatch, setPeopleToMatch] = useState<any[] | null>(null);
     const [gptmd, sptmd] = useState<boolean>(false);
     const scrollViewRef = useRef<ScrollView>(null);
@@ -32,20 +31,27 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<string | null>(null);
     const [showItsAMatchModal, setShowItsAMatchModal] = useState(false);
 
+    const carouselRef = useRef<CarouselRef>(null);
+    const insets = useSafeAreaInsets();
+    const lottieRef = useRef<LottieView>(null);
+    const currentPerson = getPeopleToMatch?.[0];
+    const nextPerson = getPeopleToMatch?.[1];
+    const currentUserImages = (currentPerson?.user_image ?? []);
+    const currentPhotos = currentUserImages.filter((img: any) => img?.p);
+    const prompts = [currentPerson?.user_bio_prompt?.[0], currentPerson?.user_bio_prompt?.[1], currentPerson?.user_bio_prompt?.[2],].filter(Boolean);
+
     const bottomSheetRef_secondview = {
         ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => ['35%', '55%', '75%'], [])
+        snap: useMemo(() => ['55%', '75%'], [])
     };
-
     const bottomSheetRef_reportUser = {
         ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => ['55%'], [])
+        snap: useMemo(() => [], [])
     };
     const bottomSheetRef_location = {
         ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => ['35%'], [])
+        snap: useMemo(() => [], [])
     };
-
 
     const functs = {
         onePersonProfile: route?.params?.getOnePersonId, //str
@@ -58,65 +64,82 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             setPeopleToMatch(j ?? null);
         }
     }
-    let tabBottomHeight = 0;
-    try {
-        tabBottomHeight = !functs.onePersonProfile ? useBottomTabBarHeight() : 0;
-    } catch (ds) {
-        logReport({
-            type: "layout",
-            logMessage: "",
-            stackTrace: ds,
-            useraction: "tabBottomHeight"
-        })
-    }
-
-    const lottieRef = useRef<LottieView>(null);
 
 
-    const deckStyles = StyleSheet.create({
-        cardImage: { width: '100%', height: ((screenHeight * 0.96)) - headerHeight - tabBottomHeight - 14 },
-        cardFooter: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 18, gap: 8 },
-        nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-        name: { color: '#fff', fontSize: 26, fontWeight: '800' },
-        chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-        chip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(15,23,42,0.75)', borderRadius: 18 },
-        chipText: { color: '#e5e7eb', fontSize: 13, textTransform: 'capitalize' },
-        detailCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginHorizontal: 5, marginTop: 14 },
-        promptCard: { backgroundColor: '#0f172a', borderRadius: 16, padding: 16, marginTop: 14 },
-        promptTitle: { color: '#0ea5e9', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase' },
-        promptAnswer: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 24 },
-        sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
-        detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-        detailItem: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, backgroundColor: '#f3f4f6', borderRadius: 12, flexBasis: '48%' },
-        detailText: { color: '#0f172a', fontSize: 14, flexShrink: 1 },
-        galleryImage: { width: 160, height: 200, borderRadius: 16, backgroundColor: colors.gray1 },
-        actionDock: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 16 },
-        circleBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
-        circleBtnGhost: { backgroundColor: '#fff' },
-        circleBtnAccent: { backgroundColor: '#e0f2fe' },
-        circleBtnPrimary: { backgroundColor: '#dcfce7' },
-        cardShadow: { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
-        tapZones: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
-        tapZone: { flex: 1 },
-        progressDots: { position: 'absolute', top: 16, alignSelf: 'center', flexDirection: 'row', gap: 6, backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
-        dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
-        dotActive: { backgroundColor: '#fff' },
-    });
+    // header options
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerTitleAlign: 'left',
+            headerTransparent: true,
+            headerTitle: () => <View style={{ paddingVertical: 6, }}>
+                <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
+                    {getPeopleToMatch?.[0]?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" />}
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: "capitalize" }}>{(getPeopleToMatch?.[0]?.user_fullname ?? "") + (getPeopleToMatch?.[0]?.user_bio_dob ? ", " + help.getageFromDOB(getPeopleToMatch?.[0]?.user_bio_dob) : "")}</Text>
+                </View>
+            </View>,
 
-    const matchStyles = StyleSheet.create({
-        backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-        card: { width: '100%', maxWidth: 380, backgroundColor: '#0f172a', borderRadius: 24, padding: 20, alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-        title: { fontSize: 28, fontWeight: '800', color: '#fff' },
-        subtitle: { fontSize: 14, color: '#cbd5e1', textAlign: 'center' },
-        photoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
-        photoCard: { width: 130, height: 170, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.gray1, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
-        leftPhoto: { transform: [{ rotate: '-12deg' }], marginRight: -26, borderWidth: 2, borderColor: '#0ea5e9' },
-        rightPhoto: { transform: [{ rotate: '12deg' }], marginLeft: -26, borderWidth: 2, borderColor: '#22c55e' },
-        primaryBtn: { width: '100%', backgroundColor: '#22c55e', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
-        primaryBtnText: { color: '#0f172a', fontSize: 16, fontWeight: '800' },
-        secondaryBtn: { paddingVertical: 12 },
-        secondaryBtnText: { color: '#38bdf8', fontSize: 15, fontWeight: '700' },
-    });
+            headerRight: () => !functs.onePersonProfile && (
+                <View style={{ paddingRight: 10, flexDirection: "row", gap: 14, alignItems: "center" }}>
+                    {getSkippedPeoples.length > 0 && <Pressable style={{ gap: 3 }} onPress={() => {
+                        if (getSkippedPeoples?.length > 4) {
+                            bottomSheetRef_secondview.ref.current?.expand();
+                        } else if (getSkippedPeoples?.length > 2) {
+                            bottomSheetRef_secondview.ref.current?.snapToIndex(1);
+                        } else {
+                            bottomSheetRef_secondview.ref.current?.snapToIndex(0);
+                        }
+                    }}>
+                        <MIcon name="backup-restore" size={30} color="#204586ff" />
+                    </Pressable>}
+                    <Pressable style={{ gap: 3 }} onPress={() => { bottomSheetRef_location.ref.current?.expand(); }}>
+                        <IIcon name="location-outline" size={28} color="#204586ff" />
+                    </Pressable>
+                    <Pressable style={{ gap: 3 }} onPress={() => { navigation.push(namer.navigation.editpreference); }}>
+                        <IIcon name="filter-outline" size={30} color="#204586ff" />
+                    </Pressable>
+                </View>),
+        });
+    }, [getPeopleToMatch, getSkippedPeoples]);
+
+    // next person load images
+    useEffect(() => {
+        if (nextPerson?.user_image?.length > 1) {
+            nextPerson?.user_image.forEach((url: any) => {
+                const imgh = __MAPPER?.img_domain[0] + url?.p;
+                console.log("preloading next image:", imgh);
+                FastImage.preload([{ uri: imgh }]);
+            });
+        }
+    }, [getPeopleToMatch]);
+
+    // reset photo index on new person
+    useEffect(() => {
+        setPhotoIndex(0);
+        carouselRef.current?.goToPage(0);
+    }, [getPeopleToMatch?.[0]?.user_id]);
+
+    // load peoples to match on focus
+    useFocusEffect(React.useCallback(() => {
+        _http_request({
+            reqType: 'POST',
+            customApiUrl: hostServer() + "/api/core/v1/getPeopleToMatch",
+            bodyArray: {
+                getOnePersons_id2: functs.onePersonProfile
+            }
+        }).then((response) => {
+            if (response?.code === 200) {
+                let peopleMatchArr = response?.matchespeoples ?? [];
+                //console.log("new peoples reloaded total, now:", peopleMatchArr.length);
+                setPeopleToMatch(peopleMatchArr);
+            } else if (response?.code === 404) {
+                setPeopleToMatch([]);
+            }
+        }).finally(() => {
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });// Scroll to the top of the scroll view after action
+        });
+
+    }, [gptmd]));
+
 
     const ReportContent = () => {
         const [selectedReason, setSelectedReason] = useState('');
@@ -261,65 +284,6 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     );
 
 
-    useEffect(() => {
-        setPhotoIndex(0);
-    }, [getPeopleToMatch?.[0]?.user_id]);
-
-
-    useLayoutEffect(() => {
-        navigation.setOptions({
-            headerTitleAlign: 'left',
-            headerTransparent: true,
-            headerTitle: () => <View style={{ paddingVertical: 6, }}>
-                <View style={{ alignItems: "center", flexDirection: "row", gap: 2 }}>
-                    {getPeopleToMatch?.[0]?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" />}
-                    <Text style={{ fontSize: 20, fontWeight: 'bold', textTransform: "capitalize" }}>{(getPeopleToMatch?.[0]?.user_fullname ?? "") + (getPeopleToMatch?.[0]?.user_bio_dob ? ", " + help.getageFromDOB(getPeopleToMatch?.[0]?.user_bio_dob) : "")}</Text>
-                </View>
-            </View>,
-
-            headerRight: () => !functs.onePersonProfile && (
-                <View style={{ paddingRight: 10, flexDirection: "row", gap: 14, alignItems: "center" }}>
-                    {getSkippedPeoples.length > 0 && <Pressable style={{ gap: 3 }} onPress={() => {
-                        if (getSkippedPeoples?.length > 4) {
-                            bottomSheetRef_secondview.ref.current?.expand();
-                        } else if (getSkippedPeoples?.length > 2) {
-                            bottomSheetRef_secondview.ref.current?.snapToIndex(1);
-                        } else {
-                            bottomSheetRef_secondview.ref.current?.snapToIndex(0);
-                        }
-                    }}>
-                        <MIcon name="backup-restore" size={30} color="#204586ff" />
-                    </Pressable>}
-                    <Pressable style={{ gap: 3 }} onPress={() => { bottomSheetRef_location.ref.current?.expand(); }}>
-                        <IIcon name="location-outline" size={28} color="#204586ff" />
-                    </Pressable>
-                    <Pressable style={{ gap: 3 }} onPress={() => { navigation.push(namer.navigation.editpreference); }}>
-                        <IIcon name="filter-outline" size={30} color="#204586ff" />
-                    </Pressable>
-                </View>),
-        });
-    }, [getPeopleToMatch, getSkippedPeoples]);
-
-    useFocusEffect(React.useCallback(() => {
-        _http_request({
-            reqType: 'POST',
-            customApiUrl: hostServer() + "/api/core/v1/getPeopleToMatch",
-            bodyArray: {
-                getOnePersons_id2: functs.onePersonProfile
-            }
-        }).then((response) => {
-            if (response?.code === 200) {
-                let peopleMatchArr = response?.matchespeoples ?? [];
-                //console.log("new peoples reloaded total, now:", peopleMatchArr.length);
-                setPeopleToMatch(peopleMatchArr);
-            } else if (response?.code === 404) {
-                setPeopleToMatch([]);
-            }
-        }).finally(() => {
-            scrollViewRef.current?.scrollTo({ y: 0, animated: true });// Scroll to the top of the scroll view after action
-        });
-
-    }, [gptmd]));
 
 
     async function peoples_action(
@@ -395,18 +359,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     }
 
 
-    const currentPerson = getPeopleToMatch?.[0];
-    const nextPerson = getPeopleToMatch?.[1];
-    const currentUserImages = (currentPerson?.user_image ?? []);
-    const currentPhotos = currentUserImages.filter((img: any) => img?.p);
-    const prompts = [currentPerson?.user_bio_prompt?.[0], currentPerson?.user_bio_prompt?.[1], currentPerson?.user_bio_prompt?.[2],].filter(Boolean);
 
-    // pre next person load images
-    useEffect(() => {
-        if (nextPerson?.user_image?.length > 1) {
-            preloadImages(nextPerson?.user_image?.map((img: any) => __MAPPER?.img_domain[0] + img.p) || []);
-        }
-    }, [getPeopleToMatch]);
 
     const highlightFields = !currentPerson ? [] : [
         { icon: <IIcon name="location-outline" size={18} color="#0ea5e9" />, value: currentPerson?.user_location?.city },
@@ -450,7 +403,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 3 }}>
                         <Text style={{ fontSize: 13 }}>Try updating your</Text>
                         <Pressable onPress={() => { navigation.push(namer.navigation.editpreference); }}>
-                            <Text style={{ color: "#099a", fontSize: 13 }}> preferences.</Text>
+                            <Text style={{ color: "#099a", fontSize: 13 }}>preferences.</Text>
                         </Pressable>
                     </View>
 
@@ -460,53 +413,47 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} horizontal={false}
                         contentContainerStyle={[styles.conainerScrollView, { paddingBottom: functs.isAlreadyLiked ? 20 : 100 }]}>
 
-                        <View style={[{ borderRadius: 20, overflow: 'hidden', backgroundColor: '#0f172a', marginTop: 10 }, deckStyles.cardShadow]}>
-                            <ImageBackground progressiveRenderingEnabled={true} source={{ uri: __MAPPER?.img_domain[0] + (currentPhotos?.[photoIndex]?.p ?? "") }} onError={() => {
-                                return logReport({
-                                    type: "http",
-                                    logMessage: "Image load",
-                                    url: __MAPPER?.img_domain[0] + (currentPhotos?.[photoIndex]?.p ?? ""),
-                                    useraction: 'Image Load',
-                                    stackTrace: null
-                                });
-                            }}
-                                style={deckStyles.cardImage} resizeMode="cover">
-                                <LinearGradient colors={['rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0)']}
-                                    start={{ x: 0.5, y: 1 }}     // top
-                                    end={{ x: 0.5, y: 0 }}       // bottom
-                                    style={{
-                                        position: 'absolute',
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 0,
-                                        height: '40%',
-                                    }} />
-                                <View style={deckStyles.tapZones}>
-                                    <Pressable style={deckStyles.tapZone} onPress={() => setPhotoIndex((prev) => Math.max(0, prev - 1))} />
-                                    <Pressable style={deckStyles.tapZone} onPress={() => setPhotoIndex((prev) => (prev + 1 < currentPhotos.length ? prev + 1 : prev))} />
+                        <View style={[{ borderRadius: 20, overflow: 'hidden', backgroundColor: '#0f172a' }, deckStyles.cardShadow]}>
+
+                            {currentPhotos.length > 1 && (
+                                <View style={[deckStyles.progressDots, { zIndex: 123 }]}>
+                                    {currentPhotos.map((_: any, dotIdx: number) => (
+                                        <View key={dotIdx} style={[deckStyles.dot, dotIdx === photoIndex ? deckStyles.dotActive : null]} />
+                                    ))}
                                 </View>
-                                {currentPhotos.length > 1 && (
-                                    <View style={deckStyles.progressDots}>
-                                        {currentPhotos.map((_: any, idx: number) => (
-                                            <View key={idx} style={[deckStyles.dot, idx === photoIndex ? deckStyles.dotActive : null]} />
-                                        ))}
+                            )}
+
+                            <ControlledCarousel ref={carouselRef} onPageChange={setPhotoIndex}
+                                pages={(currentPhotos.length > 0 ? currentPhotos : [null]).map((photo: any, idx: number) => (
+                                    <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * 1) - headerHeight - insets.bottom - insets.top }}>
+                                        {photo && (<FastImage source={{ uri: __MAPPER?.img_domain[0] + (photo?.p ?? "") }}
+                                            onError={() => { return logReport({ type: "http", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (photo?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }}
+                                            style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} />)}
+
+                                        <LinearGradient colors={['rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0)']}
+                                            start={{ x: 0.5, y: 1 }} end={{ x: 0.5, y: 0 }}
+                                            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '40%' }} />
+                                        <View style={deckStyles.tapZones}>
+                                            <Pressable style={deckStyles.tapZone} onPress={() => carouselRef.current?.goToPrevious()} />
+                                            <Pressable style={deckStyles.tapZone} onPress={() => carouselRef.current?.goToNext()} />
+                                        </View>
                                     </View>
-                                )}
-                                <View style={deckStyles.cardFooter}>
-                                    <View style={deckStyles.nameRow}>
-                                        <Text style={deckStyles.name}>{currentPerson?.user_fullname}{currentPerson?.user_bio_dob ? ", " + help.getageFromDOB(currentPerson?.user_bio_dob) : ""}</Text>
-                                        {currentPerson?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={22} color="#38bdf8" />}
-                                    </View>
-                                    <View style={deckStyles.chipRow}>
-                                        {highlightFields.map((field, idx) => (
-                                            <View key={idx} style={deckStyles.chip}>
-                                                {field.icon}
-                                                <Text style={deckStyles.chipText}>{field.value}</Text>
-                                            </View>
-                                        ))}
-                                    </View>
+                                ))} />
+
+                            <View style={deckStyles.cardFooter}>
+                                <View style={deckStyles.nameRow}>
+                                    <Text style={deckStyles.name}>{currentPerson?.user_fullname}{currentPerson?.user_bio_dob ? ", " + help.getageFromDOB(currentPerson?.user_bio_dob) : ""}</Text>
+                                    {currentPerson?.user_verified === 1 && <IIcon name="checkmark-done-circle-sharp" size={22} color="#38bdf8" />}
                                 </View>
-                            </ImageBackground>
+                                <View style={deckStyles.chipRow}>
+                                    {highlightFields.map((field, chipIdx) => (
+                                        <View key={chipIdx} style={deckStyles.chip}>
+                                            {field.icon}
+                                            <Text style={deckStyles.chipText}>{field.value}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
                         </View>
 
 
@@ -545,7 +492,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                                     {currentUserImages.map((img: any, idx: number) => (
                                         <Pressable key={idx} onPress={() => setFullscreenClickImage(__MAPPER?.img_domain[0] + img.p)}>
-                                            <Image source={{ uri: __MAPPER?.img_domain[0] + img.p }} style={deckStyles.galleryImage} resizeMode="cover" />
+                                            <FastImage source={{ uri: __MAPPER?.img_domain[0] + img.p }} style={deckStyles.galleryImage} resizeMode="cover" />
                                         </Pressable>
                                     ))}
                                 </ScrollView>
@@ -586,7 +533,6 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                         }
                                         if (await showConfirmAlert() === false) { return; } else {
                                             peoples_action("block", 3).then(() => {
-
                                                 if (functs.onePersonProfile) {
                                                     navigation.popToTop();
                                                 } else {
@@ -651,10 +597,10 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                         <View style={matchStyles.photoRow}>
                             <View style={[matchStyles.photoCard, matchStyles.leftPhoto]}>
-                                <Image source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                <FastImage source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                             </View>
                             <View style={[matchStyles.photoCard, matchStyles.rightPhoto]}>
-                                <Image source={{ uri: String(__MAPPER?.img_domain[0] + (currentUserImages?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                <FastImage source={{ uri: String(__MAPPER?.img_domain[0] + (currentUserImages?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                             </View>
                         </View>
 
@@ -692,7 +638,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
 
             <BottomSheet ref={bottomSheetRef_secondview.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_secondview.snap} backdropComponent={bottomsheet_renderBackdrop}>
-                <BottomSheetView style={{ padding: 23 }}>
+                <BottomSheetView style={{}}>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10 }}>
                         <Text style={styles.title}>Previously Skipped Profiles</Text>
                         <View style={{ gap: 10 }}>
@@ -743,3 +689,49 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         </View >
     );
 }
+
+
+
+const deckStyles = StyleSheet.create({
+    cardFooter: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 18, gap: 8 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    name: { color: '#fff', fontSize: 26, fontWeight: '800' },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(15,23,42,0.75)', borderRadius: 18 },
+    chipText: { color: '#e5e7eb', fontSize: 13, textTransform: 'capitalize' },
+    detailCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginHorizontal: 5, marginTop: 14 },
+    promptCard: { backgroundColor: '#0f172a', borderRadius: 16, padding: 16, marginTop: 14 },
+    promptTitle: { color: '#0ea5e9', fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase' },
+    promptAnswer: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 24 },
+    sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
+    detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+    detailItem: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, backgroundColor: '#f3f4f6', borderRadius: 12, flexBasis: '48%' },
+    detailText: { color: '#0f172a', fontSize: 14, flexShrink: 1 },
+    galleryImage: { width: 160, height: 200, borderRadius: 16, backgroundColor: colors.gray1 },
+    actionDock: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 16 },
+    circleBtn: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+    circleBtnGhost: { backgroundColor: '#fff' },
+    circleBtnAccent: { backgroundColor: '#e0f2fe' },
+    circleBtnPrimary: { backgroundColor: '#dcfce7' },
+    cardShadow: { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
+    tapZones: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
+    tapZone: { flex: 1 },
+    progressDots: { position: 'absolute', top: 16, alignSelf: 'center', flexDirection: 'row', gap: 6, backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
+    dotActive: { backgroundColor: '#fff' },
+});
+
+const matchStyles = StyleSheet.create({
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+    card: { width: '100%', maxWidth: 380, backgroundColor: '#0f172a', borderRadius: 24, padding: 20, alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+    title: { fontSize: 28, fontWeight: '800', color: '#fff' },
+    subtitle: { fontSize: 14, color: '#cbd5e1', textAlign: 'center' },
+    photoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
+    photoCard: { width: 130, height: 170, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.gray1, shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
+    leftPhoto: { transform: [{ rotate: '-12deg' }], marginRight: -26, borderWidth: 2, borderColor: '#0ea5e9' },
+    rightPhoto: { transform: [{ rotate: '12deg' }], marginLeft: -26, borderWidth: 2, borderColor: '#22c55e' },
+    primaryBtn: { width: '100%', backgroundColor: '#22c55e', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+    primaryBtnText: { color: '#0f172a', fontSize: 16, fontWeight: '800' },
+    secondaryBtn: { paddingVertical: 12 },
+    secondaryBtnText: { color: '#38bdf8', fontSize: 15, fontWeight: '700' },
+});

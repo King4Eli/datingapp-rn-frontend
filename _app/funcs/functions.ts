@@ -149,16 +149,7 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean } = {
   if (doAgain || !Array.isArray(llStorage.currentProfile.get()) && currentSession?.x_omi_payload_hash) { await llStorage.currentProfile.load(); ro += "userProfile "; };
 }
 
-
-// Image preloading utility
-export const preloadImages = (imageUrls: string[]) => {
-  imageUrls.forEach(url => {
-    if (url) {
-      Image.prefetch(url);
-    }
-  });
-};
-
+ 
 // 
 export const displsyNotification = async (title: string, body?: string) => {
   try {

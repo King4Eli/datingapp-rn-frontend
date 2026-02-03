@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Loaderx } from '../funcs/functions_stateful';
 import RadioGroup from 'react-native-radio-buttons-group';
@@ -12,8 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export function Screen_editpreference({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
-
     const currentProfile = llStorage.currentProfile.get()?.currentUser;
+    const headerHeight = useHeaderHeight();
+
     const [getMinAge, setMinAge] = useState(currentProfile?.user_preference_minimum_age?.toString() ?? "19");
     const [getMaxAge, setMaxAge] = useState(currentProfile?.user_preference_maximum_age?.toString() ?? "47");
     const [getGender, setGender] = useState(currentProfile?.user_preference_gender?.toString() ?? "-99");
@@ -34,9 +35,8 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
     const [getDistance, setDistance] = useState<{ miles: number, km: string }>({ miles: currentProfile?.user_preference_distance ?? 25, km: help.milesToKM(currentProfile?.user_preference_distance)?.toString() ?? "Unknown" });
 
 
-    const headerHeight = useHeaderHeight();
 
-
+    // mapping for radio buttons
     const radioButtons = {
         getGender: [...Object.entries(__MAPPER?.bio_gender ?? {}), ["-99", "Don't matter"]] as [string, string][],
         getChildren: [...Object.entries(__MAPPER?.bio_children ?? {}), ["-99", "Don't matter"]] as [string, string][],
@@ -51,11 +51,46 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
         getLanguages: [...Object.entries(__MAPPER?.bio_language ?? {}), ["-99", "Don't matter"]] as [string, string][],
     };
 
+    // save preferences function
+    const savePreferences = async () => {
+        Loaderx.show();
+        _http_request({
+            customApiUrl: hostServer() + "/api/core/v1/pushProfile",
+            reqType: 'POST', bodyArray: {
+                min_age: getMinAge,
+                max_age: getMaxAge,
+                pref_smoking: getSmoking,
+                pref_drinking: getDrinking,
+                pref_children: getChildren,
+                pref_ethnicity: getEthnicity,
+                pref_pet: getPets,
+                pref_religion: getReligion,
+                pref_bodytype: getBodyType,
+                pref_highesteducation: getHighEducation,
+                pref_relationshipgoal: getRelationshipGoal,
+                pref_languages: getLanguages,
+                //pref_min_height: getMinHeight.cm,
+                //pref_max_height: getMaxHeight.cm,
+                pref_gender: getGender,
+                pref_distance: getDistance.miles
+            }
+        }).then((response) => {
+            if (response?.code === 200) {
+                console.log("Preference update response:", getGender);
+                Toastx.show({ type: 'success', message: response?.message ?? 'Preferences updated!' });
+                llStorage.currentProfile.load();
+                navigation.goBack();
+            } else {
+                Toastx.show({
+                    type: ((response?.code === 203) ? 'info' : 'error'), message: response?.message ?? 'Error updating preference!'
+                });
+            }
+        }).finally(() => {
+            Loaderx.hide();
+        });
+    }
 
-
-
-
-
+    // set header options
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'center',
@@ -63,48 +98,12 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
             headerTitle: () => <Text style={{ fontSize: 18, fontWeight: '700' }}>Edit Preferences</Text>,
 
             headerRight: () => <>
-                <Pressable style={{ gap: 3, paddingRight: 10 }} onPress={() => {
-                    Loaderx.show();
-                    _http_request({
-                        customApiUrl: hostServer() + "/api/core/v1/pushProfile",
-                        reqType: 'POST', bodyArray: {
-                            min_age: getMinAge,
-                            max_age: getMaxAge,
-                            pref_smoking: getSmoking,
-                            pref_drinking: getDrinking,
-                            pref_children: getChildren,
-                            pref_ethnicity: getEthnicity,
-                            pref_pet: getPets,
-                            pref_religion: getReligion,
-                            pref_bodytype: getBodyType,
-                            pref_highesteducation: getHighEducation,
-                            pref_relationshipgoal: getRelationshipGoal,
-                            pref_languages: getLanguages,
-                            //pref_min_height: getMinHeight.cm,
-                            //pref_max_height: getMaxHeight.cm,
-                            pref_gender: getGender,
-                            pref_distance: getDistance.miles
-                        }
-                    }).then((response) => {
-                        if (response?.code === 200) {
-                            Toastx.show({
-                                type: 'success', message: response?.message ?? 'Preferences updated!'
-                            });
-                        } else {
-                            Toastx.show({
-                                type: ((response?.code === 203) ? 'info' : 'error'), message: response?.message ?? 'Error updating preference!'
-                            });
-                        }
-                    }).finally(() => {
-                        Loaderx.hide();
-                        llStorage.currentProfile.load();
-                    });
-                }}>
+                <Pressable style={{ gap: 3, paddingRight: 10 }} onPress={savePreferences}>
                     <Text style={[styles.pressableButtonText, { fontSize: 14, fontWeight: '400', color: "blue" }]}>save</Text>
                 </Pressable>
             </>,
         });
-    }, []);
+    }, [savePreferences]);
 
 
 
