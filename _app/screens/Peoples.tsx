@@ -5,7 +5,6 @@ import { View, Text, Pressable, ScrollView, Alert, ImageBackground, TouchableOpa
 import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
-import { Screen_editpreference } from './PreferenceEdit';
 import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, preloadImages, screenHeight, sleep } from '../funcs/functions';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -37,10 +36,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         ref: useRef<BottomSheet>(null),
         snap: useMemo(() => ['35%', '55%', '75%'], [])
     };
-    const bottomSheetRef_preferenceEdit = {
-        ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => ['75%', '85%'], [])
-    };
+
     const bottomSheetRef_reportUser = {
         ref: useRef<BottomSheet>(null),
         snap: useMemo(() => ['55%'], [])
@@ -297,7 +293,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     <Pressable style={{ gap: 3 }} onPress={() => { bottomSheetRef_location.ref.current?.expand(); }}>
                         <IIcon name="location-outline" size={28} color="#204586ff" />
                     </Pressable>
-                    <Pressable style={{ gap: 3 }} onPress={() => { bottomSheetRef_preferenceEdit.ref.current?.snapToIndex(0); }}>
+                    <Pressable style={{ gap: 3 }} onPress={() => { navigation.push(namer.navigation.editpreference); }}>
                         <IIcon name="filter-outline" size={30} color="#204586ff" />
                     </Pressable>
                 </View>),
@@ -453,11 +449,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     <Text style={{ fontSize: 17, fontWeight: 500 }}>No more profiles to show.</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 3 }}>
                         <Text style={{ fontSize: 13 }}>Try updating your</Text>
-                        <Pressable onPress={() => {
-
-                            bottomSheetRef_preferenceEdit.ref.current?.expand();
-
-                        }}>
+                        <Pressable onPress={() => { navigation.push(namer.navigation.editpreference); }}>
                             <Text style={{ color: "#099a", fontSize: 13 }}> preferences.</Text>
                         </Pressable>
                     </View>
@@ -737,11 +729,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     </ScrollView>
                 </BottomSheetView>
             </BottomSheet>
-            <BottomSheet ref={bottomSheetRef_preferenceEdit.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_preferenceEdit.snap} backdropComponent={bottomsheet_renderBackdrop}>
-                <BottomSheetView style={{ padding: 23 }}>
-                    <Screen_editpreference closeModal={() => { setPeopleToMatch(null); sptmd(!gptmd); bottomSheetRef_preferenceEdit.ref.current?.close(); }} />
-                </BottomSheetView>
-            </BottomSheet>
+
             <BottomSheet ref={bottomSheetRef_reportUser.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_reportUser.snap} backdropComponent={bottomsheet_renderBackdrop}>
                 <BottomSheetView style={{ padding: 23 }}>
                     <ReportContent />

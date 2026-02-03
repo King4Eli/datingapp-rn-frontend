@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Loaderx } from '../funcs/functions_stateful';
 import RadioGroup from 'react-native-radio-buttons-group';
-import RangeSlider from '../funcs/rn-range-slider';
+import RangeSlider from 'rn-range-slider';
 import { styles } from '../funcs/static';
 import { _http_request, help, hostServer, llStorage } from '../funcs/functions';
 import { AccordionItem } from '../funcs/customAccordion';
 import { Toastx } from '../funcs/customNotification';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-export function Screen_editpreference({ closeModal = () => { } }: { closeModal?: () => void }) {
+export function Screen_editpreference({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
 
     const currentProfile = llStorage.currentProfile.get()?.currentUser;
@@ -32,8 +34,8 @@ export function Screen_editpreference({ closeModal = () => { } }: { closeModal?:
     const [getDistance, setDistance] = useState<{ miles: number, km: string }>({ miles: currentProfile?.user_preference_distance ?? 25, km: help.milesToKM(currentProfile?.user_preference_distance)?.toString() ?? "Unknown" });
 
 
+    const headerHeight = useHeaderHeight();
 
-    useEffect(() => { }, []);
 
     const radioButtons = {
         getGender: [...Object.entries(__MAPPER?.bio_gender ?? {}), ["-99", "Don't matter"]] as [string, string][],
@@ -54,18 +56,14 @@ export function Screen_editpreference({ closeModal = () => { } }: { closeModal?:
 
 
 
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerTitleAlign: 'center',
+            headerTransparent: true,
+            headerTitle: () => <Text style={{ fontSize: 18, fontWeight: '700' }}>Edit Preferences</Text>,
 
-
-
-
-
-
-
-    return (
-        <>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold' }}>Edit Preferences</Text>
-                <Pressable style={{ gap: 3 }} onPress={() => {
+            headerRight: () => <>
+                <Pressable style={{ gap: 3, paddingRight: 10 }} onPress={() => {
                     Loaderx.show();
                     _http_request({
                         customApiUrl: hostServer() + "/api/core/v1/pushProfile",
@@ -92,7 +90,6 @@ export function Screen_editpreference({ closeModal = () => { } }: { closeModal?:
                             Toastx.show({
                                 type: 'success', message: response?.message ?? 'Preferences updated!'
                             });
-                            closeModal();
                         } else {
                             Toastx.show({
                                 type: ((response?.code === 203) ? 'info' : 'error'), message: response?.message ?? 'Error updating preference!'
@@ -105,10 +102,20 @@ export function Screen_editpreference({ closeModal = () => { } }: { closeModal?:
                 }}>
                     <Text style={[styles.pressableButtonText, { fontSize: 14, fontWeight: '400', color: "blue" }]}>save</Text>
                 </Pressable>
-            </View>
+            </>,
+        });
+    }, []);
 
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 4, gap: 12, }}>
+
+
+
+
+
+
+    return (
+        <SafeAreaView style={[styles.container, { paddingTop: headerHeight + 10, paddingHorizontal: 0 }]} edges={['bottom']}>
+            <ScrollView showsVerticalScrollIndicator={false} style={[{ paddingHorizontal: 0 }]} contentContainerStyle={[styles.conainerScrollView, { gap: 12, }]}>
                 <View style={[styles.editprofile_inputborder, {}]}>
                     <Text style={{ fontSize: 16, marginTop: 10, fontWeight: '600', textTransform: "capitalize" }}> Age Range</Text>
                     <Text style={{ fontSize: 13, marginTop: 5, marginBottom: 10, textTransform: "capitalize" }}> Between {getMinAge} - {getMaxAge}</Text>
@@ -320,6 +327,6 @@ export function Screen_editpreference({ closeModal = () => { } }: { closeModal?:
                     />
                 }</View>)} />
             </ScrollView>
-        </>
+        </SafeAreaView>
     );
 }

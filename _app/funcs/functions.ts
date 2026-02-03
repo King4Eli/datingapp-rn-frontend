@@ -17,8 +17,6 @@ export const hostServer = () => {
   //return h_0;
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
     h_0 = "http://10.0.2.2:2000"; // if android emulator
-  } else if (Platform.OS === "ios" && DeviceInfo.isEmulatorSync()) {
-    h_0 = "http://localhost:2000"; // if ios emulator
   }
   return h_0;
 }

@@ -26,16 +26,18 @@ export const colors = {
     sliderRail: '#E0E0E0', // Gray rail (inactive part)
     sliderRailSelected: '#007AFF', // Blue selected rail (active part)
 };
+
 //style sheet
+const H_PADDING = 7;
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-        paddingHorizontal: 7, 
+        paddingHorizontal:H_PADDING,
     },
     conainerScrollView: {
-        paddingHorizontal: 7,
-        position: 'relative',
+        paddingHorizontal:H_PADDING,
+        position: 'relative'
     },
     input: {
         height: 43,
