@@ -1,13 +1,14 @@
 {
   "name": "datingapp",
   "displayName": "datingapp",
-  "appversionCode": 1,
-  "appversion": "2.0.0",
+  "appversion": "2.5.1",
   "bundlebuildnumber": "0",
   "android": {
-    "applicationId": "com.datingapp"
+    "applicationId": "com.datingapp",
+    "versionCode": 1
   },
   "ios": {
-    "BUNDLE_ID": "org.reactjs.native.example.datingApp"
+    "BUNDLE_ID": "org.ios.datingapp",
+    "buildNumber": "1"
   }
 }

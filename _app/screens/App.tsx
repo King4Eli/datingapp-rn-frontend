@@ -49,8 +49,8 @@ const MainApp: React.FC = () => {
       console.log("Quick Action:", action);
       const tryNavigate = () => {
         if (navigationRef.isReady()) {
-          Toastx.show({ message: 'Navigating to Settings...', type: 'info' });
-          navigationRef.navigate(namer.navigation.settings);
+          Toastx.show({ message: 'Navigating to Dev Page...', type: 'info' });
+          navigationRef.navigate(namer.navigation.devpage);
 
           // DESTROY timeout once navigation happens
           if (navTimeout) clearTimeout(navTimeout);
@@ -223,7 +223,7 @@ const MainApp: React.FC = () => {
               <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
 
             </>)}
-          <Stack.Screen name={"zz_devv"} component={Zz_devv} options={{}} />
+          <Stack.Screen name={namer.navigation.devpage} component={Zz_devv} options={{}} />
           <Stack.Screen name={"zz_nofile"} component={Zz_nofilee} options={{}} />
 
         </Stack.Navigator>

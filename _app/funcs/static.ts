@@ -243,6 +243,7 @@ export const namer = {
         applog: 'fdgsdgn3t4gh'
     },
     navigation: {
+        devpage: "zz_devv",
         peoples: "Peoples",
         social: "Social",
         peoplesOnePerson: "Peoplesoneperson",
