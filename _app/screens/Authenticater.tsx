@@ -370,9 +370,11 @@ export const Auth_InputPhoneNumberPage = () => {
       }
       return () => clearInterval(interval!);
     }, [isDisabled]);
-
-    const handleResendCode = () => {
-      setTimer(90);
+const resetClickedHowmany = useRef(1);
+    const handleResendCode = async () => {
+      await _handle_Signin(getPhoneNumber, null)
+      setTimer(90 *resetClickedHowmany.current);
+      resetClickedHowmany.current++;
       setIsDisabled(true);
       Toastx.show({ type: 'info', message: 'Code resent' });
     };
@@ -423,8 +425,7 @@ export const Auth_InputPhoneNumberPage = () => {
             <TouchableOpacity
               style={[stylesx.pill, isDisabled && { opacity: 0.6 }]}
               disabled={isDisabled}
-              onPress={handleResendCode}
-            >
+              onPress={handleResendCode}>
               <Text style={[stylesx.pillText, stylesx.pillTextActive]}>
                 {isDisabled
                   ? `Resend in ${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}`

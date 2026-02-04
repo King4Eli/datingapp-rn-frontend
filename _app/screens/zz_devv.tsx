@@ -47,7 +47,10 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
                     <Text>Testing null page</Text>
                 </Pressable>
 
-                <Text style={modernStyles.dangerSection}>\*** bundle ID: {DeviceInfo.getBundleId()}</Text>
+                <View style={modernStyles.dangerSection}>
+                    <Text>\*** bundle ID: {DeviceInfo.getBundleId()}</Text>
+                    <Text>\*** display name: {DeviceInfo.getApplicationName()}</Text>
+                </View>
 
             </ScrollView>
         </View>
