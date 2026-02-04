@@ -1031,10 +1031,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                     <Pressable key={key} style={{ gap: 5 }} onPress={() => {
                                         setFullscreenClickImage(imgPath);
                                     }}>
-                                        <FastImage source={{
-                                            cache: FastImage.cacheControl.immutable,
-                                            uri: imgPath
-                                        }} style={{ width: targetWidth, height: targetHeight }} resizeMode="contain" />
+                                        <FastImage source={{ cache: FastImage.cacheControl.immutable, uri: imgPath }} style={{ width: targetWidth, height: targetHeight }} resizeMode="contain"
+                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (imgPath ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                                     </Pressable>
                                 );
                             })}

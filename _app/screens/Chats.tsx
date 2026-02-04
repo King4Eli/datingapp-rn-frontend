@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback, useMemo, cache } from 'react';
-import { View, Text, Pressable, Image, StyleSheet, Animated, Easing, Platform, ImageBackground, FlatList, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet, Animated, Easing, Platform, ImageBackground, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { Loaderx } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { namer, resourceMap, styles } from '../funcs/static';
-import { _http_request, help, hostServer, llStorage } from '../funcs/functions';
+import { _http_request, help, hostServer, llStorage, logReport } from '../funcs/functions';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import MIcon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -188,7 +188,8 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                 renderItem={({ item }) => (
                   <Pressable style={{ width: 120 }} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
                     <View style={{ borderRadius: 10, overflow: 'hidden', backgroundColor: '#e2e8f0', height: 180, justifyContent: 'flex-end' }}>
-                      <FastImage style={{ position: 'absolute', width: '100%', height: '100%' }} source={{ cache: FastImage.cacheControl.immutable, uri: String(__MAPPER?.img_domain[0] + item?.user_image?.p) }} />
+                      <FastImage style={{ position: 'absolute', width: '100%', height: '100%' }} source={{ cache: FastImage.cacheControl.immutable, uri: String(__MAPPER?.img_domain[0] + item?.user_image?.p) }}
+                        onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                       <View style={{ backgroundColor: 'rgba(0,0,0,0.4)', padding: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffffff', textTransform: 'capitalize', flex: 1 }} numberOfLines={2}>
                           {item?.user_fullname}{item?.user_dob ? `, ${help.getageFromDOB(item.user_dob)}` : ''}

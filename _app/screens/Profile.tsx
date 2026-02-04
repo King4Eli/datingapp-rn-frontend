@@ -1,16 +1,16 @@
 import React, { useState, useLayoutEffect, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { LoadingGif } from '../funcs/functions_stateful';
+import { View, Text, Pressable, StyleSheet, TouchableOpacity } from 'react-native';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
-import { styles, namer } from '../funcs/static';
+import { styles, namer, resourceMap } from '../funcs/static';
 import { ScrollView } from 'react-native-gesture-handler';
 import LinearGradient from 'react-native-linear-gradient';
-import { _http_request, help, llStorage, screenWidth } from '../funcs/functions';
+import { _http_request, help, llStorage, logReport, screenWidth } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
 import Svg, { Circle } from 'react-native-svg';
+import LottieView from 'lottie-react-native';
 
 
 export function Screen_profile({ navigation }: { navigation: any }) {
@@ -142,7 +142,12 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
 
     if (getProfile === null) {
-        return <LoadingGif />
+        return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><LottieView
+            source={resourceMap.lottie.pulsingLoading}
+            autoPlay
+            loop
+            style={{ width: 220, height: 220 }}
+        /></View>
     }
 
     return (
@@ -159,7 +164,9 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                     <CircularProgress progress={profileCompletion} />
 
                                     <View style={{ borderRadius: 100, padding: 4, }}>
-                                        <FastImage style={{ width: 100, height: 100, borderRadius: 100, alignSelf: 'center', }} resizeMode='cover' source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} />
+                                        <FastImage style={{ width: 100, height: 100, borderRadius: 100, alignSelf: 'center', }} resizeMode='cover' source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }}
+                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
+
                                         {userVerified && <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'white', borderRadius: 50 }}>
                                             <IIcon name="checkmark-done-circle-sharp" size={32} color="#4F8EF7" />
                                         </View>}

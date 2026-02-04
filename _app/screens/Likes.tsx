@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, Dimensions, StyleSheet, Animated, Easing, FlatList, ScrollView, Image, ActivityIndicator } from 'react-native';
-import { _http_request, help, hostServer, llStorage, screenWidth } from '../funcs/functions';
-import { useFocusEffect } from '@react-navigation/native';
-import { LoadingGif } from '../funcs/functions_stateful';
+import { _http_request, help, hostServer, llStorage, logReport, screenWidth } from '../funcs/functions';
+import { useFocusEffect } from '@react-navigation/native'; 
 import { styles, namer, resourceMap } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
@@ -249,7 +248,8 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                     <View style={{ flex: 1, }}>
                                         <View style={{ flex: 1 }}>
                                             <FastImage style={stylesoy.image}
-                                                source={{ cache: FastImage.cacheControl.immutable, uri: __MAPPER?.img_domain[0] + item?.likedUserImages?.p }} />
+                                                source={{ cache: FastImage.cacheControl.immutable, uri: __MAPPER?.img_domain[0] + item?.likedUserImages?.p }}
+                                                onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                                             {!activeSubscription && <BlurView
                                                 pointerEvents="none"
                                                 style={StyleSheet.absoluteFill}

@@ -285,7 +285,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
 
 
-
+    // people action like, dislike, superlike, block, report
     async function peoples_action(
         what: "like" | "superlike" | "dislike" | "block" | "report",
         matchStatus: number = 0,
@@ -427,7 +427,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 pages={(currentPhotos.length > 0 ? currentPhotos : [null]).map((photo: any, idx: number) => (
                                     <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * 1) - headerHeight - insets.bottom - insets.top }}>
                                         {photo && (<FastImage source={{ uri: __MAPPER?.img_domain[0] + (photo?.p ?? "") }}
-                                            onError={() => { return logReport({ type: "http", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (photo?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }}
+                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (photo?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }}
                                             style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} />)}
 
                                         <LinearGradient colors={['rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0)']}
@@ -492,7 +492,8 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                                     {currentUserImages.map((img: any, idx: number) => (
                                         <Pressable key={idx} onPress={() => setFullscreenClickImage(__MAPPER?.img_domain[0] + img.p)}>
-                                            <FastImage source={{ uri: __MAPPER?.img_domain[0] + img.p }} style={deckStyles.galleryImage} resizeMode="cover" />
+                                            <FastImage source={{ uri: __MAPPER?.img_domain[0] + img.p }} style={deckStyles.galleryImage} resizeMode="cover"
+                                                onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (img?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                                         </Pressable>
                                     ))}
                                 </ScrollView>
@@ -597,10 +598,14 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                         <View style={matchStyles.photoRow}>
                             <View style={[matchStyles.photoCard, matchStyles.leftPhoto]}>
-                                <FastImage source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                <FastImage source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
+                                    onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
+
                             </View>
                             <View style={[matchStyles.photoCard, matchStyles.rightPhoto]}>
-                                <FastImage source={{ uri: String(__MAPPER?.img_domain[0] + (currentUserImages?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                <FastImage source={{ uri: String(__MAPPER?.img_domain[0] + (currentUserImages?.[0]?.p ?? "")) }} style={{ width: '100%', height: '100%' }} resizeMode="cover"
+                                    onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (currentUserImages?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
+
                             </View>
                         </View>
 
@@ -645,7 +650,8 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                             {getSkippedPeoples.length === 0 ? (<Text style={{ fontSize: 15, textAlign: "center", marginTop: 20 }}>You have not skipped any profiles yet.</Text>) : (getSkippedPeoples.map((skippedPerson, index) => (
                                 <View key={index} style={[styles.card]}>
                                     <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-                                        <FastImage source={{ uri: __MAPPER?.img_domain[0] + skippedPerson?.user_image?.[0]?.p }} style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.gray1 }} />
+                                        <FastImage source={{ uri: __MAPPER?.img_domain[0] + skippedPerson?.user_image?.[0]?.p }} style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.gray1 }}
+                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (skippedPerson?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                                         <View>
                                             <View style={{ flexDirection: "row", alignItems: "center" }}>
                                                 <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{skippedPerson?.user_fullname}</Text>
