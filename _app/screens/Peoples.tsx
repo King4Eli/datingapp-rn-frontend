@@ -683,12 +683,12 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             </BottomSheet>
 
             <BottomSheet ref={bottomSheetRef_reportUser.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_reportUser.snap} backdropComponent={bottomsheet_renderBackdrop}>
-                <BottomSheetView style={{ padding: 23 }}>
+                <BottomSheetView style={{ padding: 20 }}>
                     <ReportContent />
                 </BottomSheetView>
             </BottomSheet>
             <BottomSheet ref={bottomSheetRef_location.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_location.snap} backdropComponent={bottomsheet_renderBackdrop}>
-                <BottomSheetView style={{ padding: 23 }}>
+                <BottomSheetView style={{ padding: 20 }}>
                     <LocationContent />
                 </BottomSheetView>
             </BottomSheet>

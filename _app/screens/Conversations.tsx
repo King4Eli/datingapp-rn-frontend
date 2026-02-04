@@ -46,7 +46,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
 
-    const bottomSheetRef_convotools = useRef<BottomSheet>(null);
+    const bottomSheet_convotools = {
+        ref: useRef<BottomSheet>(null), snap: useMemo(() => [], [])
+    };
     const bottomSheetSnapPoints_convotools = useMemo(() => ['20%'], []);
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<any | null>(null);
     const starterCarouselRef = useRef<FlatList<string>>(null);
@@ -215,7 +217,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             setIsRecording(true);
         } catch (error: any) {
             logReport({
-                type: "function",
+                type: "function -convo",
                 useraction: "startVoiceNote",
                 logMessage: 'Error starting recorder:',
                 stackTrace: error
@@ -275,7 +277,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             }
         } catch (error: any) {
             logReport({
-                type: "function",
+                type: "function -convo",
                 useraction: "stopVoiceNote",
                 logMessage: 'Error stopping recorder:',
                 stackTrace: error
@@ -330,14 +332,14 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         convoTools: (<>
             <View>
                 <Pressable onPress={() => {
-                    bottomSheetRef_convotools?.current?.close();
+                    bottomSheet_convotools?.ref?.current?.close();
                     handleInsertPrompt("Let's plan a quick coffee this week? What day works for you.");
                 }} style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
                     <IonIcon name="sparkles-outline" size={20} color="#4F8EF7" />
                     <Text style={{ fontSize: 16, marginLeft: 10 }}>Plan a date idea</Text>
                 </Pressable>
                 <Pressable onPress={() => {
-                    bottomSheetRef_convotools?.current?.close();
+                    bottomSheet_convotools?.ref?.current?.close();
                     navigation.push(namer.navigation.peoplesOnePerson, { alreadyLiked: true, likedMatchedId: funt.matchId, getOnePersonId: getUser2Deets?.uid, });
                 }} style={{ paddingHorizontal: 10, paddingVertical: 15, flexDirection: "row", alignItems: "center" }}>
                     <IonIcon name="person-outline" size={20} color="#4F8EF7" />
@@ -367,7 +369,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                 matchId: funt.matchId,
                             }
                         }).then(() => {
-                            bottomSheetRef_convotools?.current?.close();
+                            bottomSheet_convotools?.ref?.current?.close();
                             navigation.goBack();
                         });
                     }
@@ -507,7 +509,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         } catch (error) {
             logReport({
                 url: presigned.url,
-                type: "http",
+                type: "http -convo",
                 useraction: "upload convo images | presigned url",
                 logMessage: 'Unable error.',
                 stackTrace: error
@@ -534,7 +536,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 } else if (response !== null) {
                     Alert.alert('Error!', response?.message);
                     logReport({
-                        type: "http code-" + response.code,
+                        type: "http -" + response.code,
                         useraction: "getConversation",
                         logMessage: response?.message ?? 'Failed to fetch conversation',
                         stackTrace: response
@@ -599,7 +601,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             Sound.removePlaybackEndListener();
         } catch (error) {
             logReport({
-                type: "function",
+                type: "function -convo",
                 useraction: "safeStopAllAudio",
                 logMessage: 'Error in safeStopAllAudio: Failed to stop audio',
                 stackTrace: error
@@ -625,7 +627,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 setAudioPlayback(prev => ({ ...prev, isPlaying: false }));
             } catch (error) {
                 logReport({
-                    type: "function",
+                    type: "function -convo",
                     useraction: "handleAudioPress",
                     logMessage: 'Error pausing player',
                     stackTrace: error
@@ -667,7 +669,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         } catch (error) {
             logReport({
-                type: "function",
+                type: "function -convo",
                 useraction: "handleAudioPress",
                 logMessage: "Error playing audio",
                 stackTrace: error
@@ -714,7 +716,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <Pressable
                     style={{ padding: 4 }}
                     onPress={() => {
-                        bottomSheetRef_convotools.current?.snapToIndex(0);
+                        bottomSheet_convotools?.ref.current?.snapToIndex(0);
                     }}
                 >
                     <IonIcon name="ellipsis-horizontal" size={25} color="#4F8EF7" />
@@ -793,7 +795,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         } catch (error) {
             Toastx.show({ message: 'Unable to upload media. Please try again.', type: 'error' });
             logReport({
-                type: "function",
+                type: "function -convo",
                 useraction: "uploadWithPresigned",
                 logMessage: "Unknown error during uploadWithPresigned",
                 stackTrace: error
@@ -911,7 +913,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             }
         } catch (error) {
             logReport({
-                type: "function",
+                type: "function -convo",
                 useraction: "sendMessage",
                 logMessage: 'Send message error: ',
                 stackTrace: error
@@ -1267,15 +1269,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             </SafeAreaView>
         </View>
 
-        <BottomSheet
-            ref={bottomSheetRef_convotools}
-            index={-1}
-            enablePanDownToClose
-            snapPoints={bottomSheetSnapPoints_convotools}
-            backdropComponent={bottomsheet_renderBackdrop}
-        >
-            <BottomSheetView style={{ paddingVertical: 8 }}>
-                {funt.convoTools}
+        <BottomSheet ref={bottomSheet_convotools?.ref}
+            index={-1} enablePanDownToClose
+            snapPoints={bottomSheet_convotools?.snap}
+            backdropComponent={bottomsheet_renderBackdrop} >
+            <BottomSheetView>
+                <SafeAreaView edges={['bottom']}>{funt.convoTools}</SafeAreaView>
             </BottomSheetView>
         </BottomSheet>
 
