@@ -84,11 +84,11 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const sqlmapper = {} as any;
     const headerHeight = useHeaderHeight();
 
-    const userVerified = getProfile?.user_verified === 1 ? true : false;
+    const userVerified = getProfile?.user_verified
 
     const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
     const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";    //const smallPrk = getProfile.liltab;
-
+    console.log(getProfile?.user_verified);
 
     const profileCompletion = useMemo(() => {
         const checkpoints = [
@@ -107,6 +107,10 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         return Math.round((score / checkpoints.length) * 100);
     }, [getProfile]);
 
+    const powerProducts = useMemo(() => ([
+        { key: 'super_like', label: 'Super Likes', count: getProfile?.user_stats?.super_like ?? 0, icon: 'heart' },
+        { key: 'instant_message', label: 'Instant Message', count: getProfile?.user_stats?.instant_message ?? 2, icon: 'chatbubble-ellipses' },
+    ]), [getProfile]);
 
 
     useFocusEffect(React.useCallback(() => {
@@ -198,21 +202,26 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
 
                     <View style={[styles.card, stylesx.powerCard]}>
+
+                        <View>
+                            <Text style={stylesx.sectionTitle}>Power-ups</Text>
+                            <Text style={stylesx.sectionHint}>Use power-ups to boost, spotlight, or message first.</Text>
+                        </View>
+
+
                         <View style={stylesx.powerHeader}>
-                            <View>
-                                <Text style={stylesx.sectionTitle}>Power-ups</Text>
-                                <Text style={stylesx.sectionHint}>Use coins to boost, spotlight, or message first.</Text>
-                            </View>
-                            <TouchableOpacity
-                                style={stylesx.coinPill}
-                                onPress={() => navigation.push(namer.navigation.coin)}
-                            >
-                                <View style={stylesx.coinRow}>
-                                    <IIcon name="cash-outline" size={18} color="#0f0b14" />
-                                    <Text style={stylesx.coinAmount}>{getProfile?.user_stats?.cointoken ?? 0} coins</Text>
+                            {powerProducts.map((product) => (
+                                <View key={product.key} style={stylesx.productPill}>
+                                    <View style={stylesx.powerPlus}><MIcon name="plus-circle" size={24} color="#ff7a00" /></View>
+                                    <View style={stylesx.productRow}>
+                                        <IIcon name={product.icon} size={25} color="#e97777" />
+                                        <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
+                                            {product.count > 0 && <Text style={stylesx.productCount}>{product.count}</Text>}
+                                            <Text style={stylesx.productLabel}>{product.label}</Text>
+                                        </View>
+                                    </View>
                                 </View>
-                                <Text style={stylesx.coinAction}>Top up</Text>
-                            </TouchableOpacity>
+                            ))}
                         </View>
                     </View>
 
@@ -305,33 +314,54 @@ const stylesx = StyleSheet.create({
     powerCard: {
         gap: 14,
         backgroundColor: '#fafafa',
+        position: 'relative',
+    },
+    powerPlus: {
+        position: 'absolute',
+        top: -10,
+        right: -5,
+        zIndex: 2,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.18,
+        shadowRadius: 4,
+        elevation: 3,
     },
 
     powerHeader: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 13
+    },
+    productPill: {
+        backgroundColor: '#f0f4ff',
+        borderRadius: 14,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
         justifyContent: 'space-between',
         alignItems: 'center',
+
+        // width behavior for wrapping
+        minWidth: 120,
+        flexGrow: 1,
     },
-    coinPill: {
-        backgroundColor: '#ffeec2',
-        borderRadius: 14,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        alignItems: 'flex-end',
-    },
-    coinRow: {
+    productRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
     },
-    coinAmount: {
+
+    productLabel: {
+        fontSize: 13,
+        color: '#2a2a2a',
+    },
+    productCount: {
+        fontSize: 13,
         fontWeight: '700',
         color: '#0f0b14',
-    },
-    coinAction: {
-        fontSize: 12,
-        color: '#7a5200',
-        marginTop: 2,
     },
 
 

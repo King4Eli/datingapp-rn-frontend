@@ -48,49 +48,7 @@
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"
         },
-        {
-            "name": "--bundle Android",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "npx",
-            "runtimeArgs": [
-                "react-native",
-                "bundle",
-                "--platform",
-                "android",
-                "--dev",
-                "false",
-                "--entry-file",
-                "index.js",
-                "--bundle-output",
-                "_app/php/static_page/generated/index.android.bundle",
-                "--assets-dest",
-                "android/app/src/main/res/"
-            ],
-            "preLaunchTask": "pre_bundle_task",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen"
-        },
-        {
-            "name": "--bundle IOS",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "npx",
-            "runtimeArgs": [
-                "react-native",
-                "bundle",
-                "--platform",
-                "ios",
-                "--dev",
-                "false",
-                "--entry-file",
-                "index.js",
-                "--bundle-output",
-                "_app/php/static_page/generated/main.jsbundle"
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen"
-        },
+        
         {
             "name": "_match _convo",
             "type": "node",
