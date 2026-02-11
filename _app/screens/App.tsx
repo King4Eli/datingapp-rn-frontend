@@ -84,9 +84,12 @@ const MainApp: React.FC = () => {
       try {
         setAllGood(false);
         // Reset session and fetch mapper data
-        await sessionManager.updateSession({ x_omi_payload: null, x_omi_payload_hash: null });
-        const sessIdStorage = await AsyncStorage.getItem(namer.storage.sessionId);
-        const sessIdVerifyStorage = await AsyncStorage.getItem(namer.storage.sessionIdVerify);
+        const [_, sessIdStorage, sessIdVerifyStorage] = await Promise.all([
+          sessionManager.updateSession({ x_omi_payload: null, x_omi_payload_hash: null }),
+          AsyncStorage.getItem(namer.storage.sessionId),
+          AsyncStorage.getItem(namer.storage.sessionIdVerify),
+        ]);
+        
         if (sessIdStorage !== null) {
           await sessionManager.updateSession({ x_omi_payload: sessIdStorage, x_omi_payload_hash: sessIdVerifyStorage });
         }
