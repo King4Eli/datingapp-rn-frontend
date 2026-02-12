@@ -50,7 +50,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   });
 
   const paymentSheetRef = useRef<BottomSheet>(null);
-  const paymentSheetSnap = useMemo(() => ['40%'], []);
+  const paymentSheetSnap = useMemo(() => [], []);
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
   const cycleItemWidth = Math.min(180, Math.max(140, Math.round(screenWidth * 0.45)));
@@ -237,7 +237,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
             ];
             const scale = scrollX.interpolate({
               inputRange,
-              outputRange: [0.92, 1.06, 0.92],
+              outputRange: [0.92, 1.05, 0.92],
               extrapolate: 'clamp',
             });
             const opacity = scrollX.interpolate({
@@ -247,7 +247,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
             });
 
             return (
-              <Animated.View key={cycle} style={{ transform: [{ scale }], opacity }}>
+              <Animated.View key={cycle} style={{ transform: [{ scale }], opacity,paddingTop: 20}}>
                 <TouchableOpacity
                   onPress={() => {
                     setSelectedDuration(cycle);
@@ -277,13 +277,9 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
         </Text>
       </ScrollView>
 
-      <BottomSheet
-        ref={paymentSheetRef}
-        index={-1}
+      <BottomSheet ref={paymentSheetRef} index={-1} enablePanDownToClose
         snapPoints={paymentSheetSnap}
-        backdropComponent={bottomsheet_renderBackdrop}
-        enablePanDownToClose
-      >
+        backdropComponent={bottomsheet_renderBackdrop}>
         <BottomSheetView style={styles.sheetContainer}>
           <SafeAreaView edges={['bottom']}>
             <Text style={styles.sheetTitle}>Choose payment method</Text>
@@ -430,3 +426,4 @@ const styles = StyleSheet.create({
   sheetCancel: { alignItems: 'center', marginTop: 6 },
   sheetCancelText: { color: '#6b7280', fontSize: 14 },
 });
+0
