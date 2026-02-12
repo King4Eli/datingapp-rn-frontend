@@ -15,8 +15,8 @@ import LottieView from 'lottie-react-native';
 
 export function Screen_profile({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
-    const __product_MAPPER = llStorage.purchasing_product?.get()?.mainsub;
-    const tierKeys = Object.keys(__product_MAPPER || {});
+    const __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
+    const __product_MAPPER_consumables = llStorage.purchasing_product?.get()?.consumables;
 
     // Get profile data
     const [getProfile, setgetProfile] = useState(llStorage.currentProfile.get()?.currentUser);
@@ -24,23 +24,22 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const userCurrentTier = getProfile?.user_effect?.subscription_plan;
 
 
-    // Colors for tiers - will use dynamically based on tier count
-    const TIER_COLORS = ['#F25F7F', '#D4AF37', '#5B8DEF', '#34C759'];
     // Helper function to generate features based on tier
-    const generateFeatures = (tierKey: string): string[] => {
+    const generateFeatures = (tierKey: number): string[] => {
         const features: Record<string, string[]> = {
-            plus: [
-                'Priority in matchmaking',
+            0: [
                 '2 super likes per day',
                 'See who liked you',
                 'Unlimited matches',
-                'Profile boost once a weekly'
+                'Profile boost once a weekly',
+                '....'
             ],
-            vip: [
+            1: [
                 'All Plus features',
                 'Unlimited super likes',
                 'Travel mode',
-                'Priority customer support'
+                'Priority customer support',
+                '....'
             ]
         };
 
@@ -51,44 +50,36 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             'Exclusive features'
         ];
     };
-
     // Build tier data dynamically
     const tiers = useMemo(() => {
         const tierData: Record<string, any> = {};
 
-        tierKeys.forEach((tierKey, index) => {
-            const tierItems = __product_MAPPER?.[tierKey] || [];
-            console.log(__product_MAPPER)
-            // Group prices by description
-            const prices: Record<string, string> = {};
-            tierItems.forEach((item: any) => {
-                prices[item.description] = item.price;
-            });
+        Object.keys(__product_MAPPER_mainsub || {}).forEach((tierKey, index) => {
+            const tierItems = __product_MAPPER_mainsub?.[tierKey]?.[0] || [];
+            //console.log(tierItems)
 
             // Generate features based on tier
-            const features = generateFeatures(tierKey);
-
+            const features = generateFeatures(index ?? 0);
+            //console.log(features, "features for tier", tierKey);
             tierData[tierKey] = {
-                name: tierKey.toUpperCase(),
-                color: TIER_COLORS[index] || '#F25F7F',
+                name: tierItems?.name?.toUpperCase(),
+                color: ['#F25F7F', '#D4AF37', '#5B8DEF', '#34C759'][index] || '#F25F7F',
                 features,
-                prices,
                 id: tierKey
             };
         });
 
         return tierData;
-    }, [__product_MAPPER]);
+    }, []);
 
 
-    const sqlmapper = {} as any;
     const headerHeight = useHeaderHeight();
 
     const userVerified = getProfile?.user_verified
 
     const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
     const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";    //const smallPrk = getProfile.liltab;
-    console.log(getProfile?.user_verified);
+    //console.log(getProfile?.user_verified);
 
     const profileCompletion = useMemo(() => {
         const checkpoints = [
@@ -103,14 +94,10 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             //!!getProfile?.user_interest?.length,
         ];
         const score = checkpoints.filter(Boolean).length;
-        console.log(score, checkpoints);
+        //console.log(score, checkpoints);
         return Math.round((score / checkpoints.length) * 100);
     }, [getProfile]);
 
-    const powerProducts = useMemo(() => ([
-        { key: 'super_like', label: 'Super Likes', count: getProfile?.user_stats?.super_like ?? 0, icon: 'heart' },
-        { key: 'instant_message', label: 'Instant Message', count: getProfile?.user_stats?.instant_message ?? 2, icon: 'chatbubble-ellipses' },
-    ]), [getProfile]);
 
 
     useFocusEffect(React.useCallback(() => {
@@ -142,7 +129,6 @@ export function Screen_profile({ navigation }: { navigation: any }) {
             </Svg>
         );
     };
-
 
 
     if (getProfile === null) {
@@ -210,14 +196,14 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
 
                         <View style={stylesx.powerHeader}>
-                            {powerProducts.map((product) => (
-                                <View key={product.key} style={stylesx.productPill}>
+                            {__product_MAPPER_consumables?.map((product: any, key: any) => (
+                                <View key={product?.sku} style={stylesx.productPill}>
                                     <View style={stylesx.powerPlus}><MIcon name="plus-circle" size={24} color="#ff7a00" /></View>
                                     <View style={stylesx.productRow}>
-                                        <IIcon name={product.icon} size={25} color="#e97777" />
+                                        <IIcon name={["chatbubble-ellipses", "heart"][key % __product_MAPPER_consumables.length]} size={25} color="#e97777" />
                                         <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-                                            {product.count > 0 && <Text style={stylesx.productCount}>{product.count}</Text>}
-                                            <Text style={stylesx.productLabel}>{product.label}</Text>
+                                            {product.count > 0 && <Text style={stylesx.productCount}>{product?.count ?? "0"}</Text>}
+                                            <Text style={stylesx.productLabel}>{product.name}</Text>
                                         </View>
                                     </View>
                                 </View>
@@ -228,7 +214,8 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
                     {!userSubscriptionStep2 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
 
-                        {!userSubscriptionStep1 && tierKeys.map((tierKey, key) => {
+                        {!userSubscriptionStep1 && Object.keys(__product_MAPPER_mainsub || {}).map((tierKey, key) => {
+                            //console.log("Rendering tier:", tierKey, tiers[tierKey]);
                             const tier = tiers[tierKey];
                             const color = [['#000000', '#00000080'], ['#FF9E00', '#FF9E0080']]
                             const icon = ["diamond-outline", "crown-outline"]
@@ -246,7 +233,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                         </View>
 
                                         <View style={stylesx.featuresList}>
-                                            {(sqlmapper?.payment_plan?.subscribe?.[1]?.features ?? []).map((feature: any, index: any) => (
+                                            {(tier.features ?? []).map((feature: any, index: any) => (
                                                 <View key={index} style={stylesx.featureItem}>
                                                     <IIcon name="checkmark-circle" size={16} color="#fff" />
                                                     <Text style={stylesx.featureText}>{feature}</Text>
@@ -355,8 +342,10 @@ const stylesx = StyleSheet.create({
     },
 
     productLabel: {
-        fontSize: 13,
+        fontSize: 14,
         color: '#2a2a2a',
+        textTransform: "capitalize",
+        fontWeight: 600
     },
     productCount: {
         fontSize: 13,
@@ -371,7 +360,7 @@ const stylesx = StyleSheet.create({
 
 
     featureCard: {
-        width: screenWidth * 0.90,
+        width: screenWidth * 0.80,
         flex: 1, // Set fixed height instead of flex
         borderRadius: 16,
     },
