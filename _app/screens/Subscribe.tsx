@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated, Dimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -9,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Colors for tiers - will use dynamically based on tier count
 const TIER_COLORS = ['#F25F7F', '#D4AF37', '#5B8DEF', '#34C759'];
-
 
 export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation: any }) => {
   const __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
@@ -22,17 +21,14 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
   const userCurrentTier = getProfile?.user_effect?.subscription_plan;
 
-  const getTierKeyByName = (planName?: string) => {
-    if (!planName) return '';
+  // Helper to find tier key by plan name
+  const getTierKeyByName = useCallback((planName?: string) => {
+    if (!planName || !__product_MAPPER_mainsub) return '';
     const normalized = String(planName).toLowerCase();
-    return (
-      tierKeys.find((key) => {
-        const tierItems = __product_MAPPER_mainsub?.[key] || [];
-        const name = tierItems[0]?.name;
-        return String(name).toLowerCase() === normalized;
-      }) || ''
-    );
-  };
+    return tierKeys.find(key => 
+      __product_MAPPER_mainsub[key]?.[0]?.name?.toLowerCase() === normalized
+    ) || '';
+  }, [__product_MAPPER_mainsub, tierKeys]);
 
   // Initialize selected tier based on user's current subscription
   const [selectedTier, setSelectedTier] = useState<string>(() => {
@@ -43,11 +39,31 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
     return route?.params?.tab || (tierKeys[0] || '');
   });
 
+  // Get current tier items directly from original data
+  const currentTierItems = __product_MAPPER_mainsub?.[selectedTier] || [];
+
   // Initialize selected billing cycle based on available options
   const [selectedDuration, setSelectedDuration] = useState<string>(() => {
-    const tierItems = __product_MAPPER_mainsub?.[selectedTier] || [];
-    return tierItems[0]?.interval_days ? String(tierItems[0].interval_days) : '';
+    return currentTierItems[0]?.interval_days ? String(currentTierItems[0].interval_days) : '';
   });
+
+  // Find selected product item
+  const selectedProduct = currentTierItems.find(
+    (item: any) => String(item.interval_days) === selectedDuration
+  );
+
+  // Get available cycles for current tier
+  const availableCycles = useMemo(() => 
+    currentTierItems.map((item: any) => String(item.interval_days)),
+    [currentTierItems]
+  );
+
+  // Update selected duration when tier changes
+  useEffect(() => {
+    if (currentTierItems.length > 0) {
+      setSelectedDuration(String(currentTierItems[0].interval_days));
+    }
+  }, [selectedTier]);
 
   const paymentSheetRef = useRef<BottomSheet>(null);
   const paymentSheetSnap = useMemo(() => [], []);
@@ -56,60 +72,15 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   const cycleItemWidth = Math.min(180, Math.max(140, Math.round(screenWidth * 0.45)));
   const cycleSidePadding = Math.max(16, Math.round((screenWidth - cycleItemWidth) / 2));
 
-  // Build tier data dynamically
-  const tiers = useMemo(() => {
-    const tierData: Record<string, any> = {};
-
-    tierKeys.forEach((tierKey, index) => {
-      const tierItems = __product_MAPPER_mainsub?.[tierKey] || [];
-      const tierMeta = tierItems[0] || {};
-
-      // Group prices by interval_days
-      const prices: Record<string, string> = {};
-      tierItems.forEach((item: any) => {
-        if (item?.interval_days) {
-          prices[String(item.interval_days)] = String(item.price);
-        }
-      });
-
-      // Generate features based on tier
-      const features = generateFeatures(String(tierMeta?.name ?? tierKey));
-
-      tierData[tierKey] = {
-        name: (tierMeta?.name ?? tierKey).toUpperCase(),
-        color: TIER_COLORS[index] || '#F25F7F',
-        features,
-        prices,
-        id: tierKey
-      };
-    });
-
-    return tierData;
-  }, [__product_MAPPER_mainsub]);
-
-  // Update selected duration when tier changes
-  useEffect(() => {
-    const tierItems = __product_MAPPER_mainsub?.[selectedTier] || [];
-    if (tierItems.length > 0) {
-      setSelectedDuration(tierItems[0]?.interval_days ? String(tierItems[0].interval_days) : '');
-    }
-  }, [selectedTier]);
-
   const handleSubscribe = (paymentMethod: 'iap' | 'card') => {
     const actionName = (globalThis as any)?.http_namer?.pushSubscribe ?? 'pushSubscribe';
-    Loaderx.show();
-
-    // Find the selected product item
-    const tierItems = __product_MAPPER_mainsub?.[selectedTier] || [];
-    const selectedItem = tierItems.find(
-      (item: any) => String(item.interval_days) === selectedDuration
-    );
-
-    if (!selectedItem) {
-      Loaderx.hide();
+    
+    if (!selectedProduct) {
       Alert.alert('Error', 'Selected plan not available');
       return;
     }
+
+    Loaderx.show();
 
     _http_request({
       customApiUrl: hostServer() + "/api/core/v1/pushSubscribe",
@@ -118,7 +89,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
         action: actionName,
         tier: selectedTier,
         whentype: selectedDuration,
-        product_id: selectedItem.sku,
+        product_id: selectedProduct.sku,
         payment_method: paymentMethod
       }
     }).then((fg: any) => {
@@ -137,18 +108,15 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   };
 
   const openPaymentSheet = () => {
-    if (!selectedDuration) return;
+    if (!selectedDuration || !selectedProduct) return;
     paymentSheetRef.current?.snapToIndex(0);
   };
 
-  // Get available billing cycles for selected tier
-  const getAvailableCycles = () => {
-    const tierItems = __product_MAPPER_mainsub?.[selectedTier] || [];
-    return tierItems.map((item: any) => String(item.interval_days));
-  };
-
-  const selectedPrice = tiers[selectedTier]?.prices?.[selectedDuration] || '';
-  const selectedTierName = tiers[selectedTier]?.name || '';
+  // Get tier display color
+  const getTierColor = useCallback((tierKey: string) => {
+    const index = tierKeys.indexOf(tierKey);
+    return TIER_COLORS[index] || '#F25F7F';
+  }, [tierKeys]);
 
   return (
     <LinearGradient colors={['#0f0b14', '#171126', '#0f111a']} style={styles.container}>
@@ -156,7 +124,9 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
 
         <View style={styles.tierRow}>
           {tierKeys.map((tierKey) => {
-            const tier = tiers[tierKey];
+            const tierItems = __product_MAPPER_mainsub?.[tierKey] || [];
+            const tierMeta = tierItems[0] || {};
+            const tierColor = getTierColor(tierKey);
             const isSelected = selectedTier === tierKey;
             const isLocked = activeSubscription && userCurrentTier === tierKey;
             const isActive = activeSubscription && userCurrentTier === tierKey;
@@ -169,26 +139,28 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
                 onPress={() => setSelectedTier(tierKey)}
                 style={[
                   styles.tierCard,
-                  { borderColor: tier.color },
-                  isSelected && { backgroundColor: 'rgba(255,255,255,0.05)', shadowColor: tier.color },
+                  { borderColor: tierColor },
+                  isSelected && { backgroundColor: 'rgba(255,255,255,0.05)', shadowColor: tierColor },
                   isLocked && styles.tierCardDisabled,
                 ]}
               >
                 <View style={styles.tierHeader}>
-                  <Text style={[styles.tierName, { color: tier.color }]}>{tier.name}</Text>
+                  <Text style={[styles.tierName, { color: tierColor }]}>
+                    {(tierMeta.name || tierKey).toUpperCase()}
+                  </Text>
                   {isActive && (
-                    <View style={[styles.badge, { backgroundColor: tier.color }]}>
+                    <View style={[styles.badge, { backgroundColor: tierColor }]}>
                       <Text style={styles.badgeText}>Active</Text>
                     </View>
                   )}
                 </View>
                 <Text style={styles.tierId}>{tierKey}</Text>
-                <Text style={styles.tierPrice}>
-                  {tier.prices[getAvailableCycles()[0]] || ''}
-                </Text>
+                <Text style={styles.tierPrice}>${tierMeta.price || ''}</Text>
                 <View style={styles.tierFooter}>
-                  <IIcon name="sparkles-outline" size={16} color={tier.color} />
-                  <Text style={styles.tierFooterText}>Priority matching</Text>
+                  <IIcon name="sparkles-outline" size={16} color={tierColor} />
+                  <Text style={styles.tierFooterText}>
+                    {tierMeta.meta_data?.cycle || 'Priority matching'}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
@@ -197,16 +169,18 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>What's included</Text>
-          <Text style={styles.sectionHint}>Tailored to {tiers[selectedTier]?.name}</Text>
+          <Text style={styles.sectionHint}>
+            Tailored to {(currentTierItems[0]?.name || selectedTier).toUpperCase()}
+          </Text>
         </View>
 
         <View style={styles.benefitList}>
-          {tiers[selectedTier]?.features.length === 0 ? (
+          {generateFeatures(selectedTier).length === 0 ? (
             <Text style={styles.emptyBenefit}>Benefits coming soon.</Text>
           ) : (
-            tiers[selectedTier]?.features.map((benefit: string, index: number) => (
+            generateFeatures(selectedTier).map((benefit: string, index: number) => (
               <View key={index} style={styles.benefitItem}>
-                <View style={[styles.benefitIcon, { backgroundColor: tiers[selectedTier].color }]}>
+                <View style={[styles.benefitIcon, { backgroundColor: getTierColor(selectedTier) }]}>
                   <IIcon name="checkmark" size={12} color="#0f0b14" />
                 </View>
                 <Text style={styles.benefitText}>{benefit}</Text>
@@ -214,7 +188,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
             ))
           )}
         </View>
-
+ 
         <Text style={styles.sectionTitle}>Billing cadence</Text>
         <Animated.ScrollView
           horizontal
@@ -228,8 +202,12 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
           )}
           scrollEventThrottle={16}
         >
-          {getAvailableCycles().map((cycle: string, index: number) => {
+          {availableCycles.map((cycle: string, index: number) => {
+            const product = currentTierItems.find((p: any) => String(p.interval_days) === cycle);
+            if (!product) return null;
+
             const isSelected = selectedDuration === cycle;
+            const tierColor = getTierColor(selectedTier);
             const inputRange = [
               (index - 1) * (cycleItemWidth + 12),
               index * (cycleItemWidth + 12),
@@ -247,7 +225,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
             });
 
             return (
-              <Animated.View key={cycle} style={{ transform: [{ scale }], opacity,paddingTop: 20}}>
+              <Animated.View key={cycle} style={{ transform: [{ scale }], opacity, paddingTop: 20 }}>
                 <TouchableOpacity
                   onPress={() => {
                     setSelectedDuration(cycle);
@@ -256,14 +234,14 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
                   style={[
                     styles.cyclePill,
                     { width: cycleItemWidth, marginRight: 12 },
-                    isSelected && { backgroundColor: tiers[selectedTier].color, borderColor: tiers[selectedTier].color },
+                    isSelected && { backgroundColor: tierColor, borderColor: tierColor },
                   ]}
                 >
                   <Text style={[styles.cycleText, isSelected && styles.cycleTextSelected]}>
-                    {cycle} days
+                    {product.meta_data?.cycle || cycle} days
                   </Text>
                   <Text style={[styles.cyclePrice, isSelected && styles.cycleTextSelected]}>
-                    {tiers[selectedTier]?.prices[cycle] || ''}
+                    <Text style={{ fontSize: 20, fontWeight: '700' }}>${product.price}</Text> / {product.meta_data?.cycle || ''}
                   </Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -271,34 +249,41 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
           })}
         </Animated.ScrollView>
 
-
         <Text style={styles.disclaimer}>
           Payments are charged to your account. Auto-renews unless canceled 24 hours before renewal.
         </Text>
       </ScrollView>
 
-      <BottomSheet ref={paymentSheetRef} index={-1} enablePanDownToClose
+      <BottomSheet
+        ref={paymentSheetRef}
+        index={-1}
+        enablePanDownToClose
         snapPoints={paymentSheetSnap}
-        backdropComponent={bottomsheet_renderBackdrop}>
+        backdropComponent={bottomsheet_renderBackdrop}
+      >
         <BottomSheetView style={styles.sheetContainer}>
           <SafeAreaView edges={['bottom']}>
             <Text style={styles.sheetTitle}>Choose payment method</Text>
             <Text style={styles.sheetSubtitle}>
-              {selectedTierName} • {selectedDuration} days • {selectedPrice}
+              {(currentTierItems[0]?.name || selectedTier).toUpperCase()} • {selectedProduct?.meta_data?.cycle || selectedDuration} days • ${selectedProduct?.price || ''}
             </Text>
 
             <View style={styles.sheetDetails}>
               <View style={styles.sheetRow}>
                 <Text style={styles.sheetLabel}>Plan</Text>
-                <Text style={styles.sheetValue}>{selectedTierName}</Text>
+                <Text style={styles.sheetValue}>
+                  {(currentTierItems[0]?.name || selectedTier).toUpperCase()}
+                </Text>
               </View>
               <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Billing cadence</Text>
-                <Text style={styles.sheetValue}>{selectedDuration} days</Text>
+                <Text style={styles.sheetLabel}>Billing Cycle</Text>
+                <Text style={styles.sheetValue}>
+                  {selectedProduct?.meta_data?.cycle || selectedDuration} days
+                </Text>
               </View>
               <View style={styles.sheetRow}>
                 <Text style={styles.sheetLabel}>Price</Text>
-                <Text style={styles.sheetValue}>{selectedPrice || '—'}</Text>
+                <Text style={styles.sheetValue}>${selectedProduct?.price || ''}</Text>
               </View>
             </View>
 
@@ -329,14 +314,14 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
 // Helper function to generate features based on tier
 const generateFeatures = (tierKey: string): string[] => {
   const features: Record<string, string[]> = {
-    plus: [
+    "mainsub.1": [
       'Priority in matchmaking',
       '2 super likes per day',
       'See who liked you',
       'Unlimited matches',
       'Profile boost once a weekly'
     ],
-    vip: [
+    "mainsub.2": [
       'All Plus features',
       'Unlimited super likes',
       'Travel mode',
@@ -399,7 +384,6 @@ const styles = StyleSheet.create({
   ctaText: { color: '#0f0b14', fontSize: 17, fontWeight: '800' },
   ctaSubtext: { color: '#0f0b14', fontSize: 13, marginTop: 4 },
   disclaimer: { color: '#9ca3af', fontSize: 12, lineHeight: 16, textAlign: 'center' },
-
   sheetContainer: { padding: 20 },
   sheetTitle: { color: '#111827', fontSize: 18, fontWeight: '700' },
   sheetSubtitle: { color: '#6b7280', fontSize: 13, marginTop: 6, marginBottom: 12 },
@@ -426,4 +410,3 @@ const styles = StyleSheet.create({
   sheetCancel: { alignItems: 'center', marginTop: 6 },
   sheetCancelText: { color: '#6b7280', fontSize: 14 },
 });
-0

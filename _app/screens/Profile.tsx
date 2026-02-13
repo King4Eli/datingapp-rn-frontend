@@ -22,7 +22,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const [getProfile, setgetProfile] = useState(llStorage.currentProfile.get()?.currentUser);
     const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
     const userCurrentTier = getProfile?.user_effect?.subscription_plan;
-
+ 
 
     // Helper function to generate features based on tier
     const generateFeatures = (tierKey: number): string[] => {
