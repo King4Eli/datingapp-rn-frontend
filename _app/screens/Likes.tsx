@@ -313,9 +313,16 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                 </>
             ) : (
                 <View style={stylesoy.emptyState}>
-                    <MaterialCommunityIcons name="heart-outline" size={48} color="#ccc" />
-                    <Text style={stylesoy.emptyText}>No new likes yet</Text>
-                    <Text style={stylesoy.emptySubtext}>New likes will appear here</Text>
+                    <View style={stylesoy.emptyCard}>
+                        <View style={stylesoy.emptyIconWrap}>
+                            <MaterialCommunityIcons name="heart-outline" size={34} color="#db2777" />
+                        </View>
+                        <Text style={stylesoy.emptyText}>No new likes at the moment</Text>
+                        <Text style={stylesoy.emptySubtext}>Keep your profile active and check back soon for new likes.</Text>
+                        <Pressable style={stylesoy.emptyActionBtn} onPress={() => navigation.navigate(namer.navigation.peoples)}>
+                            <Text style={stylesoy.emptyActionBtnText}>Discover people</Text>
+                        </Pressable>
+                    </View>
                 </View>
             )}
 
@@ -381,18 +388,54 @@ const stylesoy = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        padding: 18,
+    },
+    emptyCard: {
+        width: '100%',
+        maxWidth: 360,
+        backgroundColor: '#fff',
+        borderRadius: 22,
+        paddingVertical: 24,
+        paddingHorizontal: 18,
+        alignItems: 'center',
+        gap: 10,
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+        elevation: 9,
+    },
+    emptyIconWrap: {
+        width: 62,
+        height: 62,
+        borderRadius: 31,
+        backgroundColor: '#fce7f3',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     emptyText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#666',
-        marginTop: 12,
+        fontSize: 21,
+        fontWeight: '800',
+        color: '#0f172a',
+        textAlign: 'center',
     },
     emptySubtext: {
         fontSize: 14,
-        color: '#999',
+        color: '#475569',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    emptyActionBtn: {
         marginTop: 4,
+        backgroundColor: '#1d4ed8',
+        paddingVertical: 11,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+    },
+    emptyActionBtnText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
     },
     cbsheet_press: {
         padding: 12,

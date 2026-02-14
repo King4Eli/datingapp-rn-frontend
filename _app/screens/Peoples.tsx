@@ -397,16 +397,27 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         <View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight }]}>
 
             {getPeopleToMatch?.length === 0 ? (
-
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 4 }}>
-                    <Text style={{ fontSize: 17, fontWeight: 500 }}>No more profiles to show.</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 3 }}>
-                        <Text style={{ fontSize: 13 }}>Try updating your</Text>
-                        <Pressable onPress={() => { navigation.push(namer.navigation.editpreference); }}>
-                            <Text style={{ color: "#099a", fontSize: 13 }}>preferences.</Text>
-                        </Pressable>
+                <View style={deckStyles.emptyStateWrap}>
+                    <View style={[deckStyles.emptyStateCard, deckStyles.cardShadow]}>
+                        <View style={deckStyles.emptyStateIconWrap}>
+                            <IIcon name="people-outline" size={34} color="#0284c7" />
+                        </View>
+                        <Text style={deckStyles.emptyStateTitle}>No more profiles to show.</Text>
+                        <Text style={deckStyles.emptyStateSubtitle}>
+                            You have seen everyone nearby for now. Refresh or adjust your preferences to discover more people.
+                        </Text>
+                        <View style={deckStyles.emptyStateActions}>
+                            <Pressable style={[styles.pressableButton, deckStyles.emptyStatePrimaryAction]} onPress={() => {
+                                setPeopleToMatch(null);
+                                sptmd((prev: boolean) => !prev);
+                            }}>
+                                <Text style={styles.pressableButtonText}>Refresh suggestions</Text>
+                            </Pressable>
+                            <Pressable style={deckStyles.emptyStateSecondaryAction} onPress={() => { navigation.push(namer.navigation.editpreference); }}>
+                                <Text style={deckStyles.emptyStateSecondaryActionText}>Update preferences</Text>
+                            </Pressable>
+                        </View>
                     </View>
-
                 </View>
             ) : (
                 <SafeAreaView style={{ flex: 1 }} edges={functs.onePersonProfile ? ['bottom'] : []}>
@@ -725,6 +736,15 @@ const deckStyles = StyleSheet.create({
     progressDots: { position: 'absolute', top: 16, alignSelf: 'center', flexDirection: 'row', gap: 6, backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
     dotActive: { backgroundColor: '#fff' },
+    emptyStateWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 40 },
+    emptyStateCard: { width: '100%', maxWidth: 410, borderRadius: 22, backgroundColor: '#ffffff', paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center', gap: 10 },
+    emptyStateIconWrap: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#e0f2fe', alignItems: 'center', justifyContent: 'center' },
+    emptyStateTitle: { fontSize: 23, color: '#0f172a', fontWeight: '800', textAlign: 'center' },
+    emptyStateSubtitle: { fontSize: 14, color: '#475569', lineHeight: 21, textAlign: 'center' },
+    emptyStateActions: { width: '100%', gap: 10, marginTop: 8 },
+    emptyStatePrimaryAction: { backgroundColor: '#0ea5e9', borderRadius: 14, paddingVertical: 12 },
+    emptyStateSecondaryAction: { borderWidth: 1, borderColor: '#bae6fd', backgroundColor: '#f0f9ff', borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+    emptyStateSecondaryActionText: { fontSize: 15, color: '#0369a1', fontWeight: '700' },
 });
 
 const matchStyles = StyleSheet.create({
