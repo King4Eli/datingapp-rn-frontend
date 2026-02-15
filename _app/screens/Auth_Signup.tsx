@@ -1,22 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Pressable, ScrollView, Animated, Dimensions, Linking } from 'react-native';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { styles } from '../funcs/static';
-import { __init__app, _handle_Signin, hostServer, screenWidth } from '../funcs/functions';
+import { namer, styles } from '../funcs/static';
+import { screenWidth } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { Toastx } from '../funcs/customNotification';
 
 
-export const Auth_InputPhoneNumberPage = () => {
-  const [getPhoneNumber, setPhoneNumber] = useState('');
-  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
+export const Auth_Signup = () => {
+  const navigation = useNavigation<any>();
   const [getProgressStep, setProgressStep] = useState<number>(1);
   const carouselRef1 = useRef<CarouselRef>(null);
-  const [isLoginPage, setisLoginPage] = useState<boolean>(true);
 
-  // Animation values
+  // Animation values 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [getErr, setErr] = useState<{ flname: boolean, email: boolean, date: boolean }>({ date: false, flname: false, email: false });
@@ -54,11 +53,6 @@ export const Auth_InputPhoneNumberPage = () => {
     ]).start();
   };
 
-  const rq = StyleSheet.create({
-    line: { flex: 1, height: 1, backgroundColor: '#ccc', },
-    text: { color: '#666', fontWeight: '500', paddingHorizontal: 5, lineHeight: 13 },
-  });
-
   const [userData, setUserData] = useState<{
     firstName: string;
     lastName: string;
@@ -67,7 +61,7 @@ export const Auth_InputPhoneNumberPage = () => {
     dob_month: string,
     dob_day: string,
     gender: string;
-    interestedIn: string;
+    interestedIn: string[];
     bio: string;
     height: string;
     relationshipGoals: string;
@@ -98,7 +92,7 @@ export const Auth_InputPhoneNumberPage = () => {
     dob_month: '',
     dob_day: '',
     gender: '',
-    interestedIn: '',
+    interestedIn: [],
     bio: '',
     height: '',
     relationshipGoals: '',
@@ -124,10 +118,14 @@ export const Auth_InputPhoneNumberPage = () => {
   });
 
   // Enhanced options
-  const genderOptions: string[] = [];
-
-  const interestedInOptions = [...Object.entries({}).filter(([k, o]) => k !== "2"), ["-99", "Anyone / Everyone"]] as [string, string][];
-  const relationshipGoalsOptions: string[] = [];
+  const genderOptions: string[] = ['Man', 'Woman', 'Non-binary', 'Prefer to self-describe'];
+  const interestedInOptions: string[] = ['Men', 'Women', 'Non-binary people', 'Everyone'];
+  const relationshipGoalsOptions: string[] = [
+    'Long-term relationship',
+    'Short-term dating',
+    'Still figuring it out',
+    'New friends',
+  ];
 
   const hobbyOptions = [
     'Travel', 'Music', 'Sports', 'Reading', 'Cooking', 'Gaming',
@@ -143,6 +141,15 @@ export const Auth_InputPhoneNumberPage = () => {
     'Creative', 'Curious', 'Empathetic', 'Energetic', 'Funny', 'Intellectual',
     'Optimistic', 'Organized', 'Passionate', 'Patient', 'Spontaneous', 'Thoughtful'
   ];
+  const promptQuestions = [
+    'My perfect first date is...',
+    'The way to win me over is...',
+    'Together we could...',
+    'My green flags are...',
+    'I am known for...',
+    'A life goal of mine is...',
+  ];
+  const [photoUrlInput, setPhotoUrlInput] = useState('');
 
 
   const handleInputChange = (field: string, value: any) => {
@@ -156,6 +163,56 @@ export const Auth_InputPhoneNumberPage = () => {
 
   const handleInterestedInSelection = (value: string) => {
     handleInputChange('interestedIn', [value]); // Set as array with single item
+  };
+  const toggleHobby = (hobby: string) => {
+    const current = userData.hobbies;
+    const exists = current.includes(hobby);
+    const next = exists ? current.filter(h => h !== hobby) : [...current, hobby];
+    handleInputChange('hobbies', next);
+  };
+  const addPhotoFromInput = () => {
+    const photoUrl = photoUrlInput.trim();
+    if (!photoUrl) {
+      Toastx.show({ type: 'info', message: 'Paste a photo URL first' });
+      return;
+    }
+    if (userData.photos.length >= 6) {
+      Toastx.show({ type: 'info', message: 'You can add up to 6 photos' });
+      return;
+    }
+    handleInputChange('photos', [...userData.photos, photoUrl]);
+    setPhotoUrlInput('');
+  };
+  const removePhotoAt = (index: number) => {
+    handleInputChange('photos', userData.photos.filter((_, i) => i !== index));
+  };
+  const addPrompt = (question: string) => {
+    if (userData.prompts.length >= 3) {
+      Toastx.show({ type: 'info', message: 'You can add up to 3 prompts' });
+      return;
+    }
+    if (userData.prompts.some(p => p.question === question)) return;
+    handleInputChange('prompts', [...userData.prompts, { question, answer: '' }]);
+  };
+  const updatePromptAnswer = (question: string, answer: string) => {
+    handleInputChange(
+      'prompts',
+      userData.prompts.map(p => (p.question === question ? { ...p, answer } : p))
+    );
+  };
+  const removePrompt = (question: string) => {
+    handleInputChange('prompts', userData.prompts.filter(p => p.question !== question));
+  };
+  const skipOptionalStep = (message: string = 'Skipped for now') => {
+    Toastx.show({ type: 'info', message });
+    carouselRef1.current?.goToNext();
+  };
+  const completeSignup = async (message: string) => {
+    Loaderx.show();
+    await new Promise(res => setTimeout(() => res(undefined), 700));
+    Loaderx.hide();
+    Toastx.show({ type: 'success', message });
+    navigation.navigate(namer.navigation.login);
   };
 
 
@@ -216,261 +273,6 @@ export const Auth_InputPhoneNumberPage = () => {
     }
 
     return true;
-  };
-
-  const ProgressBar = ({ current, total }: { current: number; total: number }) => (
-    <View style={stylesx.progressContainer}>
-      <View style={stylesx.progressBar}>
-        <View style={[stylesx.progressFill, { width: `${(current / total) * 100}%` }]} />
-      </View>
-      <Text style={stylesx.progressText}>Step {current} of {total}</Text>
-    </View>
-  );
-
-  const renderLoginPage = () => (
-    <Animated.View style={[
-      stylesx.page,
-      {
-        justifyContent: "center",
-        opacity: fadeAnim, paddingHorizontal: 10,
-        transform: [{ translateY: slideAnim }]
-      }
-    ]}>
-
-      <View style={stylesx.header}>
-        <Text style={stylesx.title}>Find Your Perfect Match</Text>
-        <Text style={stylesx.subtitle}>Join millions finding love and connection</Text>
-      </View>
-
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={stylesx.inputContainer}>
-          <MaterialCommunityIcons name="phone" size={20} color="#666" style={stylesx.inputIcon} />
-          <TextInput
-            style={stylesx.inputWithIcon}
-            placeholder="Phone Number"
-            placeholderTextColor="#999"
-            value={getPhoneNumber}
-            onChangeText={(e) => { const r = e.replace(/[^0-9]/g, ''); setPhoneNumber(r); }}
-            keyboardType='number-pad'
-          />
-        </View>
-
-        <TouchableOpacity
-          disabled={!(getPhoneNumber.length > 5)}
-          style={[
-            styles.pressableButton,
-            !(getPhoneNumber.length > 5) && { backgroundColor: "#cccccc", opacity: 0.6 }
-          ]}
-          onPress={async () => {
-            Loaderx.show();
-            await new Promise(res => setTimeout(() => res(undefined), 1000));
-            await _handle_Signin(getPhoneNumber, null).then((htp) => {
-              if (htp) {
-                if (htp.code === 200) {
-                  carouselRef1.current?.goToNext();
-                } else if (htp.code === 301) {
-                  Toastx.show({ type: 'info', message: htp.message ?? "Redirecting" });
-                  //carouselRef1.current?.goToPage(2);
-                  setisLoginPage(false);
-                } else {
-                  Toastx.show({ type: 'error', message: htp.message ?? htp.redirect ?? "nothing" });
-                }
-              } else {
-                Toastx.show({ type: 'error', message: "Error signup..." });
-              }
-            }).finally(() => {
-              Loaderx.hide();
-            });
-          }}
-        >
-          <Text style={[styles.pressableButtonText]}>Continue with Phone</Text>
-        </TouchableOpacity>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 20 }}>
-          <View style={rq.line} />
-          <Text style={rq.text}>or continue with</Text>
-          <View style={rq.line} />
-        </View>
-
-        <View style={stylesx.socialButtonsContainer}>
-          <Pressable style={[stylesx.socialButton, { backgroundColor: '#db4437' }]}
-            onPress={() => { }} >
-            <MaterialCommunityIcons name="google" size={21} color="#fff" />
-            <Text style={stylesx.socialButtonText}>Google</Text>
-          </Pressable>
-
-          <Pressable style={[stylesx.socialButton, { backgroundColor: '#4267B2' }]}
-            onPress={() => { }} >
-            <MaterialCommunityIcons name="facebook" size={21} color="#fff" />
-            <Text style={stylesx.socialButtonText}>Facebook</Text>
-          </Pressable>
-        </View>
-
-        {Platform.OS == "ios" && (
-          <Pressable style={[stylesx.socialButton, { backgroundColor: '#000', marginTop: 10 }]}
-            onPress={() => { }} >
-            <MaterialCommunityIcons name="apple" size={21} color="#fff" />
-            <Text style={stylesx.socialButtonText}>Apple</Text>
-          </Pressable>
-        )}
-
-
-        <View style={{ flexDirection: "row", justifyContent: "center" }}>
-          <Text style={stylesx.termsText}>By continuing, you agree to our</Text>
-          <Pressable onPress={() => { Linking.openURL(hostServer() + "/static_page/tnc.php"); }}><Text style={[stylesx.termsText, { color: "#5d5b8dff" }]}> Terms of Service</Text></Pressable>
-          <Text style={stylesx.termsText}> and</Text>
-          <Pressable onPress={() => { Linking.openURL(hostServer() + "/static_page/privacy.php"); }}><Text style={[stylesx.termsText, { color: "#5d5b8dff" }]}> Privacy Policy.</Text></Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </Animated.View>
-  );
-
-  const renderVerificationPage = () => {
-    const inputRefs = useRef<Array<TextInput | null>>([]);
-
-    const applyCodeInput = (text: string, index: number) => {
-      const digits = text.replace(/\D/g, '').split('');
-      const next = [...verificationCode];
-
-      if (digits.length > 0) {
-        digits.slice(0, 6 - index).forEach((d, i) => {
-          next[index + i] = d;
-        });
-        setVerificationCode(next);
-        const focusTo = Math.min(index + digits.length, 5);
-        inputRefs.current[focusTo]?.focus();
-        return;
-      }
-
-      next[index] = '';
-      setVerificationCode(next);
-    };
-
-    const handleKeyPress = (e: any, index: number) => {
-      if (e.nativeEvent.key === 'Backspace' && !verificationCode[index] && index > 0) {
-        inputRefs.current[index - 1]?.focus();
-      }
-    };
-
-    const [timer, setTimer] = useState(80);
-    const [isDisabled, setIsDisabled] = useState(true);
-    useEffect(() => {
-      let interval: ReturnType<typeof setInterval> | null = null;
-      if (isDisabled) {
-        interval = setInterval(() => {
-          setTimer(prev => {
-            if (prev <= 1) {
-              clearInterval(interval!);
-              setIsDisabled(false);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }
-      return () => clearInterval(interval!);
-    }, [isDisabled]);
-const resetClickedHowmany = useRef(1);
-    const handleResendCode = async () => {
-      await _handle_Signin(getPhoneNumber, null)
-      setTimer(90 *resetClickedHowmany.current);
-      resetClickedHowmany.current++;
-      setIsDisabled(true);
-      Toastx.show({ type: 'info', message: 'Code resent' });
-    };
-
-    const maskedNumber = getPhoneNumber
-      ? `*****${getPhoneNumber.substring(Math.max(getPhoneNumber.length - 4, 0))}`
-      : '';
-
-    return (
-      <Animated.View style={[
-        stylesx.page,
-        { justifyContent: "center", opacity: fadeAnim, paddingHorizontal: 10, gap: 10, transform: [{ translateY: slideAnim }] }
-      ]}>
-        <View style={stylesx.heroCard}>
-          <Text style={stylesx.heroTitle}>Verify your number</Text>
-          <Text style={stylesx.heroSubtitle}>We sent a 6-digit code to {maskedNumber}</Text>
-        </View>
-
-        <View style={stylesx.prefCard}>
-          <View style={stylesx.cardHeader}>
-            <Text style={stylesx.cardTitle}>Enter code</Text>
-          </View>
-
-          <View style={stylesx.codeStack}>
-            {verificationCode.map((digit, index) => {
-              const isActive = !!digit;
-              return (
-                <TextInput
-                  ref={(ref) => { inputRefs.current[index] = ref; }}
-                  key={index}
-                  style={[stylesx.codeInput, isActive && stylesx.codeInputActive]}
-                  value={digit}
-                  onChangeText={(text) => applyCodeInput(text, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
-                  placeholder='0'
-                  placeholderTextColor="#c4c4d3"
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  selectTextOnFocus
-                  textContentType="oneTimeCode"
-                />
-              );
-            })}
-          </View>
-
-          <View style={stylesx.codeFooter}>
-            <Text style={stylesx.helperText}>{isDisabled ? 'Waiting to resend' : 'Didn’t get it?'}</Text>
-            <TouchableOpacity
-              style={[stylesx.pill, isDisabled && { opacity: 0.6 }]}
-              disabled={isDisabled}
-              onPress={handleResendCode}>
-              <Text style={[stylesx.pillText, stylesx.pillTextActive]}>
-                {isDisabled
-                  ? `Resend in ${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}`
-                  : 'Resend code'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.pressableButton} onPress={async () => {
-          const vc = verificationCode.join("");
-          if (vc.length < 6) {
-            Toastx.show({ type: 'error', message: "Please enter the complete verification code!" });
-          } else {
-            Loaderx.show();
-            await new Promise(res => setTimeout(() => res(undefined), 1000));
-            await _handle_Signin(getPhoneNumber, vc).then(async (htp) => {
-              if (htp) {
-                if (htp.code === 200) {
-                  await __init__app({ doAgain: true });
-                  Toastx.show({ type: 'success', message: htp.message ?? "Verification successful!" });
-                } else if (htp.code === 301) {
-                  Toastx.show({ type: 'info', message: htp.message ?? "Redirecting" });
-                } else {
-                  Toastx.show({ type: 'error', message: htp.message ?? htp.redirect ?? "nothing" });
-                }
-              } else {
-                Toastx.show({ type: 'error', message: "Error verifying account!" });
-              }
-            }).finally(() => {
-              Loaderx.hide();
-            });
-          }
-        }}>
-          <Text style={styles.pressableButtonText}>Verify & Continue</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => {
-          carouselRef1.current?.goToPrevious();
-          verificationCode.fill('');
-        }}>
-          <Text style={stylesx.backButtonText}>Wrong number? Edit</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    );
   };
 
 
@@ -730,7 +532,7 @@ const resetClickedHowmany = useRef(1);
           </View>
           <Text style={stylesx.helperText}>Pick one for now—you can adjust later.</Text>
           <View style={stylesx.chipGroup}>
-            {interestedInOptions.map(([kry, option]) => (
+            {interestedInOptions.map((option) => (
               <TouchableOpacity
                 key={option}
                 style={[
@@ -753,14 +555,7 @@ const resetClickedHowmany = useRef(1);
 
         <View style={stylesx.navigationButtons}>
           <TouchableOpacity
-            style={[stylesx.secondaryButton, { marginRight: 10 }]}
-            onPress={() => { setisLoginPage(true); }}
-          >
-            <Text style={stylesx.secondaryButtonText}>Back / Login</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.pressableButton, { flex: 2 }]}
+            style={[styles.pressableButton, { flex: 1 }]}
             onPress={handleContinue}
           >
             <Text style={styles.pressableButtonText}>Continue</Text>
@@ -873,18 +668,9 @@ const resetClickedHowmany = useRef(1);
 
         <View style={stylesx.navigationButtons}>
           <TouchableOpacity
-            style={[stylesx.secondaryButton, { marginRight: 10 }]}
-            onPress={() => { carouselRef1.current?.goToPrevious(); }}
-          >
-            <Text style={stylesx.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.pressableButton, { flex: 2 }]}
+            style={[styles.pressableButton, { flex: 1 }]}
             onPress={() => {
-              if (validatePersonalInfo()) {
-                carouselRef1.current?.goToNext();
-              }
+              carouselRef1.current?.goToNext();
             }}
           >
             <Text style={styles.pressableButtonText}>Continue</Text>
@@ -893,50 +679,167 @@ const resetClickedHowmany = useRef(1);
       </ScrollView>
     );
   };
-  const renderInterestsPage = () => (
-    <ScrollView style={stylesx.page} showsVerticalScrollIndicator={false}>
-      <Text style={stylesx.title}>Your Interests</Text>
-      <Text style={stylesx.subtitle}>Select what you enjoy doing</Text>
-
-      <Text style={stylesx.label}>Hobbies & Interests</Text>
-      <View style={stylesx.interestsContainer}>
-        {hobbyOptions.map((hobby) => (
-          <TouchableOpacity
-            key={hobby}
-            style={[
-              stylesx.interestButton,
-              userData.hobbies.includes(hobby) && stylesx.selectedInterest
-            ]}
-            onPress={() => handleInterestedInSelection(hobby)}
-          >
-            <Text style={[
-              stylesx.interestText,
-              userData.hobbies.includes(hobby) && stylesx.selectedInterestText
-            ]}>
-              {hobby}
-            </Text>
-          </TouchableOpacity>
-        ))}
+  const renderPhotosPage = () => (
+    <ScrollView
+      style={[stylesx.page, { padding: 0 }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ padding: 12, gap: 16 }}
+    >
+      <View style={stylesx.heroCard}>
+        <Text style={stylesx.heroKicker}>Profile boost</Text>
+        <Text style={stylesx.heroTitle}>Add your best photos</Text>
+        <Text style={stylesx.heroSubtitle}>Profiles with 3+ photos usually get better match quality.</Text>
       </View>
 
-      <Text style={stylesx.selectedCount}>
-        {userData.hobbies.length} interests selected
-      </Text>
+      <View style={stylesx.prefCard}>
+        <View style={stylesx.cardHeader}>
+          <Text style={stylesx.cardTitle}>Photo links</Text>
+          <Text style={stylesx.helperText}>{userData.photos.length}/6 added</Text>
+        </View>
+        <View style={stylesx.inlineField}>
+          <TextInput
+            style={[stylesx.input, { flex: 1 }]}
+            placeholder="Paste image URL"
+            placeholderTextColor="#999"
+            value={photoUrlInput}
+            onChangeText={setPhotoUrlInput}
+            autoCapitalize="none"
+          />
+          <TouchableOpacity style={stylesx.pillButton} onPress={addPhotoFromInput}>
+            <Text style={stylesx.pillButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={stylesx.photoGrid}>
+        {Array.from({ length: 6 }).map((_, index) => {
+          const photo = userData.photos[index];
+          return (
+            <View key={index} style={[stylesx.photoSlot, !!photo && stylesx.photoSlotFilled]}>
+              <MaterialCommunityIcons name={photo ? 'check-circle-outline' : 'image-plus'} size={22} color={photo ? '#2e7d32' : '#7a7a92'} />
+              <Text style={stylesx.photoSlotText}>{photo ? `Photo ${index + 1}` : `Slot ${index + 1}`}</Text>
+              {!!photo && (
+                <TouchableOpacity onPress={() => removePhotoAt(index)}>
+                  <Text style={stylesx.photoRemoveText}>Remove</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })}
+      </View>
 
       <View style={stylesx.navigationButtons}>
         <TouchableOpacity
-          style={[stylesx.secondaryButton, { marginRight: 10 }]}
-          onPress={() => { carouselRef1.current?.goToPrevious(); }}>
-          <Text style={stylesx.secondaryButtonText}>Back</Text>
+          style={[styles.pressableButton, { flex: 1 }]}
+          onPress={() => { carouselRef1.current?.goToNext(); }}
+        >
+          <Text style={styles.pressableButtonText}>Continue</Text>
         </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
 
+  const renderInterestsPage = () => (
+    <ScrollView
+      style={[stylesx.page, { padding: 0 }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ padding: 12, gap: 16 }}
+    >
+      <View style={stylesx.heroCard}>
+        <Text style={stylesx.heroKicker}>Compatibility</Text>
+        <Text style={stylesx.heroTitle}>Choose your interests</Text>
+        <Text style={stylesx.heroSubtitle}>Pick what you actually enjoy so your matches feel more relevant.</Text>
+      </View>
+
+      <View style={stylesx.prefCard}>
+        <View style={stylesx.cardHeader}>
+          <Text style={stylesx.cardTitle}>Hobbies & vibes</Text>
+          <Text style={stylesx.helperText}>Tap to add/remove</Text>
+        </View>
+        <View style={stylesx.chipGroup}>
+          {hobbyOptions.map((hobby) => {
+            const selected = userData.hobbies.includes(hobby);
+            return (
+              <TouchableOpacity
+                key={hobby}
+                style={[stylesx.chip, selected && stylesx.chipSelected]}
+                onPress={() => toggleHobby(hobby)}
+              >
+                <Text style={[stylesx.chipText, selected && stylesx.chipSelectedText]}>{hobby}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text style={stylesx.selectedCount}>{userData.hobbies.length} selected</Text>
+      </View>
+
+      <View style={stylesx.navigationButtons}>
         <TouchableOpacity
-          style={[styles.pressableButton, { flex: 2 }]}
-          onPress={() => {
-            if (validatePersonalInfo()) {
-              carouselRef1.current?.goToNext();
-            }
-          }}
+          style={[styles.pressableButton, { flex: 1 }]}
+          onPress={() => { carouselRef1.current?.goToNext(); }}
+        >
+          <Text style={styles.pressableButtonText}>Continue</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  const renderPromptsPage = () => (
+    <ScrollView
+      style={[stylesx.page, { padding: 0 }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ padding: 12, gap: 16 }}
+    >
+      <View style={stylesx.heroCard}>
+        <Text style={stylesx.heroKicker}>Conversation starters</Text>
+        <Text style={stylesx.heroTitle}>Add profile prompts</Text>
+        <Text style={stylesx.heroSubtitle}>Prompts help matches message you with substance, not just “hey”.</Text>
+      </View>
+
+      {userData.prompts.map((prompt, idx) => (
+        <View key={prompt.question} style={stylesx.bioCard}>
+          <View style={stylesx.cardHeader}>
+            <Text style={stylesx.cardTitle}>Prompt {idx + 1}</Text>
+            <TouchableOpacity onPress={() => removePrompt(prompt.question)}>
+              <Text style={stylesx.photoRemoveText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={stylesx.helperText}>{prompt.question}</Text>
+          <TextInput
+            style={[stylesx.input, stylesx.textArea, { minHeight: 90 }]}
+            placeholder="Type your answer..."
+            placeholderTextColor="#999"
+            multiline
+            textAlignVertical="top"
+            value={prompt.answer}
+            onChangeText={(text) => updatePromptAnswer(prompt.question, text)}
+            maxLength={250}
+          />
+        </View>
+      ))}
+
+      {userData.prompts.length < 3 && (
+        <View style={stylesx.prefCard}>
+          <View style={stylesx.cardHeader}>
+            <Text style={stylesx.cardTitle}>Add a prompt</Text>
+            <Text style={stylesx.helperText}>{userData.prompts.length}/3 used</Text>
+          </View>
+          <View style={stylesx.chipGroup}>
+            {promptQuestions
+              .filter((q) => !userData.prompts.some(p => p.question === q))
+              .map((q) => (
+                <TouchableOpacity key={q} style={stylesx.chip} onPress={() => addPrompt(q)}>
+                  <Text style={stylesx.chipText}>{q}</Text>
+                </TouchableOpacity>
+              ))}
+          </View>
+        </View>
+      )}
+
+      <View style={stylesx.navigationButtons}>
+        <TouchableOpacity
+          style={[styles.pressableButton, { flex: 1 }]}
+          onPress={() => { carouselRef1.current?.goToNext(); }}
         >
           <Text style={styles.pressableButtonText}>Continue</Text>
         </TouchableOpacity>
@@ -982,7 +885,6 @@ const resetClickedHowmany = useRef(1);
       handleInputChange('astrology', { ...userData.astrology, personality: next });
     };
 
-    const percent = (value: number, min: number, max: number) => `${((value - min) / (max - min)) * 100}%`;
 
     return (
       <ScrollView
@@ -1144,21 +1046,10 @@ const resetClickedHowmany = useRef(1);
 
         <View style={stylesx.navigationButtons}>
           <TouchableOpacity
-            style={[stylesx.secondaryButton, { marginRight: 10 }]}
-            onPress={() => { carouselRef1.current?.goToPrevious(); }}
+            style={[styles.pressableButton, { flex: 1 }]}
+            onPress={async () => { await completeSignup('Signup setup complete'); }}
           >
-            <Text style={stylesx.secondaryButtonText}>Back</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.pressableButton, { flex: 2 }]}
-            onPress={async () => {
-              Loaderx.show();
-              await new Promise(res => setTimeout(() => res(undefined), 800));
-              Loaderx.hide();
-              Toastx.show({ type: 'success', message: "Preferences saved" });
-            }}
-          >
-            <Text style={styles.pressableButtonText}>Save & Continue</Text>
+            <Text style={styles.pressableButtonText}>Finish setup</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -1166,23 +1057,74 @@ const resetClickedHowmany = useRef(1);
   };
 
   // Continue with other pages (Bio, Interests, Preferences) following the same enhanced pattern...
-  const LoginPages = [
-    renderLoginPage(),
-    renderVerificationPage(),
-  ]
   const SignupPages = [
     renderPersonalInfoPage(),
+    renderPhotosPage(),
     renderBioPage(),
-    //renderInterestsPage(),
+    renderInterestsPage(),
+    renderPromptsPage(),
     renderPreferencesPage()
-    // Add other pages here with similar enhancements
   ];
-  const currentPageToShow = isLoginPage ? LoginPages : SignupPages;
+  const currentPageToShow = SignupPages;
+  const totalSignupSteps = currentPageToShow.length;
+  const headerProgress = totalSignupSteps > 0 ? (getProgressStep / totalSignupSteps) : 0;
+  const isOptionalStep = getProgressStep > 1;
+  const isLastStep = getProgressStep >= totalSignupSteps;
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: () => (
+        <View style={stylesx.headerTitleWrap}>
+          <Text style={stylesx.headerTitleText}>Create profile</Text>
+          <View style={stylesx.headerProgressTrack}>
+            <View style={[stylesx.headerProgressFill, { width: `${Math.min(100, Math.max(0, headerProgress * 100))}%` }]} />
+          </View>
+          <Text style={stylesx.headerStepText}>{getProgressStep}/{totalSignupSteps}</Text>
+        </View>
+      ),
+      headerTitleAlign: 'center',
+      headerBackTitle: '',
+      headerLeft: () => (
+        <TouchableOpacity
+          style={stylesx.headerIconButton}
+          onPress={() => {
+            if (getProgressStep > 1) {
+              carouselRef1.current?.goToPrevious();
+            } else {
+              navigation.navigate(namer.navigation.login);
+            }
+          }}
+        >
+          <MaterialCommunityIcons name="chevron-left" size={26} color="#1f2440" />
+        </TouchableOpacity>
+      ),
+      headerRight: isOptionalStep ? () => (
+        <TouchableOpacity
+          style={stylesx.headerSkipButton}
+          onPress={async () => {
+            if (isLastStep) {
+              await completeSignup('Account created. You can update preferences later.');
+              return;
+            }
+            skipOptionalStep('Step skipped');
+          }}
+        >
+          <Text style={stylesx.headerSkipText}>Skip</Text>
+        </TouchableOpacity>
+      ) : () => null,
+      headerStyle: stylesx.headerBar,
+    });
+  }, [navigation, getProgressStep, isOptionalStep, isLastStep, completeSignup, skipOptionalStep, headerProgress, totalSignupSteps]);
 
   return (
-    <SafeAreaView style={stylesx.container} edges={["bottom", "top"]}>
+    <SafeAreaView style={stylesx.container} edges={["bottom"]}>
+      <View pointerEvents="none" style={stylesx.backgroundLayer}>
+        <View style={stylesx.bgGlowTop} />
+        <View style={stylesx.bgGlowMiddle} />
+        <View style={stylesx.bgGlowBottom} />
+      </View>
 
-      {(getProgressStep) >= 1 && <ProgressBar current={getProgressStep} total={(currentPageToShow.length)} />}
       <ControlledCarousel
         ref={carouselRef1}
         pages={currentPageToShow}
@@ -1257,30 +1199,137 @@ const stylesx = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  backgroundLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#f4f6ff',
+  },
+  bgGlowTop: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(147, 112, 219, 0.16)',
+    top: -80,
+    right: -50,
+  },
+  bgGlowMiddle: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(255, 105, 180, 0.12)',
+    top: '32%',
+    left: -90,
+  },
+  bgGlowBottom: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(92, 155, 255, 0.12)',
+    bottom: -130,
+    right: -70,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photoSlot: {
+    width: '31%',
+    minHeight: 96,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d9dbe8',
+    backgroundColor: '#fafbff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    gap: 6,
+  },
+  photoSlotFilled: {
+    backgroundColor: '#f1fff2',
+    borderColor: '#b7e2bc',
+  },
+  photoSlotText: {
+    fontSize: 12,
+    color: '#4a4a63',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  photoRemoveText: {
+    fontSize: 12,
+    color: '#c62828',
+    fontWeight: '700',
+  },
   container: {
     flex: 1,
+    backgroundColor: '#f4f6ff',
+  },
+  headerBar: {
+    backgroundColor: '#f4f6ff',
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 0,
+  },
+  headerTitleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1f2440',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  headerTitleWrap: {
+    width: 170,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerProgressTrack: {
+    width: '100%',
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#dfe4f7',
+    overflow: 'hidden',
+  },
+  headerProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#5d5b8d',
+  },
+  headerStepText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6b7393',
+    marginTop: 3,
+  },
+  headerIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e3e7f5',
+    marginLeft: 6,
+  },
+  headerSkipButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
     backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d6dcf0',
+    marginRight: 6,
+  },
+  headerSkipText: {
+    color: '#4f5f9c',
+    fontWeight: '700',
+    fontSize: 13,
   },
   page: {
     width: screenWidth,
     flex: 1,
-  },
-  header: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#333',
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
-    textAlign: "center",
-    lineHeight: 22,
   },
   heroCard: {
     backgroundColor: '#f5f4ff',
@@ -1311,9 +1360,6 @@ const stylesx = StyleSheet.create({
     color: '#5a5a72',
     marginTop: 6,
     lineHeight: 20,
-  },
-  progressContainer: {
-    marginBottom: 10,
   },
   bioCard: {
     backgroundColor: '#fff',
@@ -1369,74 +1415,6 @@ const stylesx = StyleSheet.create({
     height: 100,
     paddingTop: 15,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#333',
-    marginTop: 10,
-  },
-  codeStack: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  codeInput: {
-    flex: 1,
-    marginHorizontal: 4,
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#dcdced',
-    borderRadius: 12,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '700',
-    backgroundColor: '#fafbff',
-    color: '#1c1c2b',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-  },
-  codeInputActive: {
-    borderColor: '#5d5b8d',
-    backgroundColor: '#f2f1ff',
-  },
-  codeFooter: {
-    marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  interestButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 20,
-    marginRight: 10,
-    marginBottom: 10,
-    backgroundColor: '#f8f8f8',
-  },
-  selectedInterest: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  interestText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  selectedInterestText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
   charCount: {
     fontSize: 12,
     color: '#999',
@@ -1447,47 +1425,6 @@ const stylesx = StyleSheet.create({
   sliderLabel: {
     fontSize: 12,
     color: '#999',
-  },
-  termsText: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 20,
-    lineHeight: 16,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#007AFF',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    marginBottom: 15,
-    paddingHorizontal: 15,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  inputWithIcon: {
-    flex: 1,
-    height: 50,
-    fontSize: 16,
-    color: '#333',
   },
   input: {
     height: 50,
@@ -1505,58 +1442,11 @@ const stylesx = StyleSheet.create({
     marginBottom: 5,
     color: '#333',
   },
-  socialButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 50,
-    borderRadius: 12,
-    marginHorizontal: 5,
-  },
-  socialButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    marginLeft: 8,
-    fontSize: 16,
-  },
   navigationButtons: {
     flexDirection: 'row',
     marginTop: 20,
-  },
-  secondaryButton: {
-    flex: 1,
-    height: 50,
-    borderWidth: 2,
-    borderColor: '#007AFF',
-    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  backButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  resendCodeButton: {
-    marginTop: 15,
-  },
-  resendCodeText: {
-    color: '#666',
-    fontSize: 14,
-    textAlign: 'center',
+    gap: 8,
   },
   ageText: {
     fontSize: 14,

@@ -11,7 +11,7 @@ import { Screen_likes } from './Likes';
 import { Screen_chat } from './Chats';
 import { Screen_profile } from './Profile';
 import { Screen_conversation } from './Conversations';
-import { Auth_InputPhoneNumberPage } from './Authenticater';
+import { Auth_Login } from './Auth_Login';
 import { Loaderx } from '../funcs/functions_stateful';
 import { Screen_settings } from './Settings';
 import { Screen_editprofile } from './ProfileEdit';
@@ -31,6 +31,7 @@ import { Screen_social } from './Social';
 import { Screen_Coin } from './Coin';
 import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
+import { Auth_Signup } from './Auth_Signup';
 
 // Type definitions for props if needed
 const Stack = createStackNavigator<any>();
@@ -89,7 +90,7 @@ const MainApp: React.FC = () => {
           AsyncStorage.getItem(namer.storage.sessionId),
           AsyncStorage.getItem(namer.storage.sessionIdVerify),
         ]);
-        
+
         if (sessIdStorage !== null) {
           await sessionManager.updateSession({ x_omi_payload: sessIdStorage, x_omi_payload_hash: sessIdVerifyStorage });
         }
@@ -207,25 +208,31 @@ const MainApp: React.FC = () => {
         <Stack.Navigator initialRouteName={currentSession?.x_omi_payload_hash ? "Home" : namer.navigation.login}>
 
           {!currentSession?.x_omi_payload_hash ?
-            (<Stack.Screen name={namer.navigation.login} component={Auth_InputPhoneNumberPage} options={{ headerShown: false }} />) : (<>
+            (
+              <>
+                <Stack.Screen name={namer.navigation.login} component={Auth_Login} options={{ headerShown: false }} />
+                <Stack.Screen name={namer.navigation.signup} component={Auth_Signup} options={{ headerShown: true }} />
+              </>
+            ) : (
+              <>
+                <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
+                <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '' }} />
+                <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
+                <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
+                <Stack.Screen name={namer.navigation.coin} component={Screen_Coin} />
+                <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
+                <Stack.Screen name={namer.navigation.subscription} component={Screen_Subscribe} options={{
+                  headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    color: '#fff',
+                    fontFamily: 'Helvetica',
+                  }, headerStyle: { backgroundColor: '#1a1919ff' }
+                }} />
+                <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
 
-              <Stack.Screen name="Home" component={BottomTabNavigator} options={{ headerShown: false }} />
-              <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '' }} />
-              <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
-              <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
-              <Stack.Screen name={namer.navigation.coin} component={Screen_Coin} />
-              <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
-              <Stack.Screen name={namer.navigation.subscription} component={Screen_Subscribe} options={{
-                headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {
-                  fontSize: 20,
-                  fontWeight: 'bold',
-                  color: '#fff',
-                  fontFamily: 'Helvetica',
-                }, headerStyle: { backgroundColor: '#1a1919ff' }
-              }} />
-              <Stack.Screen name={namer.navigation.settings} component={Screen_settings} options={{ headerBackTitle: '' }} />
-
-            </>)}
+              </>
+            )}
           <Stack.Screen name={namer.navigation.devpage} component={Zz_devv} options={{}} />
           <Stack.Screen name={"zz_nofile"} component={Zz_nofilee} options={{}} />
 
