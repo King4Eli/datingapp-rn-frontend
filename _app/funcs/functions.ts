@@ -347,7 +347,7 @@ export const _handle_Signin = async (phoneNumberc: string, vscode: string | null
           code: 200,
           message: "Login sus"
         };
-      } else if (loginRes?.code === 404 && loginRes?.message === "signup") {
+      } else if (loginRes?.code === 404 ) {
         return {
           code: 404,
           message: "redirecting to signup",
@@ -397,7 +397,7 @@ export const _handle_Signin = async (phoneNumberc: string, vscode: string | null
  
   // Login failed
   return {
-    code: 404,
+    code: 400,
     message: err ?? "Error signing in function."
   };
 };

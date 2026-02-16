@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import CountryPicker, { Country, CountryCode } from 'react-native-country-picker-modal';
 import { namer, styles } from '../funcs/static';
 import { screenWidth } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
@@ -57,6 +58,9 @@ export const Auth_Signup = () => {
     firstName: string;
     lastName: string;
     email: string;
+    phoneCountryCode: CountryCode;
+    phoneCallingCode: string;
+    phoneNumber: string;
     dob_year: string,
     dob_month: string,
     dob_day: string,
@@ -88,6 +92,9 @@ export const Auth_Signup = () => {
     firstName: '',
     lastName: '',
     email: '',
+    phoneCountryCode: 'US',
+    phoneCallingCode: '1',
+    phoneNumber: '',
     dob_year: '',
     dob_month: '',
     dob_day: '',
@@ -163,6 +170,10 @@ export const Auth_Signup = () => {
 
   const handleInterestedInSelection = (value: string) => {
     handleInputChange('interestedIn', [value]); // Set as array with single item
+  };
+  const handlePhoneCountrySelect = (country: Country) => {
+    handleInputChange('phoneCountryCode', country.cca2);
+    handleInputChange('phoneCallingCode', country.callingCode?.[0] ?? '1');
   };
   const toggleHobby = (hobby: string) => {
     const current = userData.hobbies;
@@ -453,6 +464,31 @@ export const Auth_Signup = () => {
               onChangeText={(text) => handleFieldChange('email', text)}
             />
             {localErrors.email && <Text style={stylesx.errorText}>Enter a valid email</Text>}
+
+            <Text style={stylesx.inputLabel}>Phone number (optional)</Text>
+            <View style={stylesx.phoneInputRow}>
+              <View style={stylesx.phoneCountryWrap}>
+                <CountryPicker
+                  countryCode={userData.phoneCountryCode}
+                  withFilter
+                  withFlag
+                  withCallingCode
+                  withCallingCodeButton
+                  withEmoji
+                  onSelect={handlePhoneCountrySelect}
+                  containerButtonStyle={stylesx.phoneCountryButton}
+                />
+              </View>
+              <TextInput
+                style={[stylesx.input, { flex: 1 }]}
+                placeholder="Phone number"
+                placeholderTextColor="#999"
+                value={userData.phoneNumber}
+                onChangeText={(text) => handleFieldChange('phoneNumber', text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={15}
+              />
+            </View>
           </View>
         </View>
 
@@ -1156,6 +1192,17 @@ const stylesx = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10 },
   flex1: { flex: 1 },
   inlineField: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  phoneInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  phoneCountryWrap: {
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 50,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  phoneCountryButton: { alignItems: 'center', justifyContent: 'center' },
   pillButton: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: '#f1f2fb', borderWidth: 1, borderColor: '#d9dbff' },
   pillButtonText: { color: '#5d5b8d', fontWeight: '700', fontSize: 13 },
   sliderShell: { marginTop: 6 },

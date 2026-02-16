@@ -1,16 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Animated,
-  Linking,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Animated, Linking, } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { namer, styles } from '../funcs/static';
@@ -19,6 +8,8 @@ import { Loaderx } from '../funcs/functions_stateful';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { Toastx } from '../funcs/customNotification';
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
+import CountryPicker, { Country, CountryCode } from 'react-native-country-picker-modal';
 
 export const Auth_Login = () => {
   const navigation = useNavigation<any>();
@@ -27,6 +18,8 @@ export const Auth_Login = () => {
   const resendAttemptRef = useRef(1);
 
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [countryCode, setCountryCode] = useState<CountryCode>('US');
+  const [callingCode, setCallingCode] = useState('1');
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [showCreateAccountPrompt, setShowCreateAccountPrompt] = useState(false);
   const [timer, setTimer] = useState(80);
@@ -87,29 +80,33 @@ export const Auth_Login = () => {
     ]).start();
   };
 
+  const handleCountrySelect = (country: Country) => {
+    setCountryCode(country.cca2);
+    setCallingCode(country.callingCode?.[0] ?? '1');
+  };
+
   const handleSendCode = async () => {
+    const normalizedPhoneNumber = `${callingCode}${phoneNumber}`.replace(/\D/g, '');
     Loaderx.show();
     await new Promise((res) => setTimeout(() => res(undefined), 1000));
 
-    await _handle_Signin(phoneNumber, null)
-      .then((htp) => {
-        if (!htp) {
-          Toastx.show({ type: 'error', message: 'Error signup...' });
-          return;
-        }
+    await _handle_Signin(normalizedPhoneNumber, null).then((htp) => {
+      if (!htp) {
+        Toastx.show({ type: 'error', message: 'Error signing in...' });
+        return;
+      }
 
-        if (htp.code === 200) {
-          carouselRef.current?.goToNext();
-          return;
-        }
+      if (htp.code === 200) {
+        carouselRef.current?.goToNext();
+        return;
+      }
 
-        if (htp.code === 404) {
-          setShowCreateAccountPrompt(true);
-          return;
-        }
-
-        Toastx.show({ type: 'error', message: htp.message ?? htp.redirect ?? 'nothing' });
-      })
+      if (htp.code === 404) {
+        setShowCreateAccountPrompt(true);
+        return;
+      }
+      Toastx.show({ type: 'error', message: htp.message ?? htp.redirect ?? 'nothing' });
+    })
       .finally(() => {
         Loaderx.hide();
       });
@@ -140,7 +137,8 @@ export const Auth_Login = () => {
   };
 
   const handleResendCode = async () => {
-    await _handle_Signin(phoneNumber, null);
+    const normalizedPhoneNumber = `${callingCode}${phoneNumber}`.replace(/\D/g, '');
+    await _handle_Signin(normalizedPhoneNumber, null);
     setTimer(90 * resendAttemptRef.current);
     resendAttemptRef.current += 1;
     setIsResendDisabled(true);
@@ -148,6 +146,7 @@ export const Auth_Login = () => {
   };
 
   const handleVerifyAndContinue = async () => {
+    const normalizedPhoneNumber = `${callingCode}${phoneNumber}`.replace(/\D/g, '');
     const code = verificationCode.join('');
     if (code.length < 6) {
       Toastx.show({ type: 'error', message: 'Please enter the complete verification code!' });
@@ -157,7 +156,7 @@ export const Auth_Login = () => {
     Loaderx.show();
     await new Promise((res) => setTimeout(() => res(undefined), 1000));
 
-    await _handle_Signin(phoneNumber, code)
+    await _handle_Signin(normalizedPhoneNumber, code)
       .then(async (htp) => {
         if (!htp) {
           Toastx.show({ type: 'error', message: 'Error verifying account!' });
@@ -181,19 +180,20 @@ export const Auth_Login = () => {
         Loaderx.hide();
       });
   };
-
+  const isValidPhoneNumberWithCode = () => {
+    const phoneNumberObj = parsePhoneNumberFromString("+" + callingCode + phoneNumber);
+    return phoneNumberObj?.isValid() ?? false;
+  };
   const renderLoginPage = () => (
-    <Animated.View
-      style={[
-        stylesx.page,
-        {
-          justifyContent: 'center',
-          opacity: fadeAnim,
-          paddingHorizontal: 10,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
+    <Animated.View style={[
+      stylesx.page,
+      {
+        justifyContent: 'center',
+        opacity: fadeAnim,
+        paddingHorizontal: 10,
+        transform: [{ translateY: slideAnim }],
+      },
+    ]} >
       <View style={stylesx.header}>
         <Text style={stylesx.title}>Find Your Perfect Match</Text>
         <Text style={stylesx.subtitle}>Join millions finding love and connection</Text>
@@ -201,9 +201,19 @@ export const Auth_Login = () => {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={stylesx.inputContainer}>
-          <MaterialCommunityIcons name="phone" size={20} color="#666" style={stylesx.inputIcon} />
-          <TextInput
-            style={stylesx.inputWithIcon}
+          <View style={stylesx.countryPickerWrap}>
+            <CountryPicker
+              countryCode={countryCode}
+              withFilter
+              withFlag
+              withCallingCode
+              withCallingCodeButton
+              withEmoji
+              onSelect={handleCountrySelect}
+              containerButtonStyle={stylesx.countryPickerButton}
+            />
+          </View>
+          <TextInput style={stylesx.inputWithIcon}
             placeholder="Phone Number"
             placeholderTextColor="#999"
             value={phoneNumber}
@@ -211,18 +221,15 @@ export const Auth_Login = () => {
               const numbers = e.replace(/[^0-9]/g, '');
               setPhoneNumber(numbers);
             }}
-            keyboardType="number-pad"
-          />
+            keyboardType="number-pad" />
         </View>
 
-        <TouchableOpacity
-          disabled={!(phoneNumber.length > 5)}
+        <TouchableOpacity disabled={!isValidPhoneNumberWithCode()}
           style={[
             styles.pressableButton,
-            !(phoneNumber.length > 5) && { backgroundColor: '#cccccc', opacity: 0.6 },
+            !isValidPhoneNumberWithCode() && { backgroundColor: '#cccccc', opacity: 0.6 },
           ]}
-          onPress={handleSendCode}
-        >
+          onPress={handleSendCode}>
           <Text style={styles.pressableButtonText}>Continue with Phone</Text>
         </TouchableOpacity>
 
@@ -233,19 +240,19 @@ export const Auth_Login = () => {
         </View>
 
         <View style={stylesx.socialButtonsContainer}>
-          <Pressable style={[stylesx.socialButton, { backgroundColor: '#db4437' }]} onPress={() => {}}>
+          <Pressable style={[stylesx.socialButton, { backgroundColor: '#db4437' }]} onPress={() => { }}>
             <MaterialCommunityIcons name="google" size={21} color="#fff" />
             <Text style={stylesx.socialButtonText}>Google</Text>
           </Pressable>
 
-          <Pressable style={[stylesx.socialButton, { backgroundColor: '#4267B2' }]} onPress={() => {}}>
+          <Pressable style={[stylesx.socialButton, { backgroundColor: '#4267B2' }]} onPress={() => { }}>
             <MaterialCommunityIcons name="facebook" size={21} color="#fff" />
             <Text style={stylesx.socialButtonText}>Facebook</Text>
           </Pressable>
         </View>
 
         {Platform.OS === 'ios' && (
-          <Pressable style={[stylesx.socialButton, { backgroundColor: '#000', marginTop: 10 }]} onPress={() => {}}>
+          <Pressable style={[stylesx.socialButton, { backgroundColor: '#000', marginTop: 10 }]} onPress={() => { }}>
             <MaterialCommunityIcons name="apple" size={21} color="#fff" />
             <Text style={stylesx.socialButtonText}>Apple</Text>
           </Pressable>
@@ -267,9 +274,8 @@ export const Auth_Login = () => {
         <View style={stylesx.promptBackdrop}>
           <View style={stylesx.promptCard}>
             <Text style={stylesx.promptTitle}>Account not found</Text>
-            <Text style={stylesx.promptText}>
-              We could not find an account for this number. Do you want to create one now?
-            </Text>
+            <Text style={stylesx.promptText}>+{callingCode} {phoneNumber}</Text>
+            <Text style={stylesx.promptText}>We could not find an account for this number. Do you want to create one now?</Text>
             <View style={stylesx.promptActions}>
               <TouchableOpacity
                 style={[stylesx.promptButton, stylesx.promptButtonCancel]}
@@ -295,7 +301,7 @@ export const Auth_Login = () => {
 
   const renderVerificationPage = () => {
     const maskedNumber = phoneNumber
-      ? `*****${phoneNumber.substring(Math.max(phoneNumber.length - 4, 0))}`
+      ? `+${callingCode} *****${phoneNumber.substring(Math.max(phoneNumber.length - 4, 0))}`
       : '';
 
     return (
@@ -435,6 +441,17 @@ const stylesx = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  countryPickerWrap: {
+    marginRight: 8,
+    borderRightWidth: 1,
+    borderRightColor: '#d7dbe9',
+    paddingRight: 8,
+  },
+  countryPickerButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 34,
+  },
   orRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -479,7 +496,7 @@ const stylesx = StyleSheet.create({
     lineHeight: 16,
   },
   promptBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
