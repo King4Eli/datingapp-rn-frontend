@@ -427,33 +427,44 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             ? 'm4a'
             : (mediaType === 'video' ? 'mp4' : 'jpg');
 
-        // Always use generated name instead of the original filename
+        // Generate a unique name (the server will create the full path)
         const generatedName = `${funt.matchId}_${Date.now()}_${help.randomAlphanumeric(30, 7)}`;
-
-        // For audio files, use .m4a extension.
         const finalName = mediaType === 'audio'
             ? `${generatedName}.m4a`
             : `${generatedName}.${fallbackExt}`;
 
+        // We no longer need to build the full path, just return the filename
+        // The server will construct the full path based on bucketType
         return {
             name: finalName,
-            path: `/convo_files/${mediaType}/${finalName}`,
+            // path is no longer needed as server generates it
         };
     };
 
-    const requestPresignedUpload = async (filepath: string, contentType: string) => {
-        const data = await _http_request({
-            customApiUrl: `${img_domain}/api/generate-upload-url`,
-            reqType: 'POST',
-            bodyArray: {
-                filepath,
-                contentType,
-            },
-        });
-        if (!data?.url) {
-            throw new Error(data?.error ?? 'Unable to generate upload URL');
+    const requestPresignedUpload = async (extension: string, bucketType: string, convoId?: string) => {
+        // Build request body with meta wrapper
+        const requestBody: any = {
+            meta: {
+                extension: extension,
+                bucketType: bucketType,
+            }
+        };
+
+        // Add convoId if it's a conversation type
+        if (bucketType?.startsWith('convo') && convoId) {
+            requestBody.meta.convoId = convoId;
         }
-        return data;
+
+        const data = await _http_request({
+            customApiUrl: hostServer() + "/api/core/v1/handleFileUpload",
+            reqType: 'POST',
+            bodyArray: requestBody
+        });
+
+        if (data?.code !== 200 || !data?.data?.uploadUrl) {
+            throw new Error(data?.message ?? 'Unable to generate upload URL');
+        }
+        return data.data;
     };
 
     const uploadWithPresigned = async (descriptor: UploadDescriptor): Promise<UploadedMedia> => {
@@ -462,39 +473,58 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         // Android records as mp4 but it's actually AAC audio in MP4 container
         if (descriptor.mediaType === 'audio' && descriptor.name.endsWith('.mp4')) {
-            contentType = 'audio/mp4'; // or 'audio/aac'
+            contentType = 'audio/mp4';
         }
-        //console.log("aaaaaaa")
-        const presigned = await requestPresignedUpload(descriptor.targetPath, contentType);
-        //console.log("bbbbbbb", presigned.url)
-        // Create FormData
-        const formData = new FormData();
 
-        // Create a file object with correct type
-        const fileObj = {
-            uri: descriptor.uri,
-            type: contentType,
-            name: descriptor.name
-        } as any;
+        // Get file extension
+        const extension = descriptor.name.split('.').pop() || '';
 
-        formData.append('file', fileObj);
+        // Determine bucket type based on media type
+        let bucketType = '';
+        if (descriptor.mediaType === 'img') bucketType = 'convo-img';
+        else if (descriptor.mediaType === 'video') bucketType = 'convo-video';
+        else if (descriptor.mediaType === 'audio') bucketType = 'convo-audio';
+
+        // Get presigned URL with new format
+        const presigned = await requestPresignedUpload(
+            extension,
+            bucketType,
+            funt.matchId  // This is the convoId
+        );
+
         try {
-            const uploadResp = await fetch(presigned.url, {
-                method: 'PUT',
-                body: formData,
+            // Use RNFS.uploadFiles for reliable file upload
+            const uploadResult = await RNFS.uploadFiles({
+                toUrl: presigned.uploadUrl,
+                files: [
+                    {
+                        name: "file", // Field name (some servers expect 'file')
+                        filename: descriptor.name,
+                        filepath: descriptor.uri.replace("file://", ""),
+                        filetype: contentType
+                    }
+                ],
+                method: presigned.method || "PUT",
                 headers: {
-                    'Content-Type': 'multipart/form-data',
+                    "Content-Type": contentType,
+                    // Add any additional headers if needed
                 },
-            });
+                // Important: For presigned PUT URLs, we don't want multipart encoding
+                binaryStreamOnly: true, // This sends raw file data, not multipart/form-data
+            }).promise;
 
-            if (!uploadResp.ok) {
-                const errorText = await uploadResp.text();
-                throw new Error(`Upload failed: ${uploadResp.status} - ${errorText}`);
+            // Check if upload was successful
+            if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
+                throw new Error(`Upload failed: ${uploadResult.statusCode} - ${uploadResult.body || 'Unknown error'}`);
             }
 
-            const encodedPath = encodeFilePath(descriptor.targetPath);
+            // Encode the file path for URL safety
+            const encodeFilePath = (filepath: string) => {
+                return filepath.split('/').map(encodeURIComponent).join('/');
+            };
 
-            //console.log("cccccccc")
+            const encodedPath = encodeFilePath(presigned.fileKey);
+
             return {
                 mediaType: descriptor.mediaType,
                 src: {
@@ -504,16 +534,16 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     size: descriptor.meta.size ?? null,
                     d: descriptor.meta.d ?? null,
                 },
-                relativePath: descriptor.targetPath
+                relativePath: presigned.fileKey
             };
         } catch (error) {
             logReport({
-                url: presigned.url,
+                url: presigned.uploadUrl,
                 type: "http -convo",
-                useraction: "upload convo images | presigned url",
-                logMessage: 'Unable error.',
+                useraction: "uploadWithPresigned",
+                logMessage: 'Upload error.',
                 stackTrace: error
-            })
+            });
             throw error;
         }
     };
