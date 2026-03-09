@@ -236,8 +236,7 @@ export const styles = StyleSheet.create({
 });
 
 export const namer = {
-    storage: {
-        mapper_hash: '69i3kjelhydfhetr',
+    storage: { 
         mapper_payload: '749bi6b5tvryshctds',
         bundle_numcode: 'nm5wt4qadszx21',
         sessionId: 'yksgiuw5ieytjgvc', //x-omi-auth

@@ -324,10 +324,10 @@ export const _http_request = async ({ reqType, bodyArray, headerArray, customApi
 
 
 // Handle login
-export const _handle_Signin = async (phoneNumberc: string, vscode: string | null): Promise<{ code: number, message?: string, redirect?: string }> => {
+export const _handle_Signin = async (phoneNumber: string, callingCode: string, vscode: string | null): Promise<{ code: number, message?: string, redirect?: string }> => {
   let err: string | null = null;
   if (!vscode || vscode.length < 6) {
-    if (phoneNumberc.length <= 5) {
+    if (phoneNumber.length <= 5) {
       err = 'Invalid username or password!.';
     }
     //
@@ -335,7 +335,8 @@ export const _handle_Signin = async (phoneNumberc: string, vscode: string | null
       const loginRes = await _http_request({
         customApiUrl: hostServer() + '/api/login',
         reqType: 'POST', bodyArray: {
-          user_phone: phoneNumberc
+          cc: callingCode,
+          user_phone: phoneNumber
         }
       });
       if (loginRes?.code === 200) {
@@ -347,7 +348,7 @@ export const _handle_Signin = async (phoneNumberc: string, vscode: string | null
           code: 200,
           message: "Login sus"
         };
-      } else if (loginRes?.code === 404 ) {
+      } else if (loginRes?.code === 404) {
         return {
           code: 404,
           message: "redirecting to signup",
@@ -365,7 +366,8 @@ export const _handle_Signin = async (phoneNumberc: string, vscode: string | null
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          user_phone: phoneNumberc,
+          user_phone: phoneNumber,
+          cc: callingCode,
           vcode: vscode,
         }),
       });
@@ -394,7 +396,7 @@ export const _handle_Signin = async (phoneNumberc: string, vscode: string | null
       }
     }
   }
- 
+
   // Login failed
   return {
     code: 400,
@@ -494,23 +496,26 @@ export class llStorage {
     generateFromServer: async (): Promise<void> => {
       const sessIdStorage = await AsyncStorage.getItem(namer.storage.sessionId);
       if (!sessIdStorage) return;
-      // UPDATE MAPPER
-      const mapperVersionHash = await AsyncStorage.getItem(namer.storage.mapper_hash) ?? -99;
+
       const server = await _http_request({
         reqType: "POST",
         customApiUrl: `${hostServer()}/api/core/v1/getVersioning`,
         bodyArray: {
-          _v: 0,
-          _bi: mapperVersionHash
+          _gpl: true,
+          _bi: true,
+          _gm: true
         }
       });
+      console.log("versioning server response:", server);
 
-      if (server?.mapper_hash && server?.mapper_payload) {
-        await AsyncStorage.setItem(namer.storage.mapper_hash, server?.mapper_hash);
+      if (server?.code === 200) {
         await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
         this.tempMapper = server?.mapper_payload;
         this.tempProducts = server?.products;
+      } else {
+        logReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data", stackTrace: "" });
       }
+
     }
 
   }

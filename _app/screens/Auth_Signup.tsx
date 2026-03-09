@@ -396,14 +396,7 @@ export const Auth_Signup = () => {
       <ScrollView
         style={[stylesx.page, { padding: 0 }]}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 12, gap: 16 }}
-      >
-        <View style={stylesx.heroCard}>
-          <Text style={stylesx.heroKicker}>Step 1</Text>
-          <Text style={stylesx.heroTitle}>Personal details</Text>
-          <Text style={stylesx.heroSubtitle}>Lock in the essentials so we can tailor your matches.</Text>
-        </View>
-
+        contentContainerStyle={{ padding: 12, gap: 16 }}>
         <View style={stylesx.prefCard}>
           <View style={stylesx.cardHeader}>
             <Text style={stylesx.cardTitle}>Name</Text>
@@ -1128,7 +1121,7 @@ export const Auth_Signup = () => {
             if (getProgressStep > 1) {
               carouselRef1.current?.goToPrevious();
             } else {
-              navigation.navigate(namer.navigation.login);
+              navigation.goBack();
             }
           }}
         >
