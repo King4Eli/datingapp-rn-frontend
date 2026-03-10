@@ -1,7 +1,17 @@
-import React, { useState, useLayoutEffect, useRef, useMemo } from 'react';
-import { View, Text, TextInput, Image, Pressable, KeyboardAvoidingView, Platform, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import {
+    View, Text, TextInput, Image, Pressable, KeyboardAvoidingView,
+    Platform, TouchableOpacity, StyleSheet, LayoutAnimation, UIManager
+} from 'react-native';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { ScrollView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    runOnJS,
+    withSpring,
+} from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import RadioGroup from 'react-native-radio-buttons-group';
@@ -14,6 +24,23 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// ─── Layout Constants ───────────────────────────────────────────────────────
+const GRID_PADDING = 0;
+const GAP = 5;
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+interface PhotoItem {
+    p?: string;
+    uri?: string;
+    local?: boolean;
+    w?: number;
+    h?: number;
+}
 
 export function Screen_editprofile({ navigation }: { navigation: any }) {
     const getProfile = llStorage.currentProfile.get()?.currentUser;
@@ -21,7 +48,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
     const headerHeight = useHeaderHeight();
 
-    const [getImages, setImages] = useState<any[]>(getProfile?.user_image ?? []);
+    const [getImages, setImages] = useState<PhotoItem[]>(getProfile?.user_image ?? []);
     const [getId, setId] = useState<string | null>(getProfile?.user_id ?? null);
     const [getFullname, setFullname] = useState<string>(getProfile?.user_fullname);
     const [getAge, setAge] = useState<string>(getProfile?.user_bio_dob);
@@ -46,10 +73,15 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const [getPrompts, setPrompts] = useState<Array<{ q: string; a: string; d: string }>>(Array.isArray(getProfile?.user_bio_prompt) ? getProfile.user_bio_prompt : []);
     const [getInterests, setInterests] = useState<string[]>(Array.isArray(getProfile?.user_bio_interests) ? getProfile.user_bio_interests : []);
 
+    // Drag and drop state
+    const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+    const [containerWidth, setContainerWidth] = useState(0);
+
     const addNewPrompt_ref = useRef<BottomSheet>(null);
     const addInterests_ref = useRef<BottomSheet>(null);
     const addNewPromptSnapPoints = useMemo(() => ['80%'], []);
     const addInterestsSnapPoints = useMemo(() => ['85%'], []);
+
     // header
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -67,9 +99,9 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         });
     });
 
-
     const getImageUri = (index: number) => {
         const target = getImages?.[index];
+        if (!target) return '';
         const path = target?.p ?? target?.uri ?? "";
         const isLocal = target?.local || path.startsWith('file:') || path.startsWith('content:');
         return isLocal ? path : String(__MAPPER?.img_domain[0] + path);
@@ -91,29 +123,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                     uploadName,
                 };
             });
-
-            //const fileMeta: Record<string, any> = {};
-            //const formData = new FormData(); 
-            //formData.append('prof_images_meta', JSON.stringify(imageMeta.map(({ uploadName, ...rest }) => rest)));
-
-            // normalizedImages.forEach((img, idx) => {
-            //     const meta = imageMeta[idx];
-            //     if (meta?.local && meta?.p) {
-            //         const uri = img?.p ?? img?.uri;
-            //         if (uri) {
-            //             formData.append('files[]', {
-            //                 uri,
-            //                 name: meta.uploadName ?? meta.p,
-            //                 type: (img as any)?.type ?? 'image/jpeg',
-            //             } as any);
-            //             fileMeta[meta.uploadName ?? meta.p] = {
-            //                 w: img?.w ?? null,
-            //                 h: img?.h ?? null,
-            //             };
-            //         }
-            //     }
-            // });
-            //formData.append('file_meta', JSON.stringify(fileMeta));
 
             const response = await _http_request({
                 reqType: 'POST',
@@ -173,6 +182,186 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             return updated.slice(0, 6);
         });
     };
+
+    const handleRemoveImage = (index: number) => {
+        setImages(prev => {
+            const updated = [...prev];
+            updated[index] = {}; // Clear the image at this index
+            return updated;
+        });
+    };
+
+    // Drag and drop handlers
+    const handleDragStart = useCallback((index: number) => {
+        setDraggingIndex(index);
+    }, []);
+
+    const handleDragEnd = useCallback((fromIndex: number, translationX: number, translationY: number) => {
+        setDraggingIndex(null);
+
+        if (containerWidth === 0) return;
+
+        // Calculate cell dimensions to find target slot
+        const colW = (containerWidth - GAP) / 2;
+        const smallH = colW * 0.65;
+        const bigH = smallH * 2 + GAP;
+        const bottomH = smallH;
+        const thirdColW = (containerWidth - GAP * 2) / 3;
+
+        const cellDims = [
+            { w: colW, h: bigH, x: 0, y: 0 },
+            { w: colW, h: smallH, x: colW + GAP, y: 0 },
+            { w: colW, h: smallH, x: colW + GAP, y: smallH + GAP },
+            { w: thirdColW, h: bottomH, x: 0, y: bigH + GAP },
+            { w: thirdColW, h: bottomH, x: thirdColW + GAP, y: bigH + GAP },
+            { w: thirdColW, h: bottomH, x: (thirdColW + GAP) * 2, y: bigH + GAP },
+        ];
+
+        const fromCell = cellDims[fromIndex];
+        const fromCenterX = fromCell.x + fromCell.w / 2 + translationX;
+        const fromCenterY = fromCell.y + fromCell.h / 2 + translationY;
+
+        let toIndex = fromIndex;
+        let minDist = Infinity;
+
+        cellDims.forEach((cell, idx) => {
+            if (idx === fromIndex) return;
+            const cx = cell.x + cell.w / 2;
+            const cy = cell.y + cell.h / 2;
+            const dist = Math.sqrt((fromCenterX - cx) ** 2 + (fromCenterY - cy) ** 2);
+            if (dist < minDist) {
+                minDist = dist;
+                toIndex = idx;
+            }
+        });
+
+        if (toIndex !== fromIndex && minDist < 200) {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            const newImages = [...getImages];
+            // Ensure array is padded to 6
+            while (newImages.length < 6) newImages.push({});
+            const temp = newImages[fromIndex];
+            newImages[fromIndex] = newImages[toIndex];
+            newImages[toIndex] = temp;
+            setImages(newImages.slice(0, 6));
+        }
+    }, [containerWidth, getImages]);
+
+    // Draggable Photo Cell Component
+    const DraggablePhoto = useCallback(({ image, slotIndex, cellWidth, cellHeight, x, y, imageUri }: {
+        image: PhotoItem;
+        slotIndex: number;
+        cellWidth: number;
+        cellHeight: number;
+        x: number;
+        y: number;
+        imageUri: string;
+    }) => {
+        const translateX = useSharedValue(0);
+        const translateY = useSharedValue(0);
+        const scale = useSharedValue(1);
+        const zIndex = useSharedValue(1);
+        const isEmpty = !image?.p && !image?.uri;
+
+        // Create gesture using the new Gesture API
+        const gesture = Gesture.Pan()
+            .minDistance(8)
+            .onStart(() => {
+                scale.value = withSpring(1.08);
+                zIndex.value = 100;
+                runOnJS(handleDragStart)(slotIndex);
+            })
+            .onUpdate((event) => {
+                translateX.value = event.translationX;
+                translateY.value = event.translationY;
+            })
+            .onEnd((event) => {
+                scale.value = withSpring(1);
+                zIndex.value = 1;
+                translateX.value = withSpring(0);
+                translateY.value = withSpring(0);
+                runOnJS(handleDragEnd)(slotIndex, event.translationX, event.translationY);
+            })
+            .onFinalize(() => {
+                // Ensure we reset even if gesture fails
+                scale.value = withSpring(1);
+                zIndex.value = 1;
+                translateX.value = withSpring(0);
+                translateY.value = withSpring(0);
+            });
+
+        const animatedStyle = useAnimatedStyle(() => ({
+            transform: [
+                { translateX: translateX.value },
+                { translateY: translateY.value },
+                { scale: scale.value },
+            ],
+            zIndex: zIndex.value,
+            shadowOpacity: draggingIndex === slotIndex ? 0.4 : 0,
+            elevation: draggingIndex === slotIndex ? 8 : 0,
+        }));
+
+        return (
+            <Animated.View style={[
+                {
+                    position: 'absolute',
+                    left: x,
+                    top: y,
+                    width: cellWidth,
+                    height: cellHeight,
+                },
+                animatedStyle,
+            ]}>
+                <GestureDetector gesture={!isEmpty ? gesture : Gesture.Pan()}>
+                    <Animated.View style={{ flex: 1 }}>
+                        <Pressable
+                            style={[
+                                localStyles.photoCell,
+                                isEmpty && localStyles.emptyCell,
+                            ]}
+                            onPress={() => handlePress(slotIndex)}
+                        >
+                            {!isEmpty ? (
+                                <>
+                                    <Image
+                                        source={{ uri: imageUri }}
+                                        style={localStyles.img}
+                                        resizeMode="cover"
+                                    />
+                                    {/* Remove button */}
+                                    <Pressable
+                                        style={localStyles.removeBtn}
+                                        onPress={() => handleRemoveImage(slotIndex)}>
+                                        <IIcon name="close-circle" size={22} color="#ff4444" />
+                                    </Pressable>
+                                    {/* Drag handle indicator */}
+                                    <View style={localStyles.dragHandle}>
+                                        <View style={localStyles.dragDot} />
+                                        <View style={localStyles.dragDot} />
+                                        <View style={localStyles.dragDot} />
+                                        <View style={localStyles.dragDot} />
+                                        <View style={localStyles.dragDot} />
+                                        <View style={localStyles.dragDot} />
+                                    </View>
+                                    {/* Main photo badge */}
+                                    {slotIndex === 0 && (
+                                        <View style={localStyles.mainBadge}>
+                                            <Text style={localStyles.mainBadgeText}>Main</Text>
+                                        </View>
+                                    )}
+                                </>
+                            ) : (
+                                <View style={localStyles.emptyContent}>
+                                    <Text style={localStyles.plusIcon}>+</Text>
+                                </View>
+                            )}
+                        </Pressable>
+                    </Animated.View>
+                </GestureDetector>
+            </Animated.View>
+        );
+    }, [handleDragStart, handleDragEnd, draggingIndex]);
+
     const stty = StyleSheet.create({
         closeBtn: {
             position: "absolute",
@@ -181,9 +370,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             top: -4, right: -4,
             width: 18, height: 18,
             alignItems: "center", justifyContent: "center",
-
-            elevation: 3,            // Android
-            shadowColor: "#000",     // iOS
+            elevation: 3,
+            shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.25,
             shadowRadius: 3
@@ -192,8 +380,139 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             fontSize: 18,
             fontWeight: "bold",
             textAlign: "center", lineHeight: 8
+        },
+    });
+
+    const localStyles = StyleSheet.create({
+        photoCell: {
+            flex: 1,
+            borderRadius: 12,
+            overflow: 'hidden',
+            backgroundColor: '#f0f0f0',
+        },
+        emptyCell: {
+            borderWidth: 2,
+            borderColor: '#ddd',
+            borderStyle: 'dashed',
+            backgroundColor: '#fafafa',
+        },
+        img: {
+            width: '100%',
+            height: '100%',
+        },
+        emptyContent: {
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        plusIcon: {
+            fontSize: 28,
+            color: '#ccc',
+            fontWeight: '300',
+        },
+        removeBtn: {
+            position: "absolute",
+            top: 4,
+            right: 4,
+            zIndex: 10,
+            backgroundColor: 'white',
+            borderRadius: 12,
+            width: 24,
+            height: 24,
+            alignItems: 'center',
+            justifyContent: 'center',
+            elevation: 3,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3
+        },
+        dragHandle: {
+            position: 'absolute',
+            bottom: 6,
+            right: 6,
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            width: 14,
+            gap: 2,
+            opacity: 0.6,
+        },
+        dragDot: {
+            width: 4,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: '#fff',
+        },
+        mainBadge: {
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            borderRadius: 6,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+        },
+        mainBadgeText: {
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: '600',
+            letterSpacing: 0.5,
+        },
+        photoGridContainer: {
+            gap: 5,
+            marginBottom: 10,
         }
     });
+
+    // Calculate grid dimensions
+    const renderPhotoGrid = () => {
+        if (containerWidth === 0) {
+            return (
+                <View onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}
+                    style={{ width: '100%', height: 10 }} />
+            );
+        }
+
+        // Calculate cell sizes
+        const colW = (containerWidth - GAP) / 2;
+        const smallH = colW * 0.65;
+        const bigH = smallH * 2 + GAP;
+        const bottomH = smallH;
+        const thirdColW = (containerWidth - GAP * 2) / 3;
+        const totalHeight = bigH + GAP + bottomH;
+
+        const cellDims = [
+            { w: colW, h: bigH, x: 0, y: 0 },
+            { w: colW, h: smallH, x: colW + GAP, y: 0 },
+            { w: colW, h: smallH, x: colW + GAP, y: smallH + GAP },
+            { w: thirdColW, h: bottomH, x: 0, y: bigH + GAP },
+            { w: thirdColW, h: bottomH, x: thirdColW + GAP, y: bigH + GAP },
+            { w: thirdColW, h: bottomH, x: (thirdColW + GAP) * 2, y: bigH + GAP },
+        ];
+
+        const paddedImages = [...getImages];
+        while (paddedImages.length < 6) paddedImages.push({});
+
+        return (
+            <View
+                onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}
+                style={{ width: '100%', height: totalHeight }}
+            >
+                {cellDims.map((cell, index) => (
+                    <DraggablePhoto
+                        key={index}
+                        image={paddedImages[index]}
+                        slotIndex={index}
+                        cellWidth={cell.w}
+                        cellHeight={cell.h}
+                        x={cell.x}
+                        y={cell.y}
+                        imageUri={getImageUri(index)}
+                    />
+                ))}
+            </View>
+        );
+    };
 
     return (
         <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
@@ -204,34 +523,13 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                     style={{ flex: 1 }} >
                     <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
                         <View style={[{ gap: 12, marginBottom: 12 }]}>
-                            <View style={{ gap: 5 }}>
-                                {/* Row 1 */}
-                                <View style={{ flexDirection: 'row', gap: 5 }}>
-                                    <Pressable style={[styles.editProfile_box, { flexGrow: 2, }]} onPress={() => handlePress(0)}>
-                                        <Image source={{ uri: getImageUri(0) }} style={[styles.img,]} />
-                                    </Pressable>
-                                    <View style={{ flexDirection: 'column', flex: 1, gap: 5 }}>
-                                        <Pressable style={styles.editProfile_box} onPress={() => handlePress(1)}>
-                                            <Image source={{ uri: getImageUri(1) }} style={[styles.img,]} />
-                                        </Pressable>
-                                        <Pressable style={styles.editProfile_box} onPress={() => handlePress(2)}>
-                                            <Image source={{ uri: getImageUri(2) }} style={[styles.img,]} />
-                                        </Pressable>
-                                    </View>
-                                </View>
-
-                                {/* Row 2 */}
-                                <View style={{ flexDirection: 'row', gap: 5 }}>
-                                    <Pressable style={styles.editProfile_box} onPress={() => handlePress(3)}>
-                                        <Image source={{ uri: getImageUri(3) }} style={[styles.img,]} />
-                                    </Pressable>
-                                    <Pressable style={styles.editProfile_box} onPress={() => handlePress(4)}>
-                                        <Image source={{ uri: getImageUri(4) }} style={[styles.img,]} />
-                                    </Pressable>
-                                    <Pressable style={styles.editProfile_box} onPress={() => handlePress(5)}>
-                                        <Image source={{ uri: getImageUri(5) }} style={[styles.img,]} />
-                                    </Pressable>
-                                </View>
+                            
+                            {/* Photo Grid Section */}
+                            <View style={localStyles.photoGridContainer}>
+                                <Text style={[styles.editprofile_inputtitle, { marginLeft: 5 }]}>
+                                    Profile Photos (Long press and drag to rearrange)
+                                </Text>
+                                {renderPhotoGrid()}
                             </View>
 
                             <LinearGradient colors={["#f95f62", "#f27a9c"]} style={[styles.card, { padding: 0 }]}
@@ -249,7 +547,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 </View>
                             </LinearGradient>
 
-
                             <View style={styles.editprofile_inputborder}>
                                 <View>
                                     <Text style={styles.editprofile_inputtitle}>Full Name</Text>
@@ -257,6 +554,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 </View>
                                 <TextInput style={styles.editprofile_input} value={getFullname} readOnly />
                             </View>
+                            
                             <View style={styles.editprofile_inputborder}>
                                 <View>
                                     <Text style={styles.editprofile_inputtitle}>Age</Text>
@@ -264,7 +562,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 </View>
                                 <TextInput style={styles.editprofile_input} value={help.getageFromDOB(getAge) ?? "-"} readOnly />
                             </View>
-
 
                             <View style={styles.editprofile_inputborder}>
                                 <View>
@@ -274,7 +571,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 <TextInput style={[styles.editprofile_input, { height: 200 }]} multiline numberOfLines={10} value={getAboutText} onChangeText={setAboutText} placeholder="Write about yourself" maxLength={400} />
                                 <Text style={{ color: colors.gray2, fontSize: 12, marginTop: 4, paddingLeft: 4 }}>Keep it concise and engaging! {`(Max characters ${getAboutText?.length}/400)`}</Text>
                             </View>
-
 
                             <AccordionItem title="What are your Intentions?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0, }]} subtitle={__MAPPER?.bio_intent?.[getRelationshipGoal]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: 'capitalize' }}
@@ -289,16 +585,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 />}
                             </View>)} />
 
-
-
-
-
-
-
-
-
-
-
                             <AccordionItem title="What is your gender?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_gender?.[getGender]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
                                     radioButtons={Object.entries(__MAPPER?.bio_gender ?? {}).map(([key, value]) => ({
@@ -311,29 +597,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getGender.toString() || ""}
                                 />}
                             </View>)} />
-                            {
-                                /*<View style={styles.editprofile_inputborder}>
-                                    <View>
-                                        <Text style={styles.editprofile_inputtitle}>Height</Text>
-                                        <MaterialCommunityIcons name="cursor-default-click-outline" size={19} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
-                                    </View>
-                                    <Text style={{ fontSize: 11, paddingLeft: 5 }}>You are {getHeight?.ftin}</Text>
-                                    <RangeSlider
-                                        style={{ width: "100%", height: 20 }}
-                                        low={getHeight.cm ?? 150}
-                                        min={100} max={220} step={1}
-                                        onValueChanged={(low: number, high: number) => {
-                                            if (low != getHeight.cm) {
-                                                setHeight({ cm: low, ftin: help.cmToFtIn(low) ?? "n/a" });
-                                            }
-                                        }}
-                                        disableRange={true}
-                                        renderThumb={() => (<View style={styles.slider_thumb} />)} renderRail={() => (<View style={styles.slider_rail} />)}
-                                        renderRailSelected={() => (<View style={styles.slider_railSelected} />)}
-                                    />
-                                </View>*/
-                            }
-
 
                             <View style={[styles.editprofile_inputborder,]}>
                                 <Pressable style={{ gap: 6 }} onPress={() => { addInterests_ref.current?.snapToIndex(0); }}>
@@ -357,7 +620,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 </Pressable>
                             </View>
 
-
                             <View style={styles.editprofile_inputborder}>
                                 <View>
                                     <Text style={styles.editprofile_inputtitle}>Location</Text>
@@ -365,6 +627,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                 </View>
                                 <Text style={styles.editprofile_input}>{getLocation}</Text>
                             </View>
+                            
                             <View style={styles.editprofile_inputborder}>
                                 <View>
                                     <Text style={styles.editprofile_inputtitle}>Hometown</Text>
@@ -378,6 +641,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     multiline
                                 />
                             </View>
+                            
                             <AccordionItem title="Highest Education Achieved?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_education?.[getHighEducation]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 16 }}
                                     radioButtons={Object.entries(__MAPPER?.bio_education ?? {}).map(([key, value]) => ({
@@ -390,6 +654,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getHighEducation.toString() || ""}
                                 />}
                             </View>)} />
+                            
                             <View style={styles.editprofile_inputborder}>
                                 <View>
                                     <Text style={styles.editprofile_inputtitle}>Languages</Text>
@@ -435,24 +700,17 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         </View>
                                     </View>
                                 ))}
-                                { // Add new prompt
-                                    getPrompts && getPrompts.length < 3 && (
-                                        <Pressable style={styles.editprofile_inputborder} onPress={() => {
-                                            addNewPrompt_ref.current?.snapToIndex(0);
-                                        }}>
-                                            <View style={{ gap: 4, flexDirection: "row", padding: 5, alignItems: "center" }}>
-                                                <MIcons name='plus-circle-outline' size={20} color={'#f95f62'} />
-                                                <Text style={{ fontSize: 14, fontWeight: 600 }}>Add a new Prompt</Text>
-                                            </View>
-                                        </Pressable>
-                                    )
-
-                                }
-
-
+                                {getPrompts && getPrompts.length < 3 && (
+                                    <Pressable style={styles.editprofile_inputborder} onPress={() => {
+                                        addNewPrompt_ref.current?.snapToIndex(0);
+                                    }}>
+                                        <View style={{ gap: 4, flexDirection: "row", padding: 5, alignItems: "center" }}>
+                                            <MIcons name='plus-circle-outline' size={20} color={'#f95f62'} />
+                                            <Text style={{ fontSize: 14, fontWeight: 600 }}>Add a new Prompt</Text>
+                                        </View>
+                                    </Pressable>
+                                )}
                             </View>
-
-
 
                             <AccordionItem title="Do you have children?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_children?.[getChildren]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
@@ -466,6 +724,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getChildren.toString() || ""}
                                 />}
                             </View>)} />
+                            
                             <AccordionItem title="Do you smoke?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_smoking?.[getSmoking]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
                                     radioButtons={Object.entries(__MAPPER?.bio_smoking ?? {}).map(([key, value]) => ({
@@ -478,6 +737,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getSmoking.toString() || ""}
                                 />}
                             </View>)} />
+                            
                             <AccordionItem title="Do you drink?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_drinking?.[getDrinking]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
                                     radioButtons={Object.entries(__MAPPER?.bio_drinking ?? {}).map(([key, value]) => ({
@@ -490,6 +750,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getDrinking.toString() || ""}
                                 />}
                             </View>)} />
+                            
                             <AccordionItem title="Do you have a pet?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_pets?.[getPets]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
                                     radioButtons={Object.entries(__MAPPER?.bio_pets ?? {}).map(([key, value]) => ({
@@ -502,6 +763,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getPets.toString() || ""}
                                 />}
                             </View>)} />
+                            
                             <AccordionItem title='What is your religion?' titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_religion?.[getReligion]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
                                     radioButtons={Object.entries(__MAPPER?.bio_religion ?? {}).map(([key, value]) => ({
@@ -514,6 +776,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getReligion || ""}
                                 />}
                             </View>)} />
+                            
                             <AccordionItem title='What is your ethnicity?' titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_ethnicity?.[getEthnicity]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
                                     radioButtons={Object.entries(__MAPPER?.bio_ethnicity ?? {}).map(([key, value]) => ({
@@ -539,6 +802,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getBodyType || ""}
                                 />}
                             </View>)} />
+                            
                             <AccordionItem title="Political Views ?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_politicalview?.[getPoliticalViews]} Content={() => (<View>{
                                 <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
                                     radioButtons={Object.entries(__MAPPER?.bio_politicalview ?? {}).map(([key, value]) => ({
@@ -551,8 +815,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     selectedId={getPoliticalViews.toString() || ""}
                                 />}
                             </View>)} />
-
-
 
                         </View>
                     </ScrollView>
@@ -663,8 +925,3 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         </SafeAreaView >
     );
 }
-
-
-
-
-

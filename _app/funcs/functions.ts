@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Dimensions, Image, PermissionsAndroid, Platform } from 'react-native';
+import { Alert, AppState, Dimensions, Image, PermissionsAndroid, Platform, Vibration } from 'react-native';
 import { sessionManager } from './SessionContext';
 import axios from 'axios';
 import DeviceInfo from 'react-native-device-info';
@@ -10,13 +10,14 @@ import { namer } from './static';
 import notifee from '@notifee/react-native';
 import { Asset, ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
+import { SocketClient } from './socket_realtimeData';
 
 // Define API URL
 export const hostServer = () => {
   let h_0 = "https://api.q1-site.site"; //live server
   //return h_0;
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
-     h_0 = "http://10.0.2.2:2000"; // if android emulator
+    h_0 = "http://10.0.2.2:2000"; // if android emulator
   }
   return h_0;
 }
@@ -137,7 +138,7 @@ export const help = {
 };
 
 
-export const __init__app = async ({ doAgain = false }: { doAgain?: boolean } = {}): Promise<void> => {
+export const __init__app = async ({ doAgain = false, navigationRef = null }: { doAgain?: boolean, navigationRef?: any }): Promise<void> => {
   const currentSession = sessionManager.getCurrentSession();
   let ro = "";
 
@@ -147,7 +148,54 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean } = {
 
   if (doAgain || !Array.isArray(llStorage.deviceSpec.get())) { await llStorage.deviceSpec.load(); ro += "device-specs "; };
   if (doAgain || !Array.isArray(llStorage.currentProfile.get()) && currentSession?.x_omi_payload_hash) { await llStorage.currentProfile.load(); ro += "userProfile "; };
+
+  // connect with socket for realtime info
+  if (navigationRef === null) return;
+  (() => {
+    const userId = llStorage.currentProfile.get()?.currentUser?.user_id;
+    if (!userId) return;
+    SocketClient.connect(userId, (data) => {
+      const matchId = convoHelper.matchId.get();
+      const retrivedData = data?.message;
+      if (data.event === 'message') {
+        if (retrivedData?.type !== "single-convo") return;
+        /*
+        {
+            "type":"single-convo",
+            "matchId": "pyca6r5dngyrbauhnn916a", 
+            "payload":{
+                "firstName":"firstName",
+                "lastMessage":"ghufhjg"
+            }
+        } 
+        */
+        if (matchId === retrivedData?.matchId) {
+          if (navigationRef.isReady()) {
+            navigationRef.setParams({ realtimedata: retrivedData?.payload });
+          }
+        } else {
+          const nmessage = (retrivedData?.payload?.firstName ?? "Someone") + " has messaged you";
+          if (AppState.currentState === 'active') {
+            Vibration.vibrate(100);
+            Toastx.show({
+              title: nmessage,
+              message: "Tap to view message",
+              type: 'info',
+              onPress: () => {
+                if (navigationRef.isReady()) {
+                  navigationRef.navigate(namer.navigation.conversation, { matchId: retrivedData?.matchId });
+                }
+              }
+            });
+          } else if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
+            displsyNotification(nmessage, "Tap to view message");
+          }
+        }
+      }
+    });
+  })();
 }
+
 
 
 // 
@@ -386,7 +434,6 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
           x_omi_payload_hash: hash,
         });
 
-        await __init__app();
         return {
           code: 200,
           message: "Login success"
@@ -403,7 +450,6 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
     message: err ?? "Error signing in function."
   };
 };
-
 
 // Handle signup
 export const _handle_Signup = async (
@@ -637,4 +683,32 @@ export class mediaHandler {
     }
   };
 
+}
+
+export class uploadHandler {
+  public static requestPresignedURL_Upload = async (extension: string, bucketType: string, convoId?: string) => {
+    // Build request body with meta wrapper
+    const requestBody: any = {
+      meta: {
+        extension: extension,
+        bucketType: bucketType,
+      }
+    };
+
+    // Add convoId if it's a conversation type
+    if (bucketType?.startsWith('convo') && convoId) {
+      requestBody.meta.convoId = convoId;
+    }
+
+    const data = await _http_request({
+      customApiUrl: hostServer() + "/api/core/v1/handleFileUpload",
+      reqType: 'POST',
+      bodyArray: requestBody
+    });
+    console.log("Received file upload response:", data);
+    if (data?.code !== 200 || !data?.data?.uploadUrl) {
+      throw new Error(data?.message ?? 'Unable to generate upload URL');
+    }
+    return data.data;
+  };
 }

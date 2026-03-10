@@ -21,9 +21,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Zz_nofilee } from './zz_nofilee';
 import { namer, resourceMap } from '../funcs/static';
 import { Screen_Subscribe } from './Subscribe';
-import { __init__app, convoHelper, displsyNotification, llStorage, logReport } from '../funcs/functions';
+import { __init__app, logReport } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
-import { AppState, Vibration, View } from 'react-native';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import QuickActions from 'react-native-quick-actions';
 import { Toastx } from '../funcs/customNotification';
@@ -108,50 +108,7 @@ const MainApp: React.FC = () => {
 
 
     initializeApp().then(async () => {
-      await __init__app().then(() => {
-        const userId = llStorage.currentProfile.get()?.currentUser?.user_id;
-
-        if (!userId) return;
-        SocketClient.connect(userId, (data) => {
-          const matchId = convoHelper.matchId.get();
-          const retrivedData = data?.message;
-          if (data.event === 'message') {
-            if (retrivedData?.type !== "single-convo") return;
-            /*
-            {
-                "type":"single-convo",
-                "matchId": "pyca6r5dngyrbauhnn916a", 
-                "payload":{
-                    "firstName":"firstName",
-                    "lastMessage":"ghufhjg"
-                }
-            } 
-            */
-            if (matchId === retrivedData?.matchId) {
-              if (navigationRef.isReady()) {
-                navigationRef.setParams({ realtimedata: retrivedData?.payload });
-              }
-            } else {
-              const nmessage = (retrivedData?.payload?.firstName ?? "Someone") + " has messaged you";
-              if (AppState.currentState === 'active') {
-                Vibration.vibrate(100);
-                Toastx.show({
-                  title: nmessage,
-                  message: "Tap to view message",
-                  type: 'info',
-                  onPress: () => {
-                    if (navigationRef.isReady()) {
-                      navigationRef.navigate(namer.navigation.conversation, { matchId: retrivedData?.matchId });
-                    }
-                  }
-                });
-              } else if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
-                displsyNotification(nmessage, "Tap to view message");
-              }
-            }
-          }
-        });
-      });
+      await __init__app({ navigationRef });
 
     }).finally(() => {
       setAllGood(true);

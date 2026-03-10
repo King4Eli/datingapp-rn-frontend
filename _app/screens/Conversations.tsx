@@ -4,7 +4,7 @@ import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../fu
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { _http_request, help, convoHelper, llStorage, mediaHandler, screenWidth, hostServer, logReport } from '../funcs/functions';
+import { _http_request, help, convoHelper, llStorage, mediaHandler, screenWidth, hostServer, logReport, uploadHandler } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -491,8 +491,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         };
     };
 
-    const encodeFilePath = (filepath: string) => filepath.split('/').map(encodeURIComponent).join('/');
-
+ 
     const buildUploadTarget = (rawName: string | null | undefined, mediaType: UploadDescriptor['mediaType']) => {
         const fallbackExt = mediaType === 'audio'
             ? 'm4a'
@@ -511,31 +510,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         };
     };
 
-    const requestPresignedUpload = async (extension: string, bucketType: string, convoId?: string) => {
-        // Build request body with meta wrapper
-        const requestBody: any = {
-            meta: {
-                extension: extension,
-                bucketType: bucketType,
-            }
-        };
-
-        // Add convoId if it's a conversation type
-        if (bucketType?.startsWith('convo') && convoId) {
-            requestBody.meta.convoId = convoId;
-        }
-
-        const data = await _http_request({
-            customApiUrl: hostServer() + "/api/core/v1/handleFileUpload",
-            reqType: 'POST',
-            bodyArray: requestBody
-        });
-        console.log("Received file upload response:", data);
-        if (data?.code !== 200 || !data?.data?.uploadUrl) {
-            throw new Error(data?.message ?? 'Unable to generate upload URL');
-        }
-        return data.data;
-    };
+    
 
     const uploadWithPresigned = async (descriptor: UploadDescriptor): Promise<UploadedMedia> => {
         // Fix content type for Android audio files
@@ -556,7 +531,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         else if (descriptor.mediaType === 'audio') bucketType = 'convo-audio';
 
         // Get presigned URL with new format
-        const presigned = await requestPresignedUpload(
+        const presigned = await uploadHandler.requestPresignedURL_Upload(
             extension,
             bucketType,
             funt.matchId  // This is the convoId
