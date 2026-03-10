@@ -440,7 +440,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
                             <ControlledCarousel ref={carouselRef} onPageChange={setPhotoIndex}
                                 pages={(currentPhotos.length > 0 ? currentPhotos : [null]).map((photo: any, idx: number) => (
-                                    <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * .91) - headerHeight - insets.bottom }}>
+                                    <View key={`photo-${idx}`} style={{ width: '100%', height: (screenHeight * .94) - headerHeight - insets.bottom }}>
                                         {photo && (<FastImage source={{ uri: imageDomain + (photo?.p ?? "") }}
                                             onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (photo?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }}
                                             style={StyleSheet.absoluteFill} resizeMode={FastImage.resizeMode.cover} />)}

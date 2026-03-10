@@ -530,7 +530,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             reqType: 'POST',
             bodyArray: requestBody
         });
-
+        console.log("Received file upload response:", data);
         if (data?.code !== 200 || !data?.data?.uploadUrl) {
             throw new Error(data?.message ?? 'Unable to generate upload URL');
         }
@@ -561,7 +561,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             bucketType,
             funt.matchId  // This is the convoId
         );
-
+        console.log("Received presigned URL:", presigned);
         try {
             // Use RNFS.uploadFiles for reliable file upload
             const uploadResult = await RNFS.uploadFiles({

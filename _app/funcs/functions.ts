@@ -16,7 +16,7 @@ export const hostServer = () => {
   let h_0 = "https://api.q1-site.site"; //live server
   //return h_0;
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
-    h_0 = "http://10.0.2.2:2000"; // if android emulator
+     h_0 = "http://10.0.2.2:2000"; // if android emulator
   }
   return h_0;
 }
@@ -506,7 +506,6 @@ export class llStorage {
           _gm: true
         }
       });
-      console.log("versioning server response:", server);
 
       if (server?.code === 200) {
         await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
