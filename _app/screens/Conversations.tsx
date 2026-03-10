@@ -906,11 +906,14 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         // Prepare file_meta array for backend
         const file_meta: any[] = uploadedMedia.map((item) => ({
+            // Backend currently uses `url` for media type detection and `path` for original filename parsing.
             url: item.src.p,
+            path: item.src.p,
             w: item.src.w ?? null,
             h: item.src.h ?? null,
             size: item.src.size ?? null,
             d: item.src.d ?? null,
+            original: item.src.original ?? null,
         }));
 
         const hasUploadedVideo = uploadedMedia.some((m) => m.mediaType === 'video');
@@ -1101,8 +1104,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     )}
 
                     {isAudio && (
-                        <View style={{ paddingVertical: 5, minWidth: Math.min(screenWidth * 0.72, 320) }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={{ paddingVertical: 5, maxWidth: '100%', minWidth: Math.min(screenWidth * 0.72, 320) }}>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
                                 <TouchableOpacity onPress={() => { handleAudioPress(item.messageId, audioUri) }}
                                     style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" }}>
                                     <IonIcon name={(isCurrentAudio && audioPlayback.isPlaying) ? "pause" : "play"} size={20} color={item.fromMe ? "#000" : "#fff"} />
@@ -1117,6 +1120,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                     <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 2, height: 20 }}>
                                         {audioWaveBars.map((bar) => (
                                             <View key={bar.key} style={{
+                                                flex: 1,
+                                                maxWidth: 4, // Limit maximum width
                                                 width: 3,
                                                 borderRadius: 3,
                                                 height: bar.height,
