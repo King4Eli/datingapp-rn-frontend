@@ -19,6 +19,21 @@ import { SocketClient } from '../funcs/socket_realtimeData';
 const CONFIG = {
     imgSelectUploadLimit: 5
 };
+const AUDIO_WAVE_BARS = 26;
+const MAX_RECORDING_MS = 3 * 60 * 1000;
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+const hashString = (value: string) => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i++) {
+        hash = ((hash * 31) + value.charCodeAt(i)) % 2147483647;
+    }
+    return Math.abs(hash);
+};
+const normalizeMetering = (metering?: number | null) => {
+    if (metering == null || Number.isNaN(metering)) return null;
+    // Nitro sound metering is commonly in negative dB (-160..0); clamp at -60 for useful motion.
+    return clamp01((metering + 60) / 60);
+};
 interface convoInterface {
     messageId: string;
     fromMe: boolean;
@@ -39,6 +54,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const [getInputAudio, setInputAudio] = useState<string | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingMs, setRecordingMs] = useState(0);
+    const [recordingSamples, setRecordingSamples] = useState<number[]>([]);
     const [voiceNoteLoading, setVoiceNoteLoading] = useState(false);
     const [audioPlayback, setAudioPlayback] = useState<{ id: string | null, position: number, duration: number, isPlaying: boolean }>({ id: null, position: 0, duration: 0, isPlaying: false });
     const inputTextRef = useRef<TextInput>(null);
@@ -51,6 +67,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     };
     const bottomSheetSnapPoints_convotools = useMemo(() => ['20%'], []);
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<any | null>(null);
+    const autoStopRecordingRef = useRef(false);
+    const isRecordingRef = useRef(false);
+    const audioPlayingRef = useRef(false);
     const starterCarouselRef = useRef<FlatList<string>>(null);
     const starterViewConfig = useRef({ viewAreaCoveragePercentThreshold: 60 }).current;
     const starterViewable = useRef(({ viewableItems }: { viewableItems: any[] }) => {
@@ -60,7 +79,13 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     }).current;
 
     const img_server = String(__MAPPER?.img_domain?.[0] ?? "");
-    const img_domain = img_server.replace(/\/+$/, "").split("/").slice(0, 3).join("/");
+
+    useEffect(() => {
+        isRecordingRef.current = isRecording;
+    }, [isRecording]);
+    useEffect(() => {
+        audioPlayingRef.current = audioPlayback.isPlaying;
+    }, [audioPlayback.isPlaying]);
 
     // update from realtimedata root app
     useEffect(() => {
@@ -113,6 +138,32 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         const remainingLabel = remainingMs != null ? (formatDurationShort(remainingMs) ?? formatDurationLabel(remainingMs)) : null;
         return { posLabel, durationLabel, remainingLabel };
     };
+    const buildStaticWaveBars = (seedKey: string, ratio: number) => {
+        const hash = hashString(seedKey);
+        const progressRatio = clamp01(ratio);
+        return Array.from({ length: AUDIO_WAVE_BARS }, (_, idx) => {
+            const angle = (idx + 1) * 0.73 + (hash % 37);
+            const intensity = Math.abs((Math.sin(angle) * 0.72) + (Math.cos(angle * 1.7) * 0.28));
+            const height = 4 + Math.round(intensity * 14);
+            const cutoff = (idx + 1) / AUDIO_WAVE_BARS;
+            return {
+                key: `${seedKey}-${idx}`,
+                height,
+                active: progressRatio >= cutoff,
+            };
+        });
+    };
+    const normalizeWaveSamples = (samples: number[], min = AUDIO_WAVE_BARS) => {
+        const safe = (samples ?? []).map((v) => clamp01(v));
+        if (safe.length >= min) return safe.slice(-min);
+        const padded = [...safe];
+        while (padded.length < min) {
+            const idx = padded.length;
+            const placeholder = 0.22 + (Math.abs(Math.sin(idx * 0.6)) * 0.18);
+            padded.unshift(placeholder);
+        }
+        return padded;
+    };
 
     const resolveMediaUri = (srcItem?: any) => {
         if (!srcItem) return null;
@@ -159,7 +210,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 return false;
             }
             return true;
-        } catch (error) {
+        } catch {
             Toastx.show({ message: 'Unable to request microphone permission.', type: 'error' });
             return false;
         }
@@ -173,6 +224,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         setVoiceNoteLoading(true);
         setInputAudio(null);
         setRecordingMs(0);
+        setRecordingSamples([]);
+        autoStopRecordingRef.current = false;
 
         const granted = await requestAudioPermission();
         if (!granted) {
@@ -187,9 +240,24 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             Sound.setSubscriptionDuration?.(0.1);
 
             // Add listener with proper error handling
-            const recordListener = Sound.addRecordBackListener((e) => {
-                if (e?.currentPosition != null) {
-                    setRecordingMs(e.currentPosition);
+            Sound.addRecordBackListener((e) => {
+                const currentPosition = Math.max(0, Math.floor(e?.currentPosition ?? 0));
+                setRecordingMs(currentPosition);
+
+                const meteringSample = normalizeMetering((e as any)?.currentMetering ?? (e as any)?.metering);
+                const fallbackSample = 0.25 + (Math.abs(Math.sin((currentPosition + 40) / 210)) * 0.6);
+                setRecordingSamples((prev) => {
+                    const next = [...prev, meteringSample ?? fallbackSample];
+                    return next.slice(-AUDIO_WAVE_BARS);
+                });
+
+                if (!autoStopRecordingRef.current && currentPosition >= MAX_RECORDING_MS) {
+                    autoStopRecordingRef.current = true;
+                    stopVoiceNote(true);
+                    Toastx.show({
+                        message: 'Voice note capped at 3:00',
+                        type: 'info'
+                    });
                 }
             });
 
@@ -225,6 +293,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             // Clean up on error
             Sound.removeRecordBackListener();
             setIsRecording(false);
+            setRecordingSamples([]);
+            autoStopRecordingRef.current = false;
 
             if (error?.message?.includes('permission')) {
                 Toastx.show({
@@ -274,6 +344,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             } else {
                 setInputAudio(null);
                 setRecordingMs(0);
+                setRecordingSamples([]);
             }
         } catch (error: any) {
             logReport({
@@ -289,6 +360,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 setIsRecording(false);
                 setInputAudio(null);
                 setRecordingMs(0);
+                setRecordingSamples([]);
                 Toastx.show({
                     message: 'Recording was interrupted',
                     type: 'info'
@@ -300,6 +372,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 });
             }
         } finally {
+            autoStopRecordingRef.current = false;
             setVoiceNoteLoading(false);
         }
     };
@@ -311,6 +384,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         } else {
             setInputAudio(null);
             setRecordingMs(0);
+            setRecordingSamples([]);
         }
     };
 
@@ -396,7 +470,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         name: string;
         type: string;
         mediaType: 'img' | 'video' | 'audio';
-        targetPath: string;
         meta: {
             w?: number | null;
             h?: number | null;
@@ -416,8 +489,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             d?: number | null;
             original?: string | null;
         };
-        relativePath: string;
-        token?: string;
     };
 
     const encodeFilePath = (filepath: string) => filepath.split('/').map(encodeURIComponent).join('/');
@@ -437,7 +508,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         // The server will construct the full path based on bucketType
         return {
             name: finalName,
-            // path is no longer needed as server generates it
         };
     };
 
@@ -523,8 +593,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 return filepath.split('/').map(encodeURIComponent).join('/');
             };
 
-            const encodedPath = encodeFilePath(presigned.fileKey);
-
+            const encodedPath = encodeFilePath(presigned.fullPath);
+            console.log("Upload successful:", presigned, presigned.fullPath)
             return {
                 mediaType: descriptor.mediaType,
                 src: {
@@ -534,7 +604,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     size: descriptor.meta.size ?? null,
                     d: descriptor.meta.d ?? null,
                 },
-                relativePath: presigned.fileKey
             };
         } catch (error) {
             logReport({
@@ -584,18 +653,18 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         }
     }, [reloadIfRealtimeData_File]);
 
-    const [recorderInitialized, setRecorderInitialized] = useState(false);
-
     // Update the useEffect cleanup:
     useEffect(() => {
         return () => {
             // Use a timeout to ensure any pending operations complete
             setTimeout(() => {
                 try {
-                    if (isRecording) {
+                    if (isRecordingRef.current) {
                         Sound.stopRecorder().catch(() => { });
                     }
-                    Sound.stopPlayer().catch(() => { });
+                    if (audioPlayingRef.current) {
+                        Sound.stopPlayer().catch(() => { });
+                    }
                 } catch { }
 
                 Sound.removeRecordBackListener();
@@ -612,10 +681,11 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             if (isRecording) {
                 await Sound.stopRecorder().catch(() => { });
                 setIsRecording(false);
+                setRecordingSamples([]);
             }
 
             // Stop playback if active
-            if (audioPlayback.isPlaying) {
+            if (audioPlayback.id) {
                 await Sound.stopPlayer().catch(() => { });
                 setAudioPlayback({
                     id: null,
@@ -776,14 +846,13 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         // Process images/videos
         getInputImageVideo.forEach((file, index) => {
             const mediaType: UploadDescriptor['mediaType'] = (file.type ?? '').startsWith('video') ? 'video' : 'img';
-            const { name, path } = buildUploadTarget(file.fileName ?? `media_${index}`, mediaType);
+            const { name } = buildUploadTarget(file.fileName ?? `media_${index}`, mediaType);
             if (!file.uri) return;
             uploadDescriptors.push({
                 uri: file.uri,
                 name,
                 type: file.type ?? (mediaType === 'video' ? 'video/mp4' : 'image/jpeg'),
                 mediaType,
-                targetPath: path,
                 meta: {
                     w: file.width ?? null,
                     h: file.height ?? null,
@@ -796,13 +865,12 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         // Process audio
         if (hasAudio && getInputAudio) {
-            const { name, path } = buildUploadTarget(getInputAudio.split('/').pop() ?? `voice_note_${Date.now()}.m4a`, 'audio');
+            const { name, } = buildUploadTarget(getInputAudio.split('/').pop() ?? `voice_note_${Date.now()}.m4a`, 'audio');
             uploadDescriptors.push({
                 uri: getInputAudio,
                 name,
                 type: 'audio/m4a',
                 mediaType: 'audio',
-                targetPath: path,
                 meta: {
                     d: recordingMs,
                     size: null,
@@ -838,13 +906,11 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         // Prepare file_meta array for backend
         const file_meta: any[] = uploadedMedia.map((item) => ({
-            path: item.relativePath,
             url: item.src.p,
             w: item.src.w ?? null,
             h: item.src.h ?? null,
             size: item.src.size ?? null,
             d: item.src.d ?? null,
-            token: item.token ?? null,
         }));
 
         const hasUploadedVideo = uploadedMedia.some((m) => m.mediaType === 'video');
@@ -854,6 +920,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         setInputImageVideo([]);
         setInputText('');
         setInputAudio(null);
+        setRecordingSamples([]);
 
         // Optimistically add messages to UI
         let outgoingMessages: convoInterface[] = [];
@@ -983,11 +1050,14 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         const playbackPositionMs = isCurrentAudio ? audioPlayback.position : 0;
         const durationFormatted = durationMs ? formatDurationShort(durationMs) : null;
         const playbackLabels = buildPlaybackLabels(playbackPositionMs, durationMs);
+        const audioProgressRatio = durationMs > 0 ? clamp01(playbackPositionMs / durationMs) : 0;
+        const audioWaveBars = buildStaticWaveBars(item.messageId, audioProgressRatio);
         const audioDisplayLabel = isCurrentAudio && playbackLabels.durationLabel
             ? `${playbackLabels.posLabel} / ${playbackLabels.durationLabel}`
             : (durationFormatted ?? formatDurationLabel(durationMs));
 
         const fileSizeLabel = formatBytes(firstSrcSize);
+        const audioMetaLabel = [audioDisplayLabel, fileSizeLabel].filter(Boolean).join(' | ');
         const fileOriginalName = firstSrc?.original;
 
 
@@ -1010,7 +1080,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             }} style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
                                 <MaterialCommunityIcons name="play-circle" size={22} color={item.fromMe ? "#000" : "#fff"} />
                                 <Text style={{ color: item.fromMe ? "#000" : "#fff" }}>
-                                    Video{fileSizeLabel ? ` � ${fileSizeLabel}` : ''}{durationFormatted ? ` � ${durationFormatted}` : ''}
+                                    Video{fileSizeLabel ? ` | ${fileSizeLabel}` : ''}{durationFormatted ? ` | ${durationFormatted}` : ''}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -1024,23 +1094,54 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                             }} style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
                                 <MaterialCommunityIcons name="file" size={20} color={item.fromMe ? "#000" : "#fff"} />
                                 <Text style={{ color: item.fromMe ? "#000" : "#fff" }}>
-                                    {fileOriginalName ?? 'File'}{fileSizeLabel ? ` � ${fileSizeLabel}` : ''}
+                                    {fileOriginalName ?? 'File'}{fileSizeLabel ? ` | ${fileSizeLabel}` : ''}
                                 </Text>
                             </TouchableOpacity>
                         </View>
                     )}
 
                     {isAudio && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2, paddingHorizontal: 25 }}>
-                            <TouchableOpacity onPress={() => { handleAudioPress(item.messageId, audioUri) }}
-                                style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 8, borderRadius: 30 }}>
-                                <IonIcon name={(isCurrentAudio && audioPlayback.isPlaying) ? "pause" : "play"} size={20} color={item.fromMe ? "#000" : "#fff"} />
-                            </TouchableOpacity>
-                            <View style={{}}>
-                                <Text style={{ color: (item.fromMe) ? "#000" : "#fff", fontWeight: "600" }}>Voice note</Text>
-                                <Text style={{ color: (item.fromMe) ? "#333" : "#dbe7ff", fontSize: 12 }}>
-                                    {audioDisplayLabel}{fileSizeLabel ? ` � ${fileSizeLabel}` : ''}
-                                </Text>
+                        <View style={{ paddingVertical: 5, minWidth: Math.min(screenWidth * 0.72, 320) }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <TouchableOpacity onPress={() => { handleAudioPress(item.messageId, audioUri) }}
+                                    style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" }}>
+                                    <IonIcon name={(isCurrentAudio && audioPlayback.isPlaying) ? "pause" : "play"} size={20} color={item.fromMe ? "#000" : "#fff"} />
+                                </TouchableOpacity>
+                                <View style={{ flex: 1, gap: 5 }}>
+                                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                                        <Text style={{ color: (item.fromMe) ? "#000" : "#fff", fontWeight: "600" }}>Voice note</Text>
+                                        {isCurrentAudio && audioPlayback.isPlaying && (
+                                            <Text style={{ color: item.fromMe ? "#333" : "#dbe7ff", fontSize: 11 }}>playing</Text>
+                                        )}
+                                    </View>
+                                    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 2, height: 20 }}>
+                                        {audioWaveBars.map((bar) => (
+                                            <View key={bar.key} style={{
+                                                width: 3,
+                                                borderRadius: 3,
+                                                height: bar.height,
+                                                backgroundColor: bar.active
+                                                    ? (item.fromMe ? '#0f172a' : '#e0f2fe')
+                                                    : (item.fromMe ? '#94a3b8' : '#93c5fd99')
+                                            }} />
+                                        ))}
+                                    </View>
+                                    <View style={{
+                                        height: 3,
+                                        borderRadius: 3,
+                                        backgroundColor: item.fromMe ? '#cbd5e1' : '#93c5fd66',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <View style={{
+                                            height: '100%',
+                                            width: `${Math.max(4, Math.round(audioProgressRatio * 100))}%`,
+                                            backgroundColor: item.fromMe ? '#0f172a' : '#e0f2fe'
+                                        }} />
+                                    </View>
+                                    <Text style={{ color: (item.fromMe) ? "#333" : "#dbe7ff", fontSize: 12 }}>
+                                        {audioMetaLabel}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
                     )}
@@ -1064,7 +1165,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                         setFullscreenClickImage(imgPath);
                                     }}>
                                         <FastImage source={{ cache: FastImage.cacheControl.immutable, uri: imgPath }} style={{ width: targetWidth, height: targetHeight }} resizeMode="contain"
-                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (imgPath ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
+                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imgPath, useraction: 'Image Load', stackTrace: null }); }} />
                                     </Pressable>
                                 );
                             })}
@@ -1077,10 +1178,17 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const pendingPlayback = audioPlayback.id === 'pending-audio';
     const pendingPositionMs = pendingPlayback ? audioPlayback.position : recordingMs;
     const pendingDurationMs = pendingPlayback ? (audioPlayback.duration || recordingMs) : recordingMs;
+    const pendingProgressRatio = pendingDurationMs > 0 ? clamp01(pendingPositionMs / pendingDurationMs) : 0;
     const pendingLabels = buildPlaybackLabels(pendingPositionMs, pendingDurationMs);
     const pendingTimeLabel = (pendingPlayback && pendingLabels.durationLabel)
         ? `${pendingLabels.posLabel} / ${pendingLabels.durationLabel}`
         : pendingLabels.posLabel;
+    const pendingWaveSamples = normalizeWaveSamples(recordingSamples);
+    const pendingWaveBars = pendingWaveSamples.map((sample, idx) => ({
+        key: `pending-${idx}`,
+        height: 4 + Math.round(sample * 14),
+        active: isRecording ? true : (((idx + 1) / pendingWaveSamples.length) <= pendingProgressRatio),
+    }));
 
     return (<>
         <View style={[styles.container, {}]}>
@@ -1236,29 +1344,55 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         </View>)}
 
                     {(isRecording || getInputAudio) &&
-                        <View style={{ marginHorizontal: 6, marginBottom: 8, padding: 12, borderRadius: 14, backgroundColor: '#f0f3ff', flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-                            <View style={{ width: 42, height: 42, borderRadius: 30, backgroundColor: isRecording ? '#ffdad9' : '#dfe8ff', alignItems: 'center', justifyContent: 'center' }}>
-                                <MaterialCommunityIcons name={isRecording ? "record-circle" : "microphone-outline"} size={22} color={isRecording ? "#d00" : "#3b65ff"} />
+                        <View style={{ marginHorizontal: 6, marginBottom: 8, padding: 12, borderRadius: 16, backgroundColor: isRecording ? '#fff1f1' : '#eef4ff', borderWidth: 1, borderColor: isRecording ? '#fbb4b4' : '#c9dcff', gap: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <View style={{ width: 42, height: 42, borderRadius: 30, backgroundColor: isRecording ? '#ffd6d6' : '#dfe8ff', alignItems: 'center', justifyContent: 'center' }}>
+                                    <MaterialCommunityIcons name={isRecording ? "record-circle" : "microphone-outline"} size={22} color={isRecording ? "#d00" : "#3b65ff"} />
+                                </View>
+                                <View style={{ flex: 1, gap: 2 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <Text style={{ fontWeight: '700', color: '#111827' }}>{isRecording ? "Recording voice note" : "Voice note ready"}</Text>
+                                        {isRecording && <Text style={{ color: '#b91c1c', fontWeight: '700', fontSize: 11 }}>LIVE</Text>}
+                                    </View>
+                                    <Text style={{ color: '#334155', fontSize: 12 }}>{pendingTimeLabel} {isRecording ? "| max 3:00" : ""}</Text>
+                                </View>
                             </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={{ fontWeight: '600' }}>{isRecording ? "Recording..." : "Voice note ready"}</Text>
-                                <Text style={{ color: '#444' }}>{pendingTimeLabel}</Text>
+
+                            <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 2, height: 22 }}>
+                                {pendingWaveBars.map((bar) => (
+                                    <View key={bar.key} style={{
+                                        width: 3,
+                                        borderRadius: 3,
+                                        height: bar.height,
+                                        backgroundColor: bar.active ? '#2563eb' : '#94a3b8'
+                                    }} />
+                                ))}
                             </View>
-                            {getInputAudio &&
-                                <TouchableOpacity onPress={() => handleAudioPress('pending-audio', getInputAudio)} style={{ padding: 6 }}>
-                                    <MaterialCommunityIcons name={(audioPlayback.id === 'pending-audio' && audioPlayback.isPlaying) ? "pause-circle" : "play-circle"} size={28} color="#4F8EF7" />
-                                </TouchableOpacity>
-                            }
+                            <View style={{ height: 3, borderRadius: 3, backgroundColor: '#bfdbfe', overflow: 'hidden' }}>
+                                <View style={{ height: '100%', width: `${Math.max(4, Math.round(pendingProgressRatio * 100))}%`, backgroundColor: '#2563eb' }} />
+                            </View>
 
-                            {!getInputAudio && <TouchableOpacity onPress={() => { stopVoiceNote(true) }} style={{ padding: 6 }}>
-                                <MaterialCommunityIcons name="stop-circle" size={26} color={"#d00"} />
-                            </TouchableOpacity>}
+                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+                                {getInputAudio &&
+                                    <TouchableOpacity onPress={() => handleAudioPress('pending-audio', getInputAudio)} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#dbeafe' }}>
+                                        <MaterialCommunityIcons name={(audioPlayback.id === 'pending-audio' && audioPlayback.isPlaying) ? "pause-circle" : "play-circle"} size={22} color="#1d4ed8" />
+                                    </TouchableOpacity>
+                                }
 
-                            {getInputAudio &&
-                                <TouchableOpacity onPress={clearVoiceNote} style={{ padding: 6 }}>
-                                    <Icon name="close" size={20} color="#555" />
-                                </TouchableOpacity>
-                            }
+                                {!getInputAudio && <TouchableOpacity onPress={() => { stopVoiceNote(true) }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#fee2e2' }}>
+                                    <MaterialCommunityIcons name="stop-circle" size={24} color={"#dc2626"} />
+                                </TouchableOpacity>}
+
+                                {isRecording && <TouchableOpacity onPress={() => { clearVoiceNote(); }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f1f5f9' }}>
+                                    <Icon name="close" size={18} color="#334155" />
+                                </TouchableOpacity>}
+
+                                {getInputAudio &&
+                                    <TouchableOpacity onPress={clearVoiceNote} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f1f5f9' }}>
+                                        <Icon name="trash-outline" size={18} color="#334155" />
+                                    </TouchableOpacity>
+                                }
+                            </View>
                         </View>
                     }
 
@@ -1287,8 +1421,8 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         }} style={{ paddingHorizontal: 6 }}>
                             <MaterialCommunityIcons name="camera" size={25} color="#4F8EF7" />
                         </TouchableOpacity>
-                        <TouchableOpacity disabled={voiceNoteLoading} onPress={() => toggleVoiceNote()} style={{ paddingHorizontal: 6 }}>
-                            <MaterialCommunityIcons name={isRecording ? "stop-circle" : "microphone"} size={25} color={isRecording ? "#d00" : "#4F8EF7"} />
+                        <TouchableOpacity disabled={voiceNoteLoading} onPress={() => toggleVoiceNote()} style={{ paddingHorizontal: 6, opacity: voiceNoteLoading ? 0.5 : 1 }}>
+                            <MaterialCommunityIcons name={voiceNoteLoading ? "timer-sand" : (isRecording ? "stop-circle" : "microphone")} size={25} color={isRecording ? "#d00" : "#4F8EF7"} />
                         </TouchableOpacity>
                         <TextInput ref={inputTextRef} style={styles.conversation_textInput} value={inputText} onChangeText={setInputText} placeholder="Send a message" placeholderTextColor="#aaa" multiline />
                         <TouchableOpacity disabled={(inputText.trim() || (getInputImageVideo.length > 0) || getInputAudio) ? false : true} onPress={() => sendMessage()} style={{ paddingHorizontal: 6, justifyContent: 'center' }}>
@@ -1315,6 +1449,5 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     </>
     );
 };
-
 
 
