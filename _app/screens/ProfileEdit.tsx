@@ -1,7 +1,11 @@
-import React, { useState, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import React, {
+    useState, useLayoutEffect, useRef, useMemo,
+    useCallback, useEffect,
+} from 'react';
 import {
-    View, Text, TextInput, Image, Pressable, KeyboardAvoidingView,
-    Platform, TouchableOpacity, StyleSheet, LayoutAnimation, UIManager
+    View, Text, TextInput, Image, Pressable,
+    KeyboardAvoidingView, Platform, TouchableOpacity,
+    StyleSheet, LayoutAnimation, UIManager,
 } from 'react-native';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -11,6 +15,7 @@ import Animated, {
     useAnimatedStyle,
     runOnJS,
     withSpring,
+    withTiming,
 } from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -29,9 +34,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// ─── Layout Constants ───────────────────────────────────────────────────────
-const GRID_PADDING = 0;
+// ─── Constants ───────────────────────────────────────────────────────────────
 const GAP = 5;
+const MAX_PHOTOS = 6;
+const MAX_PROMPTS = 3;
+const MAX_INTERESTS = 15;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface PhotoItem {
@@ -42,116 +49,446 @@ interface PhotoItem {
     h?: number;
 }
 
+interface CellDim {
+    w: number;
+    h: number;
+    x: number;
+    y: number;
+}
+
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
+function getCellDims(containerWidth: number): CellDim[] {
+    const colW      = (containerWidth - GAP) / 2;
+    const smallH    = colW * 0.65;
+    const bigH      = smallH * 2 + GAP;
+    const bottomH   = smallH;
+    const thirdColW = (containerWidth - GAP * 2) / 3;
+    return [
+        { w: colW,      h: bigH,    x: 0,                     y: 0 },
+        { w: colW,      h: smallH,  x: colW + GAP,            y: 0 },
+        { w: colW,      h: smallH,  x: colW + GAP,            y: smallH + GAP },
+        { w: thirdColW, h: bottomH, x: 0,                     y: bigH + GAP },
+        { w: thirdColW, h: bottomH, x: thirdColW + GAP,       y: bigH + GAP },
+        { w: thirdColW, h: bottomH, x: (thirdColW + GAP) * 2, y: bigH + GAP },
+    ];
+}
+
+/** Returns the cell index whose bounding rect contains (px, py), or -1. */
+function hitTestCell(cells: CellDim[], px: number, py: number): number {
+    for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        if (px >= c.x && px <= c.x + c.w && py >= c.y && py <= c.y + c.h) return i;
+    }
+    return -1;
+}
+
+function padImages(images: PhotoItem[]): PhotoItem[] {
+    const arr = [...images];
+    while (arr.length < MAX_PHOTOS) arr.push({});
+    return arr.slice(0, MAX_PHOTOS);
+}
+
+function isEmptySlot(img: PhotoItem): boolean {
+    return !img?.p && !img?.uri;
+}
+
+// ─── DraggablePhoto ───────────────────────────────────────────────────────────
+// Defined at module level so React's Rules of Hooks are never violated.
+
+interface DraggablePhotoProps {
+    image: PhotoItem;
+    slotIndex: number;
+    cellWidth: number;
+    cellHeight: number;
+    x: number;
+    y: number;
+    imageUri: string;
+    isDropTarget: boolean;
+    onPress: (index: number) => void;
+    onRemove: (index: number) => void;
+    onDragStart: (index: number) => void;
+    onDragMove: (index: number, tx: number, ty: number) => void;
+    onDragEnd: (index: number, tx: number, ty: number) => void;
+}
+
+const DraggablePhoto = React.memo(({
+    image, slotIndex, cellWidth, cellHeight, x, y,
+    imageUri, isDropTarget,
+    onPress, onRemove, onDragStart, onDragMove, onDragEnd,
+}: DraggablePhotoProps) => {
+    const empty = isEmptySlot(image);
+
+    const translateX    = useSharedValue(0);
+    const translateY    = useSharedValue(0);
+    const scale         = useSharedValue(1);
+    const zIdx          = useSharedValue(1);
+    const shadowOpacity = useSharedValue(0);
+
+    const gesture = Gesture.Pan()
+        .minDistance(8)
+        .enabled(!empty)
+        .onStart(() => {
+            scale.value         = withSpring(1.07, { damping: 14, stiffness: 200 });
+            shadowOpacity.value = withTiming(0.4, { duration: 150 });
+            zIdx.value          = 100;
+            runOnJS(onDragStart)(slotIndex);
+        })
+        .onUpdate(e => {
+            translateX.value = e.translationX;
+            translateY.value = e.translationY;
+            runOnJS(onDragMove)(slotIndex, e.translationX, e.translationY);
+        })
+        .onEnd(e => {
+            translateX.value    = withSpring(0, { damping: 18, stiffness: 220 });
+            translateY.value    = withSpring(0, { damping: 18, stiffness: 220 });
+            scale.value         = withSpring(1);
+            shadowOpacity.value = withTiming(0, { duration: 200 });
+            zIdx.value          = 1;
+            runOnJS(onDragEnd)(slotIndex, e.translationX, e.translationY);
+        })
+        .onFinalize(() => {
+            translateX.value    = withSpring(0);
+            translateY.value    = withSpring(0);
+            scale.value         = withSpring(1);
+            shadowOpacity.value = withTiming(0);
+            zIdx.value          = 1;
+        });
+
+    const animStyle = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: translateX.value },
+            { translateY: translateY.value },
+            { scale: scale.value },
+        ],
+        zIndex:        zIdx.value,
+        shadowOpacity: shadowOpacity.value,
+        elevation:     shadowOpacity.value > 0.1 ? 10 : 0,
+    }));
+
+    return (
+        <Animated.View style={[
+            photoStyles.wrapper,
+            { left: x, top: y, width: cellWidth, height: cellHeight },
+            animStyle,
+        ]}>
+            <GestureDetector gesture={gesture}>
+                <Animated.View style={{ flex: 1 }}>
+                    <Pressable
+                        style={[
+                            photoStyles.cell,
+                            empty       && photoStyles.emptyCell,
+                            isDropTarget && (empty ? photoStyles.dropTargetEmpty : photoStyles.dropTargetFilled),
+                        ]}
+                        onPress={() => onPress(slotIndex)}
+                    >
+                        {!empty ? (
+                            <>
+                                <Image
+                                    source={{ uri: imageUri }}
+                                    style={photoStyles.img}
+                                    resizeMode="cover"
+                                />
+
+                                {/* Drop-target tint overlay */}
+                                {isDropTarget && <View style={photoStyles.dropOverlay} />}
+
+                                {/* Remove button */}
+                                <Pressable
+                                    style={photoStyles.removeBtn}
+                                    onPress={() => onRemove(slotIndex)}
+                                    hitSlop={6}
+                                >
+                                    <View style={photoStyles.removeBtnInner}>
+                                        <IIcon name="close" size={12} color="#ff4444" />
+                                    </View>
+                                </Pressable>
+
+                                {/* Drag handle dots */}
+                                <View style={photoStyles.dragHandle} pointerEvents="none">
+                                    {[...Array(6)].map((_, i) => (
+                                        <View key={i} style={photoStyles.dragDot} />
+                                    ))}
+                                </View>
+
+                                {/* Main badge */}
+                                {slotIndex === 0 && (
+                                    <View style={photoStyles.mainBadge}>
+                                        <MIcons name="star" size={10} color="#fff" />
+                                        <Text style={photoStyles.mainBadgeText}>Main</Text>
+                                    </View>
+                                )}
+                            </>
+                        ) : (
+                            <View style={photoStyles.emptyContent}>
+                                {isDropTarget
+                                    ? <IIcon name="swap-horizontal-outline" size={24} color="#4f8ef7" />
+                                    : <IIcon name="add" size={26} color="#c8c8c8" />
+                                }
+                            </View>
+                        )}
+                    </Pressable>
+                </Animated.View>
+            </GestureDetector>
+        </Animated.View>
+    );
+});
+
+const photoStyles = StyleSheet.create({
+    wrapper: {
+        position: 'absolute',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowRadius: 12,
+    },
+    cell: {
+        flex: 1,
+        borderRadius: 14,
+        overflow: 'hidden',
+        backgroundColor: '#f2f2f2',
+    },
+    emptyCell: {
+        borderWidth: 1.5,
+        borderColor: '#dedede',
+        borderStyle: 'dashed',
+        backgroundColor: '#fafafa',
+    },
+    dropTargetFilled: {
+        borderWidth: 2.5,
+        borderColor: '#4f8ef7',
+    },
+    dropTargetEmpty: {
+        borderWidth: 2.5,
+        borderColor: '#4f8ef7',
+        borderStyle: 'solid',
+        backgroundColor: '#eef3fe',
+    },
+    img:         { width: '100%', height: '100%' },
+    dropOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(79,142,247,0.22)',
+    },
+    emptyContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    removeBtn: {
+        position: 'absolute', top: 5, right: 5, zIndex: 10,
+    },
+    removeBtnInner: {
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: '#fff',
+        alignItems: 'center', justifyContent: 'center',
+        elevation: 4,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2, shadowRadius: 3,
+    },
+    dragHandle: {
+        position: 'absolute', bottom: 6, right: 6,
+        flexDirection: 'row', flexWrap: 'wrap', width: 14, gap: 2.5,
+        opacity: 0.65,
+    },
+    dragDot: { width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: '#fff' },
+    mainBadge: {
+        position: 'absolute', bottom: 7, left: 7,
+        backgroundColor: 'rgba(0,0,0,0.42)',
+        borderRadius: 8,
+        paddingHorizontal: 7, paddingVertical: 3,
+        flexDirection: 'row', alignItems: 'center', gap: 3,
+    },
+    mainBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
+});
+
+// ─── Photo Grid ───────────────────────────────────────────────────────────────
+
+interface PhotoGridProps {
+    images: PhotoItem[];
+    containerWidth: number;
+    dropTargetIndex: number | null;
+    getImageUri: (index: number) => string;
+    onPress: (index: number) => void;
+    onRemove: (index: number) => void;
+    onDragStart: (index: number) => void;
+    onDragMove: (index: number, tx: number, ty: number) => void;
+    onDragEnd: (index: number, tx: number, ty: number) => void;
+    onLayout: (width: number) => void;
+}
+
+const PhotoGrid = React.memo(({
+    images, containerWidth, dropTargetIndex, getImageUri,
+    onPress, onRemove, onDragStart, onDragMove, onDragEnd, onLayout,
+}: PhotoGridProps) => {
+    if (containerWidth === 0) {
+        return (
+            <View
+                onLayout={e => onLayout(e.nativeEvent.layout.width)}
+                style={{ width: '100%', height: 10 }}
+            />
+        );
+    }
+
+    const cells   = getCellDims(containerWidth);
+    const bigH    = cells[0].h;
+    const botH    = cells[3].h;
+    const total   = bigH + GAP + botH;
+    const padded  = padImages(images);
+
+    return (
+        <View
+            onLayout={e => {
+                const w = Math.floor(e.nativeEvent.layout.width);
+                if (w !== containerWidth) onLayout(w);
+            }}
+            style={{ width: '100%', height: total }}
+        >
+            {cells.map((cell, idx) => (
+                <DraggablePhoto
+                    key={idx}
+                    image={padded[idx]}
+                    slotIndex={idx}
+                    cellWidth={cell.w}
+                    cellHeight={cell.h}
+                    x={cell.x}
+                    y={cell.y}
+                    imageUri={getImageUri(idx)}
+                    isDropTarget={dropTargetIndex === idx}
+                    onPress={onPress}
+                    onRemove={onRemove}
+                    onDragStart={onDragStart}
+                    onDragMove={onDragMove}
+                    onDragEnd={onDragEnd}
+                />
+            ))}
+        </View>
+    );
+});
+
+// ─── Main Screen ─────────────────────────────────────────────────────────────
+
 export function Screen_editprofile({ navigation }: { navigation: any }) {
     const getProfile = llStorage.currentProfile.get()?.currentUser;
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
-
+    const __MAPPER   = llStorage.CONFIG.get()?.mapper;
     const headerHeight = useHeaderHeight();
 
-    const [getImages, setImages] = useState<PhotoItem[]>(getProfile?.user_image ?? []);
-    const [getId, setId] = useState<string | null>(getProfile?.user_id ?? null);
-    const [getFullname, setFullname] = useState<string>(getProfile?.user_fullname);
-    const [getAge, setAge] = useState<string>(getProfile?.user_bio_dob);
-    const [getAboutText, setAboutText] = useState<string>(getProfile?.user_bio_about);
-    const [getGender, setGender] = useState<string>(getProfile?.user_bio_gender ?? "");
-    const [getHeight, setHeight] = useState<{ cm: number, ftin: string }>({ cm: 150, ftin: "" });
+    // ── Profile state ──────────────────────────────────────────────────────
+    const [getImages,           setImages]           = useState<PhotoItem[]>(getProfile?.user_image ?? []);
+    const [getId]                                    = useState<string | null>(getProfile?.user_id ?? null);
+    const [getFullname]                              = useState<string>(getProfile?.user_fullname ?? '');
+    const [getAge]                                   = useState<string>(getProfile?.user_bio_dob ?? '');
+    const [getAboutText,        setAboutText]        = useState<string>(getProfile?.user_bio_about ?? '');
+    const [getGender,           setGender]           = useState<string>(getProfile?.user_bio_gender ?? '');
+    const [getLocation]                              = useState<string>(getProfile?.user_location?.city ?? '');
+    const [getChildren,         setChildren]         = useState<string>(getProfile?.user_bio_children ?? '');
+    const [getSmoking,          setSmoking]          = useState<string>(getProfile?.user_bio_smoking ?? '');
+    const [getDrinking,         setDrinking]         = useState<string>(getProfile?.user_bio_drinking ?? '');
+    const [getRelationshipGoal, setRelationshipGoal] = useState<string>(getProfile?.user_bio_relationshipgoal ?? '');
+    const [getHomeTown,         setHomeTown]         = useState<string>(getProfile?.user_bio_hometown ?? '');
+    const [getSchoolAttended,   setSchoolAttended]   = useState<string>(getProfile?.user_bio_schoolattended ?? '');
+    const [getHighEducation,    setHighEducation]    = useState<string>(getProfile?.user_bio_highesteducation ?? '');
+    const [getEthnicity,        setEthnicity]        = useState<string>(getProfile?.user_bio_ethnicity ?? '');
+    const [getLanguages,        setLanguages]        = useState<string>(getProfile?.user_bio_language ?? '');
+    const [getPets,             setPets]             = useState<string>(getProfile?.user_bio_haspet ?? '');
+    const [getBodyType,         setBodyType]         = useState<string>(getProfile?.user_bio_bodytype ?? '');
+    const [getReligion,         setReligion]         = useState<string>(getProfile?.user_bio_religion ?? '');
+    const [getPoliticalViews,   setPoliticalViews]   = useState<string>(getProfile?.user_bio_politicalview ?? '');
+    const [getPrompts,          setPrompts]          = useState<Array<{ q: string; a: string; d: string }>>(
+        Array.isArray(getProfile?.user_bio_prompt) ? getProfile.user_bio_prompt : []
+    );
+    const [getInterests, setInterests] = useState<string[]>(
+        Array.isArray(getProfile?.user_bio_interests) ? getProfile.user_bio_interests : []
+    );
 
-    const [getLocation, setLocation] = useState<string>(getProfile?.user_location?.city);
-    const [getChildren, setChildren] = useState<string>(getProfile?.user_bio_children);
-    const [getSmoking, setSmoking] = useState<string>(getProfile?.user_bio_smoking);
-    const [getDrinking, setDrinking] = useState<string>(getProfile?.user_bio_drinking);
-    const [getRelationshipGoal, setRelationshipGoal] = useState<string>(getProfile?.user_bio_relationshipgoal);
-    const [getHomeTown, setHomeTown] = useState<string>(getProfile?.user_bio_hometown);
-    const [getSchoolAttended, setSchoolAttended] = useState<string>(getProfile?.user_bio_schoolattended);
-    const [getHighEducation, setHighEducation] = useState<string>(getProfile?.user_bio_highesteducation);
-    const [getEthnicity, setEthnicity] = useState<string>(getProfile?.user_bio_ethnicity);
-    const [getLanguages, setLanguages] = useState<string>(getProfile?.user_bio_language);
-    const [getPets, setPets] = useState<string>(getProfile?.user_bio_haspet);
-    const [getBodyType, setBodyType] = useState<string>(getProfile?.user_bio_bodytype);
-    const [getReligion, setReligion] = useState<string>(getProfile?.user_bio_religion);
-    const [getPoliticalViews, setPoliticalViews] = useState<string>(getProfile?.user_bio_politicalview);
-    const [getPrompts, setPrompts] = useState<Array<{ q: string; a: string; d: string }>>(Array.isArray(getProfile?.user_bio_prompt) ? getProfile.user_bio_prompt : []);
-    const [getInterests, setInterests] = useState<string[]>(Array.isArray(getProfile?.user_bio_interests) ? getProfile.user_bio_interests : []);
+    // ── Drag state ─────────────────────────────────────────────────────────
+    const [containerWidth,  setContainerWidth]  = useState(0);
+    const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
-    // Drag and drop state
-    const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-    const [containerWidth, setContainerWidth] = useState(0);
-
-    const addNewPrompt_ref = useRef<BottomSheet>(null);
-    const addInterests_ref = useRef<BottomSheet>(null);
+    // ── Bottom sheet refs ───────────────────────────────────────────────────
+    const addNewPrompt_ref      = useRef<BottomSheet>(null);
+    const addInterests_ref      = useRef<BottomSheet>(null);
     const addNewPromptSnapPoints = useMemo(() => ['80%'], []);
     const addInterestsSnapPoints = useMemo(() => ['85%'], []);
 
-    // header
+    // ── Header ─────────────────────────────────────────────────────────────
     useLayoutEffect(() => {
         navigation.setOptions({
-            headerTitle: () => <Text style={{ fontSize: 18, fontWeight: 400 }}>Your Profile</Text>,
-            headerRight: () =>
-                <View style={{ paddingRight: 10, flexDirection: "row", gap: 20 }}>
-                    <Pressable onPress={() => navigation.push(namer.navigation.peoplesOnePerson, { getOnePersonId: getId, alreadyLiked: true, previewProfile: true })}>
-                        <Text>Preview</Text>
+            headerTitle: () => (
+                <Text style={{ fontSize: 18, fontWeight: '600' }}>Your Profile</Text>
+            ),
+            headerRight: () => (
+                <View style={{ paddingRight: 12, flexDirection: 'row', gap: 18, alignItems: 'center' }}>
+                    <Pressable
+                        onPress={() =>
+                            navigation.push(namer.navigation.peoplesOnePerson, {
+                                getOnePersonId: getId,
+                                alreadyLiked: true,
+                                previewProfile: true,
+                            })
+                        }
+                    >
+                        <Text style={{ fontSize: 14, color: '#555' }}>Preview</Text>
                     </Pressable>
-
-                    <Pressable style={{ gap: 3 }} onPress={handleSaveProfile}>
-                        <Text style={[styles.pressableButtonText, { fontSize: 14, fontWeight: '400', color: "blue" }]}>Save</Text>
+                    <Pressable
+                        style={[pgStyles.saveBtn]}
+                        onPress={handleSaveProfile}
+                    >
+                        <Text style={pgStyles.saveBtnText}>Save</Text>
                     </Pressable>
                 </View>
+            ),
         });
     });
 
-    const getImageUri = (index: number) => {
+    // ── Helpers ────────────────────────────────────────────────────────────
+    const getImageUri = useCallback((index: number): string => {
         const target = getImages?.[index];
         if (!target) return '';
-        const path = target?.p ?? target?.uri ?? "";
+        const path    = target?.p ?? target?.uri ?? '';
         const isLocal = target?.local || path.startsWith('file:') || path.startsWith('content:');
-        return isLocal ? path : String(__MAPPER?.img_domain[0] + path);
-    };
+        return isLocal ? path : String(__MAPPER?.img_domain?.[0] + path);
+    }, [getImages, __MAPPER]);
 
+    // ── Save ───────────────────────────────────────────────────────────────
     const handleSaveProfile = async () => {
         Loaderx.show();
         try {
-            const normalizedImages = (getImages ?? []).filter(img => img?.p || img?.uri);
-            const imageMeta = normalizedImages.map((img, index) => {
-                const path = img?.p ?? img?.uri ?? "";
-                const isLocal = img?.local || path.startsWith('file:') || path.startsWith('content:');
-                const uploadName = isLocal ? `profile_${getId ?? 'user'}_${Date.now()}_${index}.jpg` : undefined;
-                return {
-                    p: isLocal ? uploadName : path,
-                    w: img?.w ?? null,
-                    h: img?.h ?? null,
-                    local: Boolean(isLocal),
-                    uploadName,
-                };
-            });
+            const orderedImageMeta = padImages(getImages)
+                .map((img, index) => {
+                    const path = img?.p ?? img?.uri ?? '';
+                    if (!path) return null;
+                    return {
+                        p: path,
+                        w: img?.w ?? null,
+                        h: img?.h ?? null,
+                        o: index,
+                    };
+                })
+                .filter(Boolean);
 
             const response = await _http_request({
                 reqType: 'POST',
-                customApiUrl: hostServer() + "/api/core/v1/pushProfile",
+                customApiUrl: hostServer() + '/api/core/v1/pushProfile',
                 bodyArray: {
-                    prof_about: getAboutText ?? "",
-                    prof_smoking: getSmoking ?? "",
-                    prof_drinking: getDrinking ?? "",
-                    prof_children: getChildren ?? "",
-                    prof_ethnicity: getEthnicity ?? "",
-                    prof_pet: getPets ?? "",
-                    prof_religion: getReligion ?? "",
-                    prof_bodytype: getBodyType ?? "",
-                    prof_highesteducation: getHighEducation ?? "",
-                    prof_relationshipgoal: getRelationshipGoal ?? "",
-                    prof_languages: getLanguages ?? "",
-                    prof_gender: getGender ?? "",
-                    prof_hometown: getHomeTown ?? "",
-                    prof_schoolattended: getSchoolAttended ?? "",
-                    prof_political: getPoliticalViews ?? "",
-                    prof_prompts: JSON.stringify(getPrompts ?? []),
-                    prof_interests: JSON.stringify(getInterests ?? [])
-                }
+                    prof_about:            getAboutText        ?? '',
+                    prof_smoking:          getSmoking          ?? '',
+                    prof_drinking:         getDrinking         ?? '',
+                    prof_children:         getChildren         ?? '',
+                    prof_ethnicity:        getEthnicity        ?? '',
+                    prof_pet:              getPets             ?? '',
+                    prof_religion:         getReligion         ?? '',
+                    prof_bodytype:         getBodyType         ?? '',
+                    prof_highesteducation: getHighEducation    ?? '',
+                    prof_relationshipgoal: getRelationshipGoal ?? '',
+                    prof_languages:        getLanguages        ?? '',
+                    prof_gender:           getGender           ?? '',
+                    prof_hometown:         getHomeTown         ?? '',
+                    prof_schoolattended:   getSchoolAttended   ?? '',
+                    prof_political:        getPoliticalViews   ?? '',
+                    prof_prompts:          JSON.stringify(getPrompts   ?? []),
+                    prof_interests:        JSON.stringify(getInterests ?? []),
+                    prof_images_meta:      JSON.stringify(orderedImageMeta),
+                },
             });
             if (response?.code === 200) {
                 Toastx.show({ type: 'success', message: response?.userpreferences?.message ?? 'Profile updated!' });
                 navigation.goBack();
             } else {
-                Toastx.show({ type: 'error', message: response?.userpreferences?.message ?? 'Error updating Profile!' });
+                Toastx.show({ type: 'error', message: response?.userpreferences?.message ?? 'Error updating profile!' });
             }
         } finally {
             Loaderx.hide();
@@ -159,669 +496,433 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         }
     };
 
-    const handlePress = async (index: number) => {
+    // ── Photo actions ──────────────────────────────────────────────────────
+    const handlePress = useCallback(async (index: number) => {
         const media = await mediaHandler.handleSelectFromGallery({
             mediaType: 'photo',
             selectionLimit: 1,
         });
         if (!media || media.length === 0) return;
-
         const asset = media[0];
         setImages(prev => {
             const updated = [...prev];
-            while (updated.length < index) {
-                updated.push({});
-            }
+            while (updated.length <= index) updated.push({});
             updated[index] = {
                 ...(updated[index] ?? {}),
-                p: asset.uri,
+                p:     asset.uri,
                 local: true,
-                w: asset.width,
-                h: asset.height
+                w:     asset.width,
+                h:     asset.height,
             };
-            return updated.slice(0, 6);
+            return updated.slice(0, MAX_PHOTOS);
         });
-    };
-
-    const handleRemoveImage = (index: number) => {
-        setImages(prev => {
-            const updated = [...prev];
-            updated[index] = {}; // Clear the image at this index
-            return updated;
-        });
-    };
-
-    // Drag and drop handlers
-    const handleDragStart = useCallback((index: number) => {
-        setDraggingIndex(index);
     }, []);
 
-    const handleDragEnd = useCallback((fromIndex: number, translationX: number, translationY: number) => {
-        setDraggingIndex(null);
-
-        if (containerWidth === 0) return;
-
-        // Calculate cell dimensions to find target slot
-        const colW = (containerWidth - GAP) / 2;
-        const smallH = colW * 0.65;
-        const bigH = smallH * 2 + GAP;
-        const bottomH = smallH;
-        const thirdColW = (containerWidth - GAP * 2) / 3;
-
-        const cellDims = [
-            { w: colW, h: bigH, x: 0, y: 0 },
-            { w: colW, h: smallH, x: colW + GAP, y: 0 },
-            { w: colW, h: smallH, x: colW + GAP, y: smallH + GAP },
-            { w: thirdColW, h: bottomH, x: 0, y: bigH + GAP },
-            { w: thirdColW, h: bottomH, x: thirdColW + GAP, y: bigH + GAP },
-            { w: thirdColW, h: bottomH, x: (thirdColW + GAP) * 2, y: bigH + GAP },
-        ];
-
-        const fromCell = cellDims[fromIndex];
-        const fromCenterX = fromCell.x + fromCell.w / 2 + translationX;
-        const fromCenterY = fromCell.y + fromCell.h / 2 + translationY;
-
-        let toIndex = fromIndex;
-        let minDist = Infinity;
-
-        cellDims.forEach((cell, idx) => {
-            if (idx === fromIndex) return;
-            const cx = cell.x + cell.w / 2;
-            const cy = cell.y + cell.h / 2;
-            const dist = Math.sqrt((fromCenterX - cx) ** 2 + (fromCenterY - cy) ** 2);
-            if (dist < minDist) {
-                minDist = dist;
-                toIndex = idx;
-            }
+    const handleRemoveImage = useCallback((index: number) => {
+        setImages(prev => {
+            const updated = [...prev];
+            updated[index] = {};
+            return updated;
         });
+    }, []);
 
-        if (toIndex !== fromIndex && minDist < 200) {
+    // ── Drag callbacks ─────────────────────────────────────────────────────
+    const handleDragStart = useCallback((_index: number) => {
+        // placeholder — extend if you need global drag state
+    }, []);
+
+    const handleDragMove = useCallback((fromIndex: number, tx: number, ty: number) => {
+        if (containerWidth === 0) return;
+        const cells = getCellDims(containerWidth);
+        const from  = cells[fromIndex];
+        const cx    = from.x + from.w / 2 + tx;
+        const cy    = from.y + from.h / 2 + ty;
+        const hit   = hitTestCell(cells, cx, cy);
+        setDropTargetIndex(hit !== -1 && hit !== fromIndex ? hit : null);
+    }, [containerWidth]);
+
+    const handleDragEnd = useCallback((fromIndex: number, tx: number, ty: number) => {
+        setDropTargetIndex(null);
+        if (containerWidth === 0) return;
+        const cells   = getCellDims(containerWidth);
+        const from    = cells[fromIndex];
+        const cx      = from.x + from.w / 2 + tx;
+        const cy      = from.y + from.h / 2 + ty;
+        const toIndex = hitTestCell(cells, cx, cy);
+        if (toIndex !== -1 && toIndex !== fromIndex) {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            const newImages = [...getImages];
-            // Ensure array is padded to 6
-            while (newImages.length < 6) newImages.push({});
-            const temp = newImages[fromIndex];
-            newImages[fromIndex] = newImages[toIndex];
-            newImages[toIndex] = temp;
-            setImages(newImages.slice(0, 6));
-        }
-    }, [containerWidth, getImages]);
-
-    // Draggable Photo Cell Component
-    const DraggablePhoto = useCallback(({ image, slotIndex, cellWidth, cellHeight, x, y, imageUri }: {
-        image: PhotoItem;
-        slotIndex: number;
-        cellWidth: number;
-        cellHeight: number;
-        x: number;
-        y: number;
-        imageUri: string;
-    }) => {
-        const translateX = useSharedValue(0);
-        const translateY = useSharedValue(0);
-        const scale = useSharedValue(1);
-        const zIndex = useSharedValue(1);
-        const isEmpty = !image?.p && !image?.uri;
-
-        // Create gesture using the new Gesture API
-        const gesture = Gesture.Pan()
-            .minDistance(8)
-            .onStart(() => {
-                scale.value = withSpring(1.08);
-                zIndex.value = 100;
-                runOnJS(handleDragStart)(slotIndex);
-            })
-            .onUpdate((event) => {
-                translateX.value = event.translationX;
-                translateY.value = event.translationY;
-            })
-            .onEnd((event) => {
-                scale.value = withSpring(1);
-                zIndex.value = 1;
-                translateX.value = withSpring(0);
-                translateY.value = withSpring(0);
-                runOnJS(handleDragEnd)(slotIndex, event.translationX, event.translationY);
-            })
-            .onFinalize(() => {
-                // Ensure we reset even if gesture fails
-                scale.value = withSpring(1);
-                zIndex.value = 1;
-                translateX.value = withSpring(0);
-                translateY.value = withSpring(0);
+            setImages(prev => {
+                const arr = padImages(prev);
+                [arr[fromIndex], arr[toIndex]] = [arr[toIndex], arr[fromIndex]];
+                return arr;
             });
+        }
+    }, [containerWidth]);
 
-        const animatedStyle = useAnimatedStyle(() => ({
-            transform: [
-                { translateX: translateX.value },
-                { translateY: translateY.value },
-                { scale: scale.value },
-            ],
-            zIndex: zIndex.value,
-            shadowOpacity: draggingIndex === slotIndex ? 0.4 : 0,
-            elevation: draggingIndex === slotIndex ? 8 : 0,
+    const handleGridLayout = useCallback((w: number) => {
+        setContainerWidth(w);
+    }, []);
+
+    // ── Prompt helpers ─────────────────────────────────────────────────────
+    const removePrompt = useCallback((index: number) => {
+        setPrompts(prev => prev.filter((_, i) => i !== index));
+    }, []);
+
+    // ── Interest helpers ───────────────────────────────────────────────────
+    const toggleInterest = useCallback((item: string) => {
+        setInterests(prev => {
+            if (prev.includes(item)) return prev.filter(v => v !== item);
+            if (prev.length >= MAX_INTERESTS) {
+                Toastx.show({ message: `Max ${MAX_INTERESTS} interests allowed.`, type: 'info' });
+                return prev;
+            }
+            return [...prev, item];
+        });
+    }, []);
+
+    const removeInterest = useCallback((item: string) => {
+        setInterests(prev => prev.filter(v => v !== item));
+    }, []);
+
+    // ── Radio builder ──────────────────────────────────────────────────────
+    const buildRadios = (map: Record<string, string> | undefined) =>
+        Object.entries(map ?? {}).map(([key, value]) => ({
+            id:    key,
+            label: value as string,
+            value: value as string,
         }));
 
-        return (
-            <Animated.View style={[
-                {
-                    position: 'absolute',
-                    left: x,
-                    top: y,
-                    width: cellWidth,
-                    height: cellHeight,
-                },
-                animatedStyle,
-            ]}>
-                <GestureDetector gesture={!isEmpty ? gesture : Gesture.Pan()}>
-                    <Animated.View style={{ flex: 1 }}>
-                        <Pressable
-                            style={[
-                                localStyles.photoCell,
-                                isEmpty && localStyles.emptyCell,
-                            ]}
-                            onPress={() => handlePress(slotIndex)}
-                        >
-                            {!isEmpty ? (
-                                <>
-                                    <Image
-                                        source={{ uri: imageUri }}
-                                        style={localStyles.img}
-                                        resizeMode="cover"
-                                    />
-                                    {/* Remove button */}
-                                    <Pressable
-                                        style={localStyles.removeBtn}
-                                        onPress={() => handleRemoveImage(slotIndex)}>
-                                        <IIcon name="close-circle" size={22} color="#ff4444" />
-                                    </Pressable>
-                                    {/* Drag handle indicator */}
-                                    <View style={localStyles.dragHandle}>
-                                        <View style={localStyles.dragDot} />
-                                        <View style={localStyles.dragDot} />
-                                        <View style={localStyles.dragDot} />
-                                        <View style={localStyles.dragDot} />
-                                        <View style={localStyles.dragDot} />
-                                        <View style={localStyles.dragDot} />
-                                    </View>
-                                    {/* Main photo badge */}
-                                    {slotIndex === 0 && (
-                                        <View style={localStyles.mainBadge}>
-                                            <Text style={localStyles.mainBadgeText}>Main</Text>
-                                        </View>
-                                    )}
-                                </>
-                            ) : (
-                                <View style={localStyles.emptyContent}>
-                                    <Text style={localStyles.plusIcon}>+</Text>
-                                </View>
-                            )}
-                        </Pressable>
-                    </Animated.View>
-                </GestureDetector>
-            </Animated.View>
-        );
-    }, [handleDragStart, handleDragEnd, draggingIndex]);
-
-    const stty = StyleSheet.create({
-        closeBtn: {
-            position: "absolute",
-            backgroundColor: "#fff",
-            borderRadius: 10,
-            top: -4, right: -4,
-            width: 18, height: 18,
-            alignItems: "center", justifyContent: "center",
-            elevation: 3,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3
-        },
-        closeText: {
-            fontSize: 18,
-            fontWeight: "bold",
-            textAlign: "center", lineHeight: 8
-        },
-    });
-
-    const localStyles = StyleSheet.create({
-        photoCell: {
-            flex: 1,
-            borderRadius: 12,
-            overflow: 'hidden',
-            backgroundColor: '#f0f0f0',
-        },
-        emptyCell: {
-            borderWidth: 2,
-            borderColor: '#ddd',
-            borderStyle: 'dashed',
-            backgroundColor: '#fafafa',
-        },
-        img: {
-            width: '100%',
-            height: '100%',
-        },
-        emptyContent: {
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        plusIcon: {
-            fontSize: 28,
-            color: '#ccc',
-            fontWeight: '300',
-        },
-        removeBtn: {
-            position: "absolute",
-            top: 4,
-            right: 4,
-            zIndex: 10,
-            backgroundColor: 'white',
-            borderRadius: 12,
-            width: 24,
-            height: 24,
-            alignItems: 'center',
-            justifyContent: 'center',
-            elevation: 3,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3
-        },
-        dragHandle: {
-            position: 'absolute',
-            bottom: 6,
-            right: 6,
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            width: 14,
-            gap: 2,
-            opacity: 0.6,
-        },
-        dragDot: {
-            width: 4,
-            height: 4,
-            borderRadius: 2,
-            backgroundColor: '#fff',
-        },
-        mainBadge: {
-            position: 'absolute',
-            bottom: 8,
-            left: 8,
-            backgroundColor: 'rgba(0,0,0,0.45)',
-            borderRadius: 6,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-        },
-        mainBadgeText: {
-            color: '#fff',
-            fontSize: 11,
-            fontWeight: '600',
-            letterSpacing: 0.5,
-        },
-        photoGridContainer: {
-            gap: 5,
-            marginBottom: 10,
-        }
-    });
-
-    // Calculate grid dimensions
-    const renderPhotoGrid = () => {
-        if (containerWidth === 0) {
-            return (
-                <View onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}
-                    style={{ width: '100%', height: 10 }} />
-            );
-        }
-
-        // Calculate cell sizes
-        const colW = (containerWidth - GAP) / 2;
-        const smallH = colW * 0.65;
-        const bigH = smallH * 2 + GAP;
-        const bottomH = smallH;
-        const thirdColW = (containerWidth - GAP * 2) / 3;
-        const totalHeight = bigH + GAP + bottomH;
-
-        const cellDims = [
-            { w: colW, h: bigH, x: 0, y: 0 },
-            { w: colW, h: smallH, x: colW + GAP, y: 0 },
-            { w: colW, h: smallH, x: colW + GAP, y: smallH + GAP },
-            { w: thirdColW, h: bottomH, x: 0, y: bigH + GAP },
-            { w: thirdColW, h: bottomH, x: thirdColW + GAP, y: bigH + GAP },
-            { w: thirdColW, h: bottomH, x: (thirdColW + GAP) * 2, y: bigH + GAP },
-        ];
-
-        const paddedImages = [...getImages];
-        while (paddedImages.length < 6) paddedImages.push({});
-
-        return (
-            <View
-                onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}
-                style={{ width: '100%', height: totalHeight }}
-            >
-                {cellDims.map((cell, index) => (
-                    <DraggablePhoto
-                        key={index}
-                        image={paddedImages[index]}
-                        slotIndex={index}
-                        cellWidth={cell.w}
-                        cellHeight={cell.h}
-                        x={cell.x}
-                        y={cell.y}
-                        imageUri={getImageUri(index)}
-                    />
-                ))}
-            </View>
-        );
-    };
-
+    // ─────────────────────────────────────────────────────────────────────
     return (
-        <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['bottom']}>
             <View style={[styles.container, { paddingTop: headerHeight }]}>
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-                    style={{ flex: 1 }} >
-                    <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-                        <View style={[{ gap: 12, marginBottom: 12 }]}>
-                            
-                            {/* Photo Grid Section */}
-                            <View style={localStyles.photoGridContainer}>
-                                <Text style={[styles.editprofile_inputtitle, { marginLeft: 5 }]}>
-                                    Profile Photos (Long press and drag to rearrange)
-                                </Text>
-                                {renderPhotoGrid()}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView
+                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <View style={{ gap: 12, marginBottom: 12 }}>
+
+                            {/* ── Photo Grid ───────────────────────────────── */}
+                            <View style={{ gap: 8, marginBottom: 4 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 2 }}>
+                                    <MIcons name="image-multiple-outline" size={15} color="#888" />
+                                    <Text style={pgStyles.sectionLabel}>
+                                        Profile Photos
+                                    </Text>
+                                    <Text style={pgStyles.sectionHint}>· drag to reorder</Text>
+                                </View>
+
+                                <PhotoGrid
+                                    images={getImages}
+                                    containerWidth={containerWidth}
+                                    dropTargetIndex={dropTargetIndex}
+                                    getImageUri={getImageUri}
+                                    onPress={handlePress}
+                                    onRemove={handleRemoveImage}
+                                    onDragStart={handleDragStart}
+                                    onDragMove={handleDragMove}
+                                    onDragEnd={handleDragEnd}
+                                    onLayout={handleGridLayout}
+                                />
                             </View>
 
-                            <LinearGradient colors={["#f95f62", "#f27a9c"]} style={[styles.card, { padding: 0 }]}
-                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 }}>
+                            {/* ── Vibes Banner ──────────────────────────────── */}
+                            <LinearGradient
+                                colors={['#f95f62', '#f27a9c']}
+                                style={[styles.card, { padding: 0 }]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                            >
+                                <View style={pgStyles.bannerRow}>
                                     <View style={{ gap: 6, flex: 1 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start', gap: 6, }}>
-                                            <MIcons name='heart-multiple-outline' color={'#f95f62'} size={16} />
-                                            <Text style={{ color: '#f95f62', fontWeight: '600' }}>Vibes & Energy</Text>
+                                        <View style={pgStyles.bannerBadge}>
+                                            <MIcons name="heart-multiple-outline" color="#f95f62" size={14} />
+                                            <Text style={pgStyles.bannerBadgeText}>Vibes &amp; Energy</Text>
                                         </View>
-                                        <Text style={{ fontSize: 20, color: '#fff', fontWeight: '700' }}>Show your best self today</Text>
-                                        <Text style={{ color: '#ffe7ef', fontSize: 13, lineHeight: 18 }}>Update a prompt and write a bio to make it easy for others to start a conversation with you.</Text>
+                                        <Text style={pgStyles.bannerTitle}>Show your best self today</Text>
+                                        <Text style={pgStyles.bannerSubtitle}>
+                                            Update a prompt and write a bio to make it easy for others to start a conversation with you.
+                                        </Text>
                                     </View>
-                                    <MIcons name='flower-tulip-outline' size={82} color={'#fff'} />
+                                    <MIcons name="flower-tulip-outline" size={78} color="rgba(255,255,255,0.75)" />
                                 </View>
                             </LinearGradient>
 
+                            {/* ── Full Name (locked) ───────────────────────── */}
                             <View style={styles.editprofile_inputborder}>
-                                <View>
+                                <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>Full Name</Text>
-                                    <IIcon name="lock-closed" size={18} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                                    <IIcon name="lock-closed" size={15} color="#bbb" />
                                 </View>
-                                <TextInput style={styles.editprofile_input} value={getFullname} readOnly />
+                                <TextInput
+                                    style={[styles.editprofile_input, pgStyles.readOnlyInput]}
+                                    value={getFullname}
+                                    readOnly
+                                />
                             </View>
-                            
+
+                            {/* ── Age (locked) ─────────────────────────────── */}
                             <View style={styles.editprofile_inputborder}>
-                                <View>
+                                <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>Age</Text>
-                                    <IIcon name="lock-closed" size={19} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                                    <IIcon name="lock-closed" size={15} color="#bbb" />
                                 </View>
-                                <TextInput style={styles.editprofile_input} value={help.getageFromDOB(getAge) ?? "-"} readOnly />
+                                <TextInput
+                                    style={[styles.editprofile_input, pgStyles.readOnlyInput]}
+                                    value={help.getageFromDOB(getAge) ?? '—'}
+                                    readOnly
+                                />
                             </View>
 
+                            {/* ── About ────────────────────────────────────── */}
                             <View style={styles.editprofile_inputborder}>
-                                <View>
+                                <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>About you</Text>
-                                    <IIcon name="create-outline" size={19} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                                    <IIcon name="create-outline" size={17} color="#888" />
                                 </View>
-                                <TextInput style={[styles.editprofile_input, { height: 200 }]} multiline numberOfLines={10} value={getAboutText} onChangeText={setAboutText} placeholder="Write about yourself" maxLength={400} />
-                                <Text style={{ color: colors.gray2, fontSize: 12, marginTop: 4, paddingLeft: 4 }}>Keep it concise and engaging! {`(Max characters ${getAboutText?.length}/400)`}</Text>
+                                <TextInput
+                                    style={[styles.editprofile_input, { height: 180 }]}
+                                    multiline
+                                    numberOfLines={8}
+                                    value={getAboutText}
+                                    onChangeText={setAboutText}
+                                    placeholder="Write something about yourself…"
+                                    placeholderTextColor="#bbb"
+                                    maxLength={400}
+                                />
+                                <Text style={pgStyles.charCounter}>
+                                    {getAboutText?.length ?? 0}/400 characters
+                                </Text>
                             </View>
 
-                            <AccordionItem title="What are your Intentions?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0, }]} subtitle={__MAPPER?.bio_intent?.[getRelationshipGoal]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: 'capitalize' }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_intent ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setRelationshipGoal}
-                                    selectedId={getRelationshipGoal.toString()}
-                                />}
-                            </View>)} />
+                            {/* ── Relationship Intention ───────────────────── */}
+                            <AccordionItem
+                                title="What are your Intentions?"
+                                titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
+                                subtitle={__MAPPER?.bio_intent?.[getRelationshipGoal]}
+                                Content={() => (
+                                    <RadioGroup
+                                        labelStyle={pgStyles.radioLabel}
+                                        radioButtons={buildRadios(__MAPPER?.bio_intent)}
+                                        containerStyle={{ alignItems: 'flex-start' }}
+                                        onPress={setRelationshipGoal}
+                                        selectedId={getRelationshipGoal}
+                                    />
+                                )}
+                            />
 
-                            <AccordionItem title="What is your gender?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_gender?.[getGender]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_gender ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setGender}
-                                    selectedId={getGender.toString() || ""}
-                                />}
-                            </View>)} />
+                            {/* ── Gender ───────────────────────────────────── */}
+                            <AccordionItem
+                                title="What is your gender?"
+                                titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
+                                subtitle={__MAPPER?.bio_gender?.[getGender]}
+                                Content={() => (
+                                    <RadioGroup
+                                        labelStyle={pgStyles.radioLabel}
+                                        radioButtons={buildRadios(__MAPPER?.bio_gender)}
+                                        containerStyle={{ alignItems: 'flex-start' }}
+                                        onPress={setGender}
+                                        selectedId={getGender}
+                                    />
+                                )}
+                            />
 
-                            <View style={[styles.editprofile_inputborder,]}>
-                                <Pressable style={{ gap: 6 }} onPress={() => { addInterests_ref.current?.snapToIndex(0); }}>
-                                    <View>
-                                        <Text style={styles.editprofile_inputtitle}>Interests - {getInterests?.length}/15</Text>
-                                        <MIcons name="cursor-default-click-outline" size={19} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                            {/* ── Interests ────────────────────────────────── */}
+                            <View style={styles.editprofile_inputborder}>
+                                <Pressable
+                                    style={{ gap: 8 }}
+                                    onPress={() => addInterests_ref.current?.snapToIndex(0)}
+                                >
+                                    <View style={pgStyles.inputHeader}>
+                                        <Text style={styles.editprofile_inputtitle}>
+                                            Interests
+                                            <Text style={pgStyles.countBadge}> {getInterests.length}/{MAX_INTERESTS}</Text>
+                                        </Text>
+                                        <MIcons name="cursor-default-click-outline" size={17} color="#888" />
                                     </View>
-                                    <View style={{ flexDirection: "row", gap: 2, flexWrap: "wrap" }}>
-                                        {getInterests.length <= 0 ? (
-                                            <Text style={{ opacity: 0.5, paddingHorizontal: 10 }}>Select interests.</Text>
-                                        ) : (getInterests.map((interest, i) => (
-                                            <View key={i} style={[styles.editProfile_chip, { paddingRight: 16 }]}>
-                                                <Text>{interest}</Text>
-                                                <Pressable style={stty.closeBtn} onPress={() => { setInterests(prev => prev.filter(v => v !== interest)); }}>
-                                                    <Text style={stty.closeText}>×</Text>
-                                                </Pressable>
-                                            </View>
-                                        ))
-                                        )}
-                                    </View>
+
+                                    {getInterests.length === 0 ? (
+                                        <Text style={pgStyles.placeholder}>Tap to select your interests</Text>
+                                    ) : (
+                                        <View style={pgStyles.chipRow}>
+                                            {getInterests.map((interest, i) => (
+                                                <View key={i} style={pgStyles.chip}>
+                                                    <Text style={pgStyles.chipText}>{interest}</Text>
+                                                    <Pressable
+                                                        hitSlop={6}
+                                                        onPress={() => removeInterest(interest)}
+                                                        style={pgStyles.chipRemove}
+                                                    >
+                                                        <Text style={pgStyles.chipRemoveText}>×</Text>
+                                                    </Pressable>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    )}
                                 </Pressable>
                             </View>
 
+                            {/* ── Location (display only) ──────────────────── */}
                             <View style={styles.editprofile_inputborder}>
-                                <View>
+                                <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>Location</Text>
-                                    <IIcon name="location-outline" size={19} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                                    <IIcon name="location-outline" size={17} color="#888" />
                                 </View>
-                                <Text style={styles.editprofile_input}>{getLocation}</Text>
+                                <Text style={[styles.editprofile_input, pgStyles.readOnlyInput]}>
+                                    {getLocation || '—'}
+                                </Text>
                             </View>
-                            
+
+                            {/* ── Hometown ─────────────────────────────────── */}
                             <View style={styles.editprofile_inputborder}>
-                                <View>
+                                <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>Hometown</Text>
-                                    <IIcon name="create-outline" size={18} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                                    <IIcon name="create-outline" size={16} color="#888" />
                                 </View>
-                                <TextInput style={styles.editprofile_input}
+                                <TextInput
+                                    style={styles.editprofile_input}
                                     value={getHomeTown}
                                     onChangeText={setHomeTown}
-                                    placeholder="What is your hometown ?"
+                                    placeholder="Where are you from?"
+                                    placeholderTextColor="#bbb"
                                     maxLength={45}
                                     multiline
                                 />
                             </View>
-                            
-                            <AccordionItem title="Highest Education Achieved?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_education?.[getHighEducation]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 16 }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_education ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setHighEducation}
-                                    selectedId={getHighEducation.toString() || ""}
-                                />}
-                            </View>)} />
-                            
+
+                            {/* ── Highest Education ────────────────────────── */}
+                            <AccordionItem
+                                title="Highest Education Achieved?"
+                                titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
+                                subtitle={__MAPPER?.bio_education?.[getHighEducation]}
+                                Content={() => (
+                                    <RadioGroup
+                                        labelStyle={pgStyles.radioLabel}
+                                        radioButtons={buildRadios(__MAPPER?.bio_education)}
+                                        containerStyle={{ alignItems: 'flex-start' }}
+                                        onPress={setHighEducation}
+                                        selectedId={getHighEducation}
+                                    />
+                                )}
+                            />
+
+                            {/* ── Languages ────────────────────────────────── */}
                             <View style={styles.editprofile_inputborder}>
-                                <View>
+                                <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>Languages</Text>
-                                    <IIcon name="language-outline" size={19} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                                    <IIcon name="language-outline" size={17} color="#888" />
                                 </View>
-                                <TextInput style={styles.editprofile_input}
+                                <TextInput
+                                    style={styles.editprofile_input}
                                     value={getLanguages}
                                     onChangeText={setLanguages}
-                                    placeholder="Do you speak any language ?"
+                                    placeholder="Languages you speak"
+                                    placeholderTextColor="#bbb"
                                 />
                             </View>
 
+                            {/* ── School Attended ──────────────────────────── */}
                             <View style={styles.editprofile_inputborder}>
-                                <View>
+                                <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>School Attended</Text>
-                                    <IIcon name="create-outline" size={18} color="#000" style={{ position: "absolute", right: 0, top: 0 }} />
+                                    <IIcon name="create-outline" size={16} color="#888" />
                                 </View>
-                                <TextInput style={styles.editprofile_input}
+                                <TextInput
+                                    style={styles.editprofile_input}
                                     value={getSchoolAttended}
                                     onChangeText={setSchoolAttended}
-                                    placeholder="What school did you attend ?"
+                                    placeholder="What school did you attend?"
+                                    placeholderTextColor="#bbb"
                                     maxLength={45}
                                     multiline
                                 />
                             </View>
 
-                            <View style={[styles.editprofile_inputborder, { padding: 6, gap: 6 }]}>
-                                <Text style={styles.editprofile_inputtitle}>Prompts</Text>
+                            {/* ── Prompts ──────────────────────────────────── */}
+                            <View style={[styles.editprofile_inputborder, { padding: 10, gap: 8 }]}>
+                                <Text style={styles.editprofile_inputtitle}>
+                                    Prompts
+                                    <Text style={pgStyles.countBadge}> {getPrompts.length}/{MAX_PROMPTS}</Text>
+                                </Text>
 
-                                {getPrompts && getPrompts.map((item: any, index: any) => (
-                                    <View key={index} style={[styles.editprofile_inputborder, { position: "relative" }]}>
-                                        <Pressable style={{ position: "absolute", right: 6, top: 6, zIndex: 10 }} onPress={() => {
-                                            const updatedPrompts = getPrompts.filter((_: any, i: number) => i !== index);
-                                            setPrompts(updatedPrompts);
-                                        }}>
-                                            <IIcon name="close-circle" size={20} color="#ff0000" />
+                                {getPrompts.map((item, index) => (
+                                    <View key={index} style={pgStyles.promptCard}>
+                                        <Pressable
+                                            style={pgStyles.promptRemove}
+                                            onPress={() => removePrompt(index)}
+                                            hitSlop={6}
+                                        >
+                                            <IIcon name="close-circle" size={20} color="#ff4444" />
                                         </Pressable>
-                                        <View style={{ padding: 8, gap: 6 }} >
-                                            <Text style={{ fontSize: 16, textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 700 }}>{item?.q}</Text>
-                                            <TextInput style={styles.editprofile_input}
-                                                value={item?.a} placeholder={item?.q}
-                                                multiline maxLength={140} />
-                                        </View>
+                                        <Text style={pgStyles.promptQuestion}>{item?.q}</Text>
+                                        <TextInput
+                                            style={[styles.editprofile_input, pgStyles.promptAnswer]}
+                                            value={item?.a}
+                                            placeholder={item?.q}
+                                            placeholderTextColor="#bbb"
+                                            multiline
+                                            maxLength={140}
+                                            onChangeText={text => {
+                                                setPrompts(prev => {
+                                                    const updated = [...prev];
+                                                    updated[index] = { ...updated[index], a: text };
+                                                    return updated;
+                                                });
+                                            }}
+                                        />
                                     </View>
                                 ))}
-                                {getPrompts && getPrompts.length < 3 && (
-                                    <Pressable style={styles.editprofile_inputborder} onPress={() => {
-                                        addNewPrompt_ref.current?.snapToIndex(0);
-                                    }}>
-                                        <View style={{ gap: 4, flexDirection: "row", padding: 5, alignItems: "center" }}>
-                                            <MIcons name='plus-circle-outline' size={20} color={'#f95f62'} />
-                                            <Text style={{ fontSize: 14, fontWeight: 600 }}>Add a new Prompt</Text>
-                                        </View>
+
+                                {getPrompts.length < MAX_PROMPTS && (
+                                    <Pressable
+                                        style={pgStyles.addPromptBtn}
+                                        onPress={() => addNewPrompt_ref.current?.snapToIndex(0)}
+                                    >
+                                        <MIcons name="plus-circle-outline" size={18} color="#f95f62" />
+                                        <Text style={pgStyles.addPromptText}>Add a Prompt</Text>
                                     </Pressable>
                                 )}
                             </View>
 
-                            <AccordionItem title="Do you have children?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_children?.[getChildren]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_children ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setChildren}
-                                    selectedId={getChildren.toString() || ""}
-                                />}
-                            </View>)} />
-                            
-                            <AccordionItem title="Do you smoke?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_smoking?.[getSmoking]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_smoking ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setSmoking}
-                                    selectedId={getSmoking.toString() || ""}
-                                />}
-                            </View>)} />
-                            
-                            <AccordionItem title="Do you drink?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_drinking?.[getDrinking]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_drinking ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setDrinking}
-                                    selectedId={getDrinking.toString() || ""}
-                                />}
-                            </View>)} />
-                            
-                            <AccordionItem title="Do you have a pet?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_pets?.[getPets]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_pets ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setPets}
-                                    selectedId={getPets.toString() || ""}
-                                />}
-                            </View>)} />
-                            
-                            <AccordionItem title='What is your religion?' titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_religion?.[getReligion]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_religion ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setReligion}
-                                    selectedId={getReligion || ""}
-                                />}
-                            </View>)} />
-                            
-                            <AccordionItem title='What is your ethnicity?' titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_ethnicity?.[getEthnicity]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_ethnicity ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setEthnicity}
-                                    selectedId={getEthnicity || ""}
-                                />}
-                            </View>)} />
-
-                            <AccordionItem title="Describe your body type" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_bodytype?.[getBodyType]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_bodytype ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setBodyType}
-                                    selectedId={getBodyType || ""}
-                                />}
-                            </View>)} />
-                            
-                            <AccordionItem title="Political Views ?" titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={__MAPPER?.bio_politicalview?.[getPoliticalViews]} Content={() => (<View>{
-                                <RadioGroup labelStyle={{ fontSize: 15, textTransform: "capitalize" }}
-                                    radioButtons={Object.entries(__MAPPER?.bio_politicalview ?? {}).map(([key, value]) => ({
-                                        id: key,
-                                        label: value as string,
-                                        value: value as string,
-                                    }))}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={setPoliticalViews}
-                                    selectedId={getPoliticalViews.toString() || ""}
-                                />}
-                            </View>)} />
+                            {/* ── Life Style Accordions ─────────────────────── */}
+                            {[
+                                { title: 'Do you have children?',  map: __MAPPER?.bio_children,       state: getChildren,         set: setChildren },
+                                { title: 'Do you smoke?',          map: __MAPPER?.bio_smoking,        state: getSmoking,          set: setSmoking },
+                                { title: 'Do you drink?',          map: __MAPPER?.bio_drinking,       state: getDrinking,         set: setDrinking },
+                                { title: 'Do you have a pet?',     map: __MAPPER?.bio_pets,           state: getPets,             set: setPets },
+                                { title: 'What is your religion?', map: __MAPPER?.bio_religion,       state: getReligion,         set: setReligion },
+                                { title: 'What is your ethnicity?',map: __MAPPER?.bio_ethnicity,      state: getEthnicity,        set: setEthnicity },
+                                { title: 'Describe your body type',map: __MAPPER?.bio_bodytype,       state: getBodyType,         set: setBodyType },
+                                { title: 'Political Views?',       map: __MAPPER?.bio_politicalview,  state: getPoliticalViews,   set: setPoliticalViews },
+                            ].map(({ title, map, state, set }) => (
+                                <AccordionItem
+                                    key={title}
+                                    title={title}
+                                    titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
+                                    subtitle={(map as Record<string,string>)?.[state]}
+                                    Content={() => (
+                                        <RadioGroup
+                                            labelStyle={pgStyles.radioLabel}
+                                            radioButtons={buildRadios(map as Record<string,string>)}
+                                            containerStyle={{ alignItems: 'flex-start' }}
+                                            onPress={set}
+                                            selectedId={state}
+                                        />
+                                    )}
+                                />
+                            ))}
 
                         </View>
                     </ScrollView>
-                </KeyboardAvoidingView >
-            </View >
+                </KeyboardAvoidingView>
+            </View>
 
-            {/* Add new prompt from __MAPPER?.prompts */}
+            {/* ── Add New Prompt Bottom Sheet ───────────────────────────────── */}
             <BottomSheet
                 ref={addNewPrompt_ref}
                 index={-1}
@@ -829,55 +930,59 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 snapPoints={addNewPromptSnapPoints}
                 backdropComponent={bottomsheet_renderBackdrop}
             >
-                <BottomSheetView style={{ padding: 23 }}>
-                    <View style={{ flex: 1, gap: 10 }}>
-                        <Text style={{ fontSize: 18, fontWeight: '600', textAlign: "center" }}>Add a new Prompt</Text>
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 2 }}>
-                            <View style={{ gap: 12 }}>
-                                {Object.values(__MAPPER?.bio_prompt ?? {}).filter(prompt => !(getPrompts.map((p: any) => p.q)).includes(prompt)).map((prompt: any, index: number) => (
-
-                                    <AccordionItem key={index} title={prompt} titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]} subtitle={""}
-                                        Content={() => {
-                                            const [getNewPrompt_text, setNewPrompt_text] = useState<string>("");
-
-                                            return (
-                                                <View>
-                                                    <TextInput style={[styles.editprofile_input, { minHeight: 100, margin: 6, borderWidth: 1, borderColor: colors.gray2, borderRadius: 8, }]}
-                                                        value={getNewPrompt_text} onChangeText={setNewPrompt_text}
-                                                        placeholder={prompt}
-                                                        maxLength={140} multiline
-                                                    />
-                                                    <Pressable style={{ alignSelf: "center", marginLeft: "auto", paddingRight: 10 }} onPress={() => {
-                                                        const usedPrompts = getPrompts.map((p: any) => p.q);
-                                                        const todayDate = new Date();
-
-                                                        if (!usedPrompts.includes(prompt as string)) {
-                                                            const dateStr =
-                                                                `${todayDate.getFullYear()}` +
-                                                                `${String(todayDate.getMonth() + 1).padStart(2, "0")}` +
-                                                                `${String(todayDate.getDate()).padStart(2, "0")}` +
-                                                                `${String(todayDate.getHours()).padStart(2, "0")}` +
-                                                                `${String(todayDate.getMinutes()).padStart(2, "0")}` +
-                                                                `${String(todayDate.getSeconds()).padStart(2, "0")}`;
-                                                            setPrompts([...getPrompts, { q: prompt, a: getNewPrompt_text.trim(), d: dateStr }]);
+                <BottomSheetView style={{ flex: 1, padding: 20 }}>
+                    <Text style={pgStyles.sheetTitle}>Add a Prompt</Text>
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16, gap: 10 }}>
+                        {Object.values(__MAPPER?.bio_prompt ?? {})
+                            .filter(prompt => !getPrompts.map(p => p.q).includes(prompt as string))
+                            .map((prompt: any, index: number) => (
+                                <AccordionItem
+                                    key={index}
+                                    title={prompt}
+                                    titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
+                                    subtitle=""
+                                    Content={() => {
+                                        const [text, setText] = useState('');
+                                        return (
+                                            <View style={{ gap: 8, paddingTop: 4 }}>
+                                                <TextInput
+                                                    style={[styles.editprofile_input, pgStyles.promptSheetInput]}
+                                                    value={text}
+                                                    onChangeText={setText}
+                                                    placeholder={prompt}
+                                                    placeholderTextColor="#bbb"
+                                                    maxLength={140}
+                                                    multiline
+                                                />
+                                                <Pressable
+                                                    style={pgStyles.sheetSaveBtn}
+                                                    onPress={() => {
+                                                        if (!getPrompts.map(p => p.q).includes(prompt)) {
+                                                            const now = new Date();
+                                                            const d =
+                                                                `${now.getFullYear()}` +
+                                                                `${String(now.getMonth() + 1).padStart(2, '0')}` +
+                                                                `${String(now.getDate()).padStart(2, '0')}` +
+                                                                `${String(now.getHours()).padStart(2, '0')}` +
+                                                                `${String(now.getMinutes()).padStart(2, '0')}` +
+                                                                `${String(now.getSeconds()).padStart(2, '0')}`;
+                                                            setPrompts(prev => [...prev, { q: prompt, a: text.trim(), d }]);
                                                         }
                                                         addNewPrompt_ref.current?.close();
-                                                    }}>
-                                                        <Text style={{ color: "blue", fontSize: 16 }}>save</Text>
-                                                    </Pressable>
-                                                </View>
-                                            )
-                                        }} />
-
-                                )
-                                )}
-                            </View>
-                        </ScrollView>
-                    </View>
+                                                    }}
+                                                >
+                                                    <Text style={pgStyles.sheetSaveBtnText}>Save Prompt</Text>
+                                                </Pressable>
+                                            </View>
+                                        );
+                                    }}
+                                />
+                            ))}
+                    </ScrollView>
                 </BottomSheetView>
             </BottomSheet>
 
-            {/* interests */}
+            {/* ── Interests Bottom Sheet ────────────────────────────────────── */}
             <BottomSheet
                 ref={addInterests_ref}
                 index={-1}
@@ -885,43 +990,172 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 snapPoints={addInterestsSnapPoints}
                 backdropComponent={bottomsheet_renderBackdrop}
             >
-                <BottomSheetView style={{ padding: 23 }}>
-                    <ScrollView contentContainerStyle={[{ gap: 10, paddingVertical: 6 }]} showsVerticalScrollIndicator={false}>
-                        {
-                            Object.entries(__MAPPER?.bio_interests as Record<string, string[]> ?? {}).map(([category, items]) => (
-                                <View style={{ backgroundColor: "#fafafaff", borderRadius: 8 }} key={category}>
-                                    <AccordionItem key={category} title={category} titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                                        subtitle={""}
-                                        Content={() => (<View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                                            {items.map((item: any, idx: number) => {
-                                                const gi = getInterests.includes(item);
+                <BottomSheetView style={{ flex: 1, padding: 20 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={pgStyles.sheetTitle}>Your Interests</Text>
+                        <Text style={pgStyles.countBadge}>{getInterests.length}/{MAX_INTERESTS} selected</Text>
+                    </View>
+                    <ScrollView
+                        contentContainerStyle={{ gap: 10, paddingBottom: 16 }}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {Object.entries((__MAPPER?.bio_interests as Record<string, string[]>) ?? {}).map(([category, items]) => (
+                            <View key={category} style={pgStyles.interestCategory}>
+                                <AccordionItem
+                                    title={category}
+                                    titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
+                                    subtitle=""
+                                    Content={() => (
+                                        <View style={pgStyles.chipRow}>
+                                            {items.map((item: string, idx: number) => {
+                                                const selected = getInterests.includes(item);
                                                 return (
-                                                    <TouchableOpacity key={idx} style={[styles.editProfile_chip, gi && { backgroundColor: "blue" }]}
-                                                        onPress={() => {
-                                                            if (getInterests.length <= 15) {
-                                                                setInterests(prev =>
-                                                                    prev.includes(item)
-                                                                        ? prev.filter(v => v !== item)   // remove
-                                                                        : [...prev, item]                // add
-                                                                );
-                                                            } else {
-                                                                Toastx.show({ message: "You can only select 15 interests.", type: "info" })
-                                                                addInterests_ref.current?.close();
-                                                            }
-                                                        }}>
-                                                        <Text style={gi && { color: "white", fontWeight: 600 }}>{item}</Text>
+                                                    <TouchableOpacity
+                                                        key={idx}
+                                                        style={[pgStyles.chip, selected && pgStyles.chipSelected]}
+                                                        onPress={() => toggleInterest(item)}
+                                                        activeOpacity={0.75}
+                                                    >
+                                                        <Text style={[pgStyles.chipText, selected && pgStyles.chipTextSelected]}>
+                                                            {item}
+                                                        </Text>
                                                     </TouchableOpacity>
-                                                )
+                                                );
                                             })}
-                                        </View>)} />
-                                </View>
-                            ))
-                        }
-
+                                        </View>
+                                    )}
+                                />
+                            </View>
+                        ))}
                     </ScrollView>
                 </BottomSheetView>
             </BottomSheet>
-
-        </SafeAreaView >
+        </SafeAreaView>
     );
 }
+
+// ─── Page-level styles ────────────────────────────────────────────────────────
+const pgStyles = StyleSheet.create({
+    saveBtn: {
+        backgroundColor: '#f95f62',
+        paddingHorizontal: 16,
+        paddingVertical: 7,
+        borderRadius: 20,
+    },
+    saveBtnText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+
+    sectionLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#444',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    sectionHint: {
+        fontSize: 12,
+        color: '#aaa',
+    },
+
+    bannerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 14,
+    },
+    bannerBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        alignSelf: 'flex-start',
+        gap: 5,
+    },
+    bannerBadgeText: { color: '#f95f62', fontWeight: '700', fontSize: 12 },
+    bannerTitle:     { fontSize: 19, color: '#fff', fontWeight: '700', marginTop: 2 },
+    bannerSubtitle:  { color: '#ffe7ef', fontSize: 12, lineHeight: 17, marginTop: 2 },
+
+    inputHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 2,
+    },
+    readOnlyInput: { color: '#999' },
+    charCounter:   { fontSize: 11, color: '#bbb', marginTop: 4, textAlign: 'right' },
+    placeholder:   { color: '#bbb', fontSize: 13, paddingHorizontal: 4, paddingVertical: 6 },
+
+    countBadge: { color: '#aaa', fontSize: 12, fontWeight: '400' },
+
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 2 },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f2f2f2',
+        borderRadius: 20,
+        paddingHorizontal: 11,
+        paddingVertical: 5,
+        gap: 5,
+    },
+    chipSelected:     { backgroundColor: '#f95f62' },
+    chipText:         { fontSize: 13, color: '#333' },
+    chipTextSelected: { color: '#fff', fontWeight: '600' },
+    chipRemove:       { marginLeft: 2 },
+    chipRemoveText:   { fontSize: 16, color: '#999', lineHeight: 16 },
+
+    promptCard: {
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#eee',
+        padding: 10,
+        gap: 6,
+        position: 'relative',
+        backgroundColor: '#fafafa',
+    },
+    promptRemove:   { position: 'absolute', top: 8, right: 8, zIndex: 10 },
+    promptQuestion: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: '#555', paddingRight: 24 },
+    promptAnswer:   { minHeight: 60, borderWidth: 0, backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 },
+
+    addPromptBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        padding: 10,
+        borderRadius: 10,
+        borderWidth: 1.5,
+        borderStyle: 'dashed',
+        borderColor: '#f9a0a2',
+    },
+    addPromptText: { fontSize: 14, fontWeight: '600', color: '#f95f62' },
+
+    radioLabel: { fontSize: 14, textTransform: 'capitalize' },
+
+    sheetTitle: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
+    promptSheetInput: {
+        minHeight: 80,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 10,
+        padding: 10,
+        backgroundColor: '#fafafa',
+    },
+    sheetSaveBtn: {
+        alignSelf: 'flex-end',
+        backgroundColor: '#f95f62',
+        paddingHorizontal: 18,
+        paddingVertical: 8,
+        borderRadius: 20,
+    },
+    sheetSaveBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+
+    interestCategory: {
+        borderRadius: 10,
+        overflow: 'hidden',
+        backgroundColor: '#fafafa',
+    },
+});
