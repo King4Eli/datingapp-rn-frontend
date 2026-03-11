@@ -7,6 +7,7 @@ import {
     KeyboardAvoidingView, Platform, TouchableOpacity,
     StyleSheet, LayoutAnimation, UIManager,
 } from 'react-native';
+import RNFS from 'react-native-fs';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -22,7 +23,7 @@ import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import RadioGroup from 'react-native-radio-buttons-group';
 import { styles, namer, colors } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { _http_request, help, hostServer, llStorage, mediaHandler } from '../funcs/functions';
+import { _http_request, help, hostServer, llStorage, mediaHandler, uploadHandler } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { AccordionItem } from '../funcs/customAccordion';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
@@ -58,17 +59,17 @@ interface CellDim {
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 function getCellDims(containerWidth: number): CellDim[] {
-    const colW      = (containerWidth - GAP) / 2;
-    const smallH    = colW * 0.65;
-    const bigH      = smallH * 2 + GAP;
-    const bottomH   = smallH;
+    const colW = (containerWidth - GAP) / 2;
+    const smallH = colW * 0.65;
+    const bigH = smallH * 2 + GAP;
+    const bottomH = smallH;
     const thirdColW = (containerWidth - GAP * 2) / 3;
     return [
-        { w: colW,      h: bigH,    x: 0,                     y: 0 },
-        { w: colW,      h: smallH,  x: colW + GAP,            y: 0 },
-        { w: colW,      h: smallH,  x: colW + GAP,            y: smallH + GAP },
-        { w: thirdColW, h: bottomH, x: 0,                     y: bigH + GAP },
-        { w: thirdColW, h: bottomH, x: thirdColW + GAP,       y: bigH + GAP },
+        { w: colW, h: bigH, x: 0, y: 0 },
+        { w: colW, h: smallH, x: colW + GAP, y: 0 },
+        { w: colW, h: smallH, x: colW + GAP, y: smallH + GAP },
+        { w: thirdColW, h: bottomH, x: 0, y: bigH + GAP },
+        { w: thirdColW, h: bottomH, x: thirdColW + GAP, y: bigH + GAP },
         { w: thirdColW, h: bottomH, x: (thirdColW + GAP) * 2, y: bigH + GAP },
     ];
 }
@@ -90,6 +91,30 @@ function padImages(images: PhotoItem[]): PhotoItem[] {
 
 function isEmptySlot(img: PhotoItem): boolean {
     return !img?.p && !img?.uri;
+}
+
+function getFileExtension(path: string): string {
+    const cleaned = path.split('?')[0].split('#')[0];
+    const parts = cleaned.split('.');
+    if (parts.length < 2) return 'jpg';
+    const ext = parts[parts.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '');
+    return ext || 'jpg';
+}
+
+function getMimeTypeFromExt(ext: string): string {
+    const map: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        gif: 'image/gif',
+        bmp: 'image/bmp',
+    };
+    return map[ext] ?? 'application/octet-stream';
+}
+
+function encodeFilePath(filepath: string): string {
+    return filepath.split('/').map(encodeURIComponent).join('/');
 }
 
 // ─── DraggablePhoto ───────────────────────────────────────────────────────────
@@ -118,19 +143,19 @@ const DraggablePhoto = React.memo(({
 }: DraggablePhotoProps) => {
     const empty = isEmptySlot(image);
 
-    const translateX    = useSharedValue(0);
-    const translateY    = useSharedValue(0);
-    const scale         = useSharedValue(1);
-    const zIdx          = useSharedValue(1);
+    const translateX = useSharedValue(0);
+    const translateY = useSharedValue(0);
+    const scale = useSharedValue(1);
+    const zIdx = useSharedValue(1);
     const shadowOpacity = useSharedValue(0);
 
     const gesture = Gesture.Pan()
         .minDistance(8)
         .enabled(!empty)
         .onStart(() => {
-            scale.value         = withSpring(1.07, { damping: 14, stiffness: 200 });
+            scale.value = withSpring(1.07, { damping: 14, stiffness: 200 });
             shadowOpacity.value = withTiming(0.4, { duration: 150 });
-            zIdx.value          = 100;
+            zIdx.value = 100;
             runOnJS(onDragStart)(slotIndex);
         })
         .onUpdate(e => {
@@ -139,19 +164,19 @@ const DraggablePhoto = React.memo(({
             runOnJS(onDragMove)(slotIndex, e.translationX, e.translationY);
         })
         .onEnd(e => {
-            translateX.value    = withSpring(0, { damping: 18, stiffness: 220 });
-            translateY.value    = withSpring(0, { damping: 18, stiffness: 220 });
-            scale.value         = withSpring(1);
+            translateX.value = withSpring(0, { damping: 18, stiffness: 220 });
+            translateY.value = withSpring(0, { damping: 18, stiffness: 220 });
+            scale.value = withSpring(1);
             shadowOpacity.value = withTiming(0, { duration: 200 });
-            zIdx.value          = 1;
+            zIdx.value = 1;
             runOnJS(onDragEnd)(slotIndex, e.translationX, e.translationY);
         })
         .onFinalize(() => {
-            translateX.value    = withSpring(0);
-            translateY.value    = withSpring(0);
-            scale.value         = withSpring(1);
+            translateX.value = withSpring(0);
+            translateY.value = withSpring(0);
+            scale.value = withSpring(1);
             shadowOpacity.value = withTiming(0);
-            zIdx.value          = 1;
+            zIdx.value = 1;
         });
 
     const animStyle = useAnimatedStyle(() => ({
@@ -160,9 +185,9 @@ const DraggablePhoto = React.memo(({
             { translateY: translateY.value },
             { scale: scale.value },
         ],
-        zIndex:        zIdx.value,
+        zIndex: zIdx.value,
         shadowOpacity: shadowOpacity.value,
-        elevation:     shadowOpacity.value > 0.1 ? 10 : 0,
+        elevation: shadowOpacity.value > 0.1 ? 10 : 0,
     }));
 
     return (
@@ -176,7 +201,7 @@ const DraggablePhoto = React.memo(({
                     <Pressable
                         style={[
                             photoStyles.cell,
-                            empty       && photoStyles.emptyCell,
+                            empty && photoStyles.emptyCell,
                             isDropTarget && (empty ? photoStyles.dropTargetEmpty : photoStyles.dropTargetFilled),
                         ]}
                         onPress={() => onPress(slotIndex)}
@@ -262,7 +287,7 @@ const photoStyles = StyleSheet.create({
         borderStyle: 'solid',
         backgroundColor: '#eef3fe',
     },
-    img:         { width: '100%', height: '100%' },
+    img: { width: '100%', height: '100%' },
     dropOverlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(79,142,247,0.22)',
@@ -323,11 +348,11 @@ const PhotoGrid = React.memo(({
         );
     }
 
-    const cells   = getCellDims(containerWidth);
-    const bigH    = cells[0].h;
-    const botH    = cells[3].h;
-    const total   = bigH + GAP + botH;
-    const padded  = padImages(images);
+    const cells = getCellDims(containerWidth);
+    const bigH = cells[0].h;
+    const botH = cells[3].h;
+    const total = bigH + GAP + botH;
+    const padded = padImages(images);
 
     return (
         <View
@@ -363,31 +388,31 @@ const PhotoGrid = React.memo(({
 
 export function Screen_editprofile({ navigation }: { navigation: any }) {
     const getProfile = llStorage.currentProfile.get()?.currentUser;
-    const __MAPPER   = llStorage.CONFIG.get()?.mapper;
+    const __MAPPER = llStorage.CONFIG.get()?.mapper;
     const headerHeight = useHeaderHeight();
 
     // ── Profile state ──────────────────────────────────────────────────────
-    const [getImages,           setImages]           = useState<PhotoItem[]>(getProfile?.user_image ?? []);
-    const [getId]                                    = useState<string | null>(getProfile?.user_id ?? null);
-    const [getFullname]                              = useState<string>(getProfile?.user_fullname ?? '');
-    const [getAge]                                   = useState<string>(getProfile?.user_bio_dob ?? '');
-    const [getAboutText,        setAboutText]        = useState<string>(getProfile?.user_bio_about ?? '');
-    const [getGender,           setGender]           = useState<string>(getProfile?.user_bio_gender ?? '');
-    const [getLocation]                              = useState<string>(getProfile?.user_location?.city ?? '');
-    const [getChildren,         setChildren]         = useState<string>(getProfile?.user_bio_children ?? '');
-    const [getSmoking,          setSmoking]          = useState<string>(getProfile?.user_bio_smoking ?? '');
-    const [getDrinking,         setDrinking]         = useState<string>(getProfile?.user_bio_drinking ?? '');
+    const [getImages, setImages] = useState<PhotoItem[]>(getProfile?.user_image ?? []);
+    const [getId] = useState<string | null>(getProfile?.user_id ?? null);
+    const [getFullname] = useState<string>(getProfile?.user_fullname ?? '');
+    const [getAge] = useState<string>(getProfile?.user_bio_dob ?? '');
+    const [getAboutText, setAboutText] = useState<string>(getProfile?.user_bio_about ?? '');
+    const [getGender, setGender] = useState<string>(getProfile?.user_bio_gender ?? '');
+    const [getLocation] = useState<string>(getProfile?.user_location?.city ?? '');
+    const [getChildren, setChildren] = useState<string>(getProfile?.user_bio_children ?? '');
+    const [getSmoking, setSmoking] = useState<string>(getProfile?.user_bio_smoking ?? '');
+    const [getDrinking, setDrinking] = useState<string>(getProfile?.user_bio_drinking ?? '');
     const [getRelationshipGoal, setRelationshipGoal] = useState<string>(getProfile?.user_bio_relationshipgoal ?? '');
-    const [getHomeTown,         setHomeTown]         = useState<string>(getProfile?.user_bio_hometown ?? '');
-    const [getSchoolAttended,   setSchoolAttended]   = useState<string>(getProfile?.user_bio_schoolattended ?? '');
-    const [getHighEducation,    setHighEducation]    = useState<string>(getProfile?.user_bio_highesteducation ?? '');
-    const [getEthnicity,        setEthnicity]        = useState<string>(getProfile?.user_bio_ethnicity ?? '');
-    const [getLanguages,        setLanguages]        = useState<string>(getProfile?.user_bio_language ?? '');
-    const [getPets,             setPets]             = useState<string>(getProfile?.user_bio_haspet ?? '');
-    const [getBodyType,         setBodyType]         = useState<string>(getProfile?.user_bio_bodytype ?? '');
-    const [getReligion,         setReligion]         = useState<string>(getProfile?.user_bio_religion ?? '');
-    const [getPoliticalViews,   setPoliticalViews]   = useState<string>(getProfile?.user_bio_politicalview ?? '');
-    const [getPrompts,          setPrompts]          = useState<Array<{ q: string; a: string; d: string }>>(
+    const [getHomeTown, setHomeTown] = useState<string>(getProfile?.user_bio_hometown ?? '');
+    const [getSchoolAttended, setSchoolAttended] = useState<string>(getProfile?.user_bio_schoolattended ?? '');
+    const [getHighEducation, setHighEducation] = useState<string>(getProfile?.user_bio_highesteducation ?? '');
+    const [getEthnicity, setEthnicity] = useState<string>(getProfile?.user_bio_ethnicity ?? '');
+    const [getLanguages, setLanguages] = useState<string>(getProfile?.user_bio_language ?? '');
+    const [getPets, setPets] = useState<string>(getProfile?.user_bio_haspet ?? '');
+    const [getBodyType, setBodyType] = useState<string>(getProfile?.user_bio_bodytype ?? '');
+    const [getReligion, setReligion] = useState<string>(getProfile?.user_bio_religion ?? '');
+    const [getPoliticalViews, setPoliticalViews] = useState<string>(getProfile?.user_bio_politicalview ?? '');
+    const [getPrompts, setPrompts] = useState<Array<{ q: string; a: string; d: string }>>(
         Array.isArray(getProfile?.user_bio_prompt) ? getProfile.user_bio_prompt : []
     );
     const [getInterests, setInterests] = useState<string[]>(
@@ -395,12 +420,12 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     );
 
     // ── Drag state ─────────────────────────────────────────────────────────
-    const [containerWidth,  setContainerWidth]  = useState(0);
+    const [containerWidth, setContainerWidth] = useState(0);
     const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
     // ── Bottom sheet refs ───────────────────────────────────────────────────
-    const addNewPrompt_ref      = useRef<BottomSheet>(null);
-    const addInterests_ref      = useRef<BottomSheet>(null);
+    const addNewPrompt_ref = useRef<BottomSheet>(null);
+    const addInterests_ref = useRef<BottomSheet>(null);
     const addNewPromptSnapPoints = useMemo(() => ['80%'], []);
     const addInterestsSnapPoints = useMemo(() => ['85%'], []);
 
@@ -438,7 +463,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const getImageUri = useCallback((index: number): string => {
         const target = getImages?.[index];
         if (!target) return '';
-        const path    = target?.p ?? target?.uri ?? '';
+        const path = target?.p ?? target?.uri ?? '';
         const isLocal = target?.local || path.startsWith('file:') || path.startsWith('content:');
         return isLocal ? path : String(__MAPPER?.img_domain?.[0] + path);
     }, [getImages, __MAPPER]);
@@ -464,24 +489,24 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 reqType: 'POST',
                 customApiUrl: hostServer() + '/api/core/v1/pushProfile',
                 bodyArray: {
-                    prof_about:            getAboutText        ?? '',
-                    prof_smoking:          getSmoking          ?? '',
-                    prof_drinking:         getDrinking         ?? '',
-                    prof_children:         getChildren         ?? '',
-                    prof_ethnicity:        getEthnicity        ?? '',
-                    prof_pet:              getPets             ?? '',
-                    prof_religion:         getReligion         ?? '',
-                    prof_bodytype:         getBodyType         ?? '',
-                    prof_highesteducation: getHighEducation    ?? '',
+                    prof_about: getAboutText ?? '',
+                    prof_smoking: getSmoking ?? '',
+                    prof_drinking: getDrinking ?? '',
+                    prof_children: getChildren ?? '',
+                    prof_ethnicity: getEthnicity ?? '',
+                    prof_pet: getPets ?? '',
+                    prof_religion: getReligion ?? '',
+                    prof_bodytype: getBodyType ?? '',
+                    prof_highesteducation: getHighEducation ?? '',
                     prof_relationshipgoal: getRelationshipGoal ?? '',
-                    prof_languages:        getLanguages        ?? '',
-                    prof_gender:           getGender           ?? '',
-                    prof_hometown:         getHomeTown         ?? '',
-                    prof_schoolattended:   getSchoolAttended   ?? '',
-                    prof_political:        getPoliticalViews   ?? '',
-                    prof_prompts:          JSON.stringify(getPrompts   ?? []),
-                    prof_interests:        JSON.stringify(getInterests ?? []),
-                    prof_images_meta:      JSON.stringify(orderedImageMeta),
+                    prof_languages: getLanguages ?? '',
+                    prof_gender: getGender ?? '',
+                    prof_hometown: getHomeTown ?? '',
+                    prof_schoolattended: getSchoolAttended ?? '',
+                    prof_political: getPoliticalViews ?? '',
+                    prof_prompts: JSON.stringify(getPrompts ?? []),
+                    prof_interests: JSON.stringify(getInterests ?? []),
+                    prof_images_meta: JSON.stringify(orderedImageMeta),
                 },
             });
             if (response?.code === 200) {
@@ -490,6 +515,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             } else {
                 Toastx.show({ type: 'error', message: response?.userpreferences?.message ?? 'Error updating profile!' });
             }
+        } catch (error: any) {
+            Toastx.show({ type: 'error', message: error?.message ?? 'Unable to save profile.' });
         } finally {
             Loaderx.hide();
             llStorage.currentProfile.load();
@@ -504,18 +531,56 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
         });
         if (!media || media.length === 0) return;
         const asset = media[0];
-        setImages(prev => {
-            const updated = [...prev];
-            while (updated.length <= index) updated.push({});
-            updated[index] = {
-                ...(updated[index] ?? {}),
-                p:     asset.uri,
-                local: true,
-                w:     asset.width,
-                h:     asset.height,
-            };
-            return updated.slice(0, MAX_PHOTOS);
-        });
+        const localPath = asset?.uri ?? '';
+        if (!localPath) return;
+
+        Loaderx.show();
+        try {
+            const ext = getFileExtension(localPath);
+            const presigned = await uploadHandler.requestPresignedURL_Upload(ext, 'profile-media');
+            const uploadFilePath = localPath.startsWith('file://') ? localPath.replace('file://', '') : localPath;
+            const contentType = getMimeTypeFromExt(ext);
+
+            const uploadResult = await RNFS.uploadFiles({
+                toUrl: presigned.uploadUrl,
+                files: [
+                    {
+                        name: 'file',
+                        filename: `profile_${Date.now()}_${index}.${ext}`,
+                        filepath: uploadFilePath,
+                        filetype: contentType,
+                    },
+                ],
+                method: presigned.method || 'PUT',
+                headers: {
+                    'Content-Type': contentType,
+                },
+                binaryStreamOnly: true,
+            }).promise;
+
+            if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
+                throw new Error('Profile image upload failed.');
+            }
+
+            const uploadedPath = encodeFilePath(presigned.fullPath);
+            setImages(prev => {
+                const updated = [...prev];
+                while (updated.length <= index) updated.push({});
+                updated[index] = {
+                    ...(updated[index] ?? {}),
+                    p: uploadedPath,
+                    uri: uploadedPath,
+                    local: false,
+                    w: asset.width,
+                    h: asset.height,
+                };
+                return updated.slice(0, MAX_PHOTOS);
+            });
+        } catch (error: any) {
+            Toastx.show({ type: 'error', message: error?.message ?? 'Unable to upload profile image.' });
+        } finally {
+            Loaderx.hide();
+        }
     }, []);
 
     const handleRemoveImage = useCallback((index: number) => {
@@ -534,20 +599,20 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     const handleDragMove = useCallback((fromIndex: number, tx: number, ty: number) => {
         if (containerWidth === 0) return;
         const cells = getCellDims(containerWidth);
-        const from  = cells[fromIndex];
-        const cx    = from.x + from.w / 2 + tx;
-        const cy    = from.y + from.h / 2 + ty;
-        const hit   = hitTestCell(cells, cx, cy);
+        const from = cells[fromIndex];
+        const cx = from.x + from.w / 2 + tx;
+        const cy = from.y + from.h / 2 + ty;
+        const hit = hitTestCell(cells, cx, cy);
         setDropTargetIndex(hit !== -1 && hit !== fromIndex ? hit : null);
     }, [containerWidth]);
 
     const handleDragEnd = useCallback((fromIndex: number, tx: number, ty: number) => {
         setDropTargetIndex(null);
         if (containerWidth === 0) return;
-        const cells   = getCellDims(containerWidth);
-        const from    = cells[fromIndex];
-        const cx      = from.x + from.w / 2 + tx;
-        const cy      = from.y + from.h / 2 + ty;
+        const cells = getCellDims(containerWidth);
+        const from = cells[fromIndex];
+        const cx = from.x + from.w / 2 + tx;
+        const cy = from.y + from.h / 2 + ty;
         const toIndex = hitTestCell(cells, cx, cy);
         if (toIndex !== -1 && toIndex !== fromIndex) {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -587,7 +652,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     // ── Radio builder ──────────────────────────────────────────────────────
     const buildRadios = (map: Record<string, string> | undefined) =>
         Object.entries(map ?? {}).map(([key, value]) => ({
-            id:    key,
+            id: key,
             label: value as string,
             value: value as string,
         }));
@@ -891,24 +956,24 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
                             {/* ── Life Style Accordions ─────────────────────── */}
                             {[
-                                { title: 'Do you have children?',  map: __MAPPER?.bio_children,       state: getChildren,         set: setChildren },
-                                { title: 'Do you smoke?',          map: __MAPPER?.bio_smoking,        state: getSmoking,          set: setSmoking },
-                                { title: 'Do you drink?',          map: __MAPPER?.bio_drinking,       state: getDrinking,         set: setDrinking },
-                                { title: 'Do you have a pet?',     map: __MAPPER?.bio_pets,           state: getPets,             set: setPets },
-                                { title: 'What is your religion?', map: __MAPPER?.bio_religion,       state: getReligion,         set: setReligion },
-                                { title: 'What is your ethnicity?',map: __MAPPER?.bio_ethnicity,      state: getEthnicity,        set: setEthnicity },
-                                { title: 'Describe your body type',map: __MAPPER?.bio_bodytype,       state: getBodyType,         set: setBodyType },
-                                { title: 'Political Views?',       map: __MAPPER?.bio_politicalview,  state: getPoliticalViews,   set: setPoliticalViews },
+                                { title: 'Do you have children?', map: __MAPPER?.bio_children, state: getChildren, set: setChildren },
+                                { title: 'Do you smoke?', map: __MAPPER?.bio_smoking, state: getSmoking, set: setSmoking },
+                                { title: 'Do you drink?', map: __MAPPER?.bio_drinking, state: getDrinking, set: setDrinking },
+                                { title: 'Do you have a pet?', map: __MAPPER?.bio_pets, state: getPets, set: setPets },
+                                { title: 'What is your religion?', map: __MAPPER?.bio_religion, state: getReligion, set: setReligion },
+                                { title: 'What is your ethnicity?', map: __MAPPER?.bio_ethnicity, state: getEthnicity, set: setEthnicity },
+                                { title: 'Describe your body type', map: __MAPPER?.bio_bodytype, state: getBodyType, set: setBodyType },
+                                { title: 'Political Views?', map: __MAPPER?.bio_politicalview, state: getPoliticalViews, set: setPoliticalViews },
                             ].map(({ title, map, state, set }) => (
                                 <AccordionItem
                                     key={title}
                                     title={title}
                                     titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                                    subtitle={(map as Record<string,string>)?.[state]}
+                                    subtitle={(map as Record<string, string>)?.[state]}
                                     Content={() => (
                                         <RadioGroup
                                             labelStyle={pgStyles.radioLabel}
-                                            radioButtons={buildRadios(map as Record<string,string>)}
+                                            radioButtons={buildRadios(map as Record<string, string>)}
                                             containerStyle={{ alignItems: 'flex-start' }}
                                             onPress={set}
                                             selectedId={state}
@@ -1077,8 +1142,8 @@ const pgStyles = StyleSheet.create({
         gap: 5,
     },
     bannerBadgeText: { color: '#f95f62', fontWeight: '700', fontSize: 12 },
-    bannerTitle:     { fontSize: 19, color: '#fff', fontWeight: '700', marginTop: 2 },
-    bannerSubtitle:  { color: '#ffe7ef', fontSize: 12, lineHeight: 17, marginTop: 2 },
+    bannerTitle: { fontSize: 19, color: '#fff', fontWeight: '700', marginTop: 2 },
+    bannerSubtitle: { color: '#ffe7ef', fontSize: 12, lineHeight: 17, marginTop: 2 },
 
     inputHeader: {
         flexDirection: 'row',
@@ -1087,8 +1152,8 @@ const pgStyles = StyleSheet.create({
         marginBottom: 2,
     },
     readOnlyInput: { color: '#999' },
-    charCounter:   { fontSize: 11, color: '#bbb', marginTop: 4, textAlign: 'right' },
-    placeholder:   { color: '#bbb', fontSize: 13, paddingHorizontal: 4, paddingVertical: 6 },
+    charCounter: { fontSize: 11, color: '#bbb', marginTop: 4, textAlign: 'right' },
+    placeholder: { color: '#bbb', fontSize: 13, paddingHorizontal: 4, paddingVertical: 6 },
 
     countBadge: { color: '#aaa', fontSize: 12, fontWeight: '400' },
 
@@ -1102,11 +1167,11 @@ const pgStyles = StyleSheet.create({
         paddingVertical: 5,
         gap: 5,
     },
-    chipSelected:     { backgroundColor: '#f95f62' },
-    chipText:         { fontSize: 13, color: '#333' },
+    chipSelected: { backgroundColor: '#f95f62' },
+    chipText: { fontSize: 13, color: '#333' },
     chipTextSelected: { color: '#fff', fontWeight: '600' },
-    chipRemove:       { marginLeft: 2 },
-    chipRemoveText:   { fontSize: 16, color: '#999', lineHeight: 16 },
+    chipRemove: { marginLeft: 2 },
+    chipRemoveText: { fontSize: 16, color: '#999', lineHeight: 16 },
 
     promptCard: {
         borderRadius: 10,
@@ -1117,9 +1182,9 @@ const pgStyles = StyleSheet.create({
         position: 'relative',
         backgroundColor: '#fafafa',
     },
-    promptRemove:   { position: 'absolute', top: 8, right: 8, zIndex: 10 },
+    promptRemove: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
     promptQuestion: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: '#555', paddingRight: 24 },
-    promptAnswer:   { minHeight: 60, borderWidth: 0, backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 },
+    promptAnswer: { minHeight: 60, borderWidth: 0, backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 },
 
     addPromptBtn: {
         flexDirection: 'row',
