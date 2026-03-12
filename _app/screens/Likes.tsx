@@ -303,7 +303,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                     {!activeSubscription && <View style={{ position: "absolute", bottom: 24, left: 0, right: 0, alignItems: "center" }}>
                         <Animated.View style={{ transform: [{ translateY: bounceInterpolatex }] }}><Pressable
                             style={[styles.pressableButton, { flexDirection: "row", borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 6 }]}
-                            onPress={() => navigation.push(namer.navigation.coin)}>
+                            onPress={() => navigation.push(namer.navigation.subscription)}>
                             <MaterialCommunityIcons name="heart-outline" size={24} color="#fff" />
 
                             <Text style={styles.pressableButtonText}>See who likes you</Text>

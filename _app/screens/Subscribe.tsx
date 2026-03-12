@@ -10,6 +10,71 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // Colors for tiers - will use dynamically based on tier count
 const TIER_COLORS = ['#F25F7F', '#D4AF37', '#5B8DEF', '#34C759'];
 
+const normalizePayload = (payload: any) => {
+  if (!payload) return null;
+  if (typeof payload === 'object') return payload;
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+const extractFeatureText = (feature: any): string | null => {
+  if (typeof feature === 'string') {
+    const clean = feature.trim();
+    return clean.length > 0 ? clean : null;
+  }
+
+  if (!feature || typeof feature !== 'object') return null;
+  const isEnabled = feature?.e ?? feature?.enabled ?? true;
+  if (!isEnabled) return null;
+
+  const text = feature?.d ?? feature?.description ?? feature?.text ?? '';
+  if (typeof text !== 'string') return null;
+
+  const clean = text.trim();
+  return clean.length > 0 ? clean : null;
+};
+
+const extractFeaturesFromTierItem = (tierItem: any): string[] => {
+  const fromDescription = normalizePayload(tierItem?.description);
+  if (Array.isArray(fromDescription?.features)) {
+    const featureRows = fromDescription.features
+      .map((feature: any) => extractFeatureText(feature))
+      .filter((feature: any) => typeof feature === 'string') as string[];
+    if (featureRows.length > 0) return featureRows;
+  }
+
+  const fromMeta = normalizePayload(tierItem?.meta_data);
+  if (Array.isArray(fromMeta?.features)) {
+    return fromMeta.features
+      .map((feature: any) => extractFeatureText(feature))
+      .filter((feature: any) => typeof feature === 'string') as string[];
+  }
+
+  return [];
+};
+
+const getCycleLabel = (product: any): string => {
+  const cycle = product?.meta_data?.cycle ?? product?.variant_name ?? '';
+  if (typeof cycle === 'string' && cycle.trim().length > 0) return cycle.trim();
+
+  const numericDays = Number(product?.interval_days ?? product?.billing_interval ?? NaN);
+  if (Number.isFinite(numericDays) && numericDays > 0) return `${numericDays} days`;
+
+  return 'Billing cycle';
+};
+
+const formatPrice = (price: any): string => {
+  const amount = Number(price);
+  if (!Number.isFinite(amount)) return '0.00';
+  return amount.toFixed(2);
+};
+
 export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation: any }) => {
   const __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
 
@@ -41,6 +106,10 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
 
   // Get current tier items directly from original data
   const currentTierItems = __product_MAPPER_mainsub?.[selectedTier] || [];
+  const activeTierKey = useMemo(
+    () => (activeSubscription ? getTierKeyByName(userCurrentTier) : ''),
+    [activeSubscription, getTierKeyByName, userCurrentTier]
+  );
 
   // Initialize selected billing cycle based on available options
   const [selectedDuration, setSelectedDuration] = useState<string>(() => {
@@ -57,6 +126,10 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
     currentTierItems.map((item: any) => String(item.interval_days)),
     [currentTierItems]
   );
+  const currentTierFeatures = useMemo(
+    () => extractFeaturesFromTierItem(currentTierItems[0] || {}),
+    [currentTierItems]
+  );
 
   // Update selected duration when tier changes
   useEffect(() => {
@@ -64,9 +137,19 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
       setSelectedDuration(String(currentTierItems[0].interval_days));
     }
   }, [selectedTier]);
+  useEffect(() => {
+    if (selectedTier) return;
+    if (activeTierKey) {
+      setSelectedTier(activeTierKey);
+      return;
+    }
+    if (tierKeys[0]) {
+      setSelectedTier(tierKeys[0]);
+    }
+  }, [activeTierKey, selectedTier, tierKeys]);
 
   const paymentSheetRef = useRef<BottomSheet>(null);
-  const paymentSheetSnap = useMemo(() => [], []);
+  const paymentSheetSnap = useMemo(() => ['55%'], []);
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
   const cycleItemWidth = Math.min(180, Math.max(140, Math.round(screenWidth * 0.45)));
@@ -88,8 +171,10 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
       bodyArray: {
         action: actionName,
         tier: selectedTier,
+        tier_name: currentTierItems[0]?.name ?? '',
         whentype: selectedDuration,
         product_id: selectedProduct.sku,
+        store_product_id: selectedProduct.external_3rdparty_store_product_id ?? '',
         payment_method: paymentMethod
       }
     }).then((fg: any) => {
@@ -128,8 +213,10 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
             const tierMeta = tierItems[0] || {};
             const tierColor = getTierColor(tierKey);
             const isSelected = selectedTier === tierKey;
-            const isLocked = activeSubscription && userCurrentTier === tierKey;
-            const isActive = activeSubscription && userCurrentTier === tierKey;
+            const isLocked = activeSubscription && activeTierKey === tierKey;
+            const isActive = activeSubscription && activeTierKey === tierKey;
+            const tierFeatures = extractFeaturesFromTierItem(tierMeta);
+            const tierHighlight = tierFeatures[0] || getCycleLabel(tierMeta);
 
             return (
               <TouchableOpacity
@@ -155,11 +242,11 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
                   )}
                 </View>
                 <Text style={styles.tierId}>{tierKey}</Text>
-                <Text style={styles.tierPrice}>${tierMeta.price || ''}</Text>
+                <Text style={styles.tierPrice}>${formatPrice(tierMeta.price)}</Text>
                 <View style={styles.tierFooter}>
                   <IIcon name="sparkles-outline" size={16} color={tierColor} />
                   <Text style={styles.tierFooterText}>
-                    {tierMeta.meta_data?.cycle || 'Priority matching'}
+                    {tierHighlight}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -175,10 +262,10 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
         </View>
 
         <View style={styles.benefitList}>
-          {generateFeatures(selectedTier).length === 0 ? (
+          {currentTierFeatures.length === 0 ? (
             <Text style={styles.emptyBenefit}>Benefits coming soon.</Text>
           ) : (
-            generateFeatures(selectedTier).map((benefit: string, index: number) => (
+            currentTierFeatures.map((benefit: string, index: number) => (
               <View key={index} style={styles.benefitItem}>
                 <View style={[styles.benefitIcon, { backgroundColor: getTierColor(selectedTier) }]}>
                   <IIcon name="checkmark" size={12} color="#0f0b14" />
@@ -238,10 +325,10 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
                   ]}
                 >
                   <Text style={[styles.cycleText, isSelected && styles.cycleTextSelected]}>
-                    {product.meta_data?.cycle || cycle} days
+                    {getCycleLabel(product)}
                   </Text>
                   <Text style={[styles.cyclePrice, isSelected && styles.cycleTextSelected]}>
-                    <Text style={{ fontSize: 20, fontWeight: '700' }}>${product.price}</Text> / {product.meta_data?.cycle || ''}
+                    <Text style={{ fontSize: 20, fontWeight: '700' }}>${formatPrice(product.price)}</Text> / {getCycleLabel(product)}
                   </Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -265,7 +352,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
           <SafeAreaView edges={['bottom']}>
             <Text style={styles.sheetTitle}>Choose payment method</Text>
             <Text style={styles.sheetSubtitle}>
-              {(currentTierItems[0]?.name || selectedTier).toUpperCase()} • {selectedProduct?.meta_data?.cycle || selectedDuration} days • ${selectedProduct?.price || ''}
+              {(currentTierItems[0]?.name || selectedTier).toUpperCase()} - {selectedProduct ? getCycleLabel(selectedProduct) : selectedDuration} - ${formatPrice(selectedProduct?.price)}
             </Text>
 
             <View style={styles.sheetDetails}>
@@ -278,12 +365,12 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
               <View style={styles.sheetRow}>
                 <Text style={styles.sheetLabel}>Billing Cycle</Text>
                 <Text style={styles.sheetValue}>
-                  {selectedProduct?.meta_data?.cycle || selectedDuration} days
+                  {selectedProduct ? getCycleLabel(selectedProduct) : selectedDuration}
                 </Text>
               </View>
               <View style={styles.sheetRow}>
                 <Text style={styles.sheetLabel}>Price</Text>
-                <Text style={styles.sheetValue}>${selectedProduct?.price || ''}</Text>
+                <Text style={styles.sheetValue}>${formatPrice(selectedProduct?.price)}</Text>
               </View>
             </View>
 
@@ -309,32 +396,6 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
       </BottomSheet>
     </LinearGradient>
   );
-};
-
-// Helper function to generate features based on tier
-const generateFeatures = (tierKey: string): string[] => {
-  const features: Record<string, string[]> = {
-    "mainsub.1": [
-      'Priority in matchmaking',
-      '2 super likes per day',
-      'See who liked you',
-      'Unlimited matches',
-      'Profile boost once a weekly'
-    ],
-    "mainsub.2": [
-      'All Plus features',
-      'Unlimited super likes',
-      'Travel mode',
-      'Priority customer support'
-    ]
-  };
-
-  // Default features for unknown tiers
-  return features[tierKey] || [
-    'Priority matching',
-    'Enhanced visibility',
-    'Exclusive features'
-  ];
 };
 
 const styles = StyleSheet.create({

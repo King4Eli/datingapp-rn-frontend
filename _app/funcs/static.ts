@@ -257,8 +257,7 @@ export const namer = {
         editpreference: "Editpreference",
         signup: "signup",
         login: "login",
-        subscription: "payments",
-        coin: "coins"
+        subscription: "payments" 
     },
     firebase: {
         /*

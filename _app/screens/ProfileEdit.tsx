@@ -674,7 +674,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
                             {/* ── Photo Grid ───────────────────────────────── */}
                             <View style={{ gap: 8, marginBottom: 4 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 2 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6,}}>
                                     <MIcons name="image-multiple-outline" size={15} color="#888" />
                                     <Text style={pgStyles.sectionLabel}>
                                         Profile Photos

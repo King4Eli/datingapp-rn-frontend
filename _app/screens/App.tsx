@@ -28,7 +28,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import QuickActions from 'react-native-quick-actions';
 import { Toastx } from '../funcs/customNotification';
 import { Screen_social } from './Social';
-import { Screen_Coin } from './Coin';
 import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
@@ -176,7 +175,6 @@ const MainApp: React.FC = () => {
                 <Stack.Screen name={namer.navigation.conversation} component={Screen_conversation} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
                 <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
-                <Stack.Screen name={namer.navigation.coin} component={Screen_Coin} />
                 <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
                 <Stack.Screen name={namer.navigation.subscription} component={Screen_Subscribe} options={{
                   headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {

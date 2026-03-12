@@ -24,43 +24,62 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const userCurrentTier = getProfile?.user_effect?.subscription_plan;
  
 
-    // Helper function to generate features based on tier
-    const generateFeatures = (tierKey: number): string[] => {
-        const features: Record<string, string[]> = {
-            0: [
-                '2 super likes per day',
-                'See who liked you',
-                'Unlimited matches',
-                'Profile boost once a weekly',
-                '....'
-            ],
-            1: [
-                'All Plus features',
-                'Unlimited super likes',
-                'Travel mode',
-                'Priority customer support',
-                '....'
-            ]
-        };
-
-        // Default features for unknown tiers
-        return features[tierKey] || [
-            'Priority matching',
-            'Enhanced visibility',
-            'Exclusive features'
-        ];
-    };
     // Build tier data dynamically
     const tiers = useMemo(() => {
+        const resolveFeatures = (tierItem: any): string[] => {
+            const normalize = (payload: any) => {
+                if (!payload) return null;
+                if (typeof payload === 'object') return payload;
+                if (typeof payload === 'string') {
+                    try {
+                        return JSON.parse(payload);
+                    } catch {
+                        return null;
+                    }
+                }
+                return null;
+            };
+
+            const toFeatureText = (feature: any): string | null => {
+                if (typeof feature === 'string') {
+                    const clean = feature.trim();
+                    return clean.length > 0 ? clean : null;
+                }
+
+                if (!feature || typeof feature !== 'object') return null;
+                const isEnabled = feature?.e ?? feature?.enabled ?? true;
+                if (!isEnabled) return null;
+
+                const text = feature?.d ?? feature?.description ?? feature?.text ?? '';
+                if (typeof text !== 'string') return null;
+
+                const clean = text.trim();
+                return clean.length > 0 ? clean : null;
+            };
+
+            const getFeatureList = (payload: any): string[] => {
+                const normalized = normalize(payload);
+                if (!Array.isArray(normalized?.features)) return [];
+
+                return normalized.features
+                    .map((feature: any) => toFeatureText(feature))
+                    .filter((feature: any) => typeof feature === 'string') as string[];
+            };
+
+            const fromDescription = getFeatureList(tierItem?.description);
+            if (fromDescription.length > 0) return fromDescription;
+
+            const fromMeta = getFeatureList(tierItem?.meta_data);
+            if (fromMeta.length > 0) return fromMeta;
+
+            return [];
+        };
+
         const tierData: Record<string, any> = {};
 
         Object.keys(__product_MAPPER_mainsub || {}).forEach((tierKey, index) => {
-            const tierItems = __product_MAPPER_mainsub?.[tierKey]?.[0] || [];
-            //console.log(tierItems)
-
-            // Generate features based on tier
-            const features = generateFeatures(index ?? 0);
-            //console.log(features, "features for tier", tierKey);
+            const tierItems = __product_MAPPER_mainsub?.[tierKey]?.[0] || {};
+            const features = resolveFeatures(tierItems);
             tierData[tierKey] = {
                 name: tierItems?.name?.toUpperCase(),
                 color: ['#F25F7F', '#D4AF37', '#5B8DEF', '#34C759'][index] || '#F25F7F',
@@ -70,7 +89,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         });
 
         return tierData;
-    }, []);
+    }, [__product_MAPPER_mainsub]);
 
 
     const headerHeight = useHeaderHeight();
@@ -239,6 +258,9 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                                     <Text style={stylesx.featureText}>{feature}</Text>
                                                 </View>
                                             ))}
+                                            {(tier.features ?? []).length === 0 && (
+                                                <Text style={stylesx.featureText}>No features configured</Text>
+                                            )}
                                         </View>
 
                                         <TouchableOpacity style={stylesx.upgradeButton}
