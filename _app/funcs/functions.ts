@@ -535,6 +535,7 @@ export class llStorage {
   private static tempProfile: any = null;
   private static tempMapper: any = null;
   private static tempProducts: any = null;
+
   private static normalizeProductsPayload = (rawProducts: any) => {
     if (!rawProducts) return { mainsub: {}, consumables: [] };
 
@@ -585,6 +586,7 @@ export class llStorage {
                   ? variant.description
                   : { cycle: variant?.variant_name ?? variant?.name ?? "" }),
             external_3rdparty_store_product_id: variant?.external_3rdparty_store_product_id ?? "",
+            v_id: variant?.v_id
           };
         });
 

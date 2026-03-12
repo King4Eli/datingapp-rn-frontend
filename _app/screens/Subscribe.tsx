@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated, Dimensions, Linking } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { _http_request, hostServer, llStorage } from '../funcs/functions';
+import { _http_request, hostServer, llStorage, logReport } from '../funcs/functions';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -77,6 +77,10 @@ const formatPrice = (price: any): string => {
 
 export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation: any }) => {
   const __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
+  const [getProductDetailsToBuy, setProductDetailsToBuy] = useState<{
+    sku: string;
+    variantId?: string;
+  } | null>(null);
 
   // Get all tier keys from the mapper
   const tierKeys = Object.keys(__product_MAPPER_mainsub || {});
@@ -90,7 +94,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   const getTierKeyByName = useCallback((planName?: string) => {
     if (!planName || !__product_MAPPER_mainsub) return '';
     const normalized = String(planName).toLowerCase();
-    return tierKeys.find(key => 
+    return tierKeys.find(key =>
       __product_MAPPER_mainsub[key]?.[0]?.name?.toLowerCase() === normalized
     ) || '';
   }, [__product_MAPPER_mainsub, tierKeys]);
@@ -122,7 +126,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   );
 
   // Get available cycles for current tier
-  const availableCycles = useMemo(() => 
+  const availableCycles = useMemo(() =>
     currentTierItems.map((item: any) => String(item.interval_days)),
     [currentTierItems]
   );
@@ -156,40 +160,47 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   const cycleSidePadding = Math.max(16, Math.round((screenWidth - cycleItemWidth) / 2));
 
   const handleSubscribe = (paymentMethod: 'iap' | 'card') => {
-    const actionName = (globalThis as any)?.http_namer?.pushSubscribe ?? 'pushSubscribe';
-    
-    if (!selectedProduct) {
-      Alert.alert('Error', 'Selected plan not available');
-      return;
-    }
-
     Loaderx.show();
-
-    _http_request({
-      customApiUrl: hostServer() + "/api/core/v1/pushSubscribe",
-      reqType: 'POST',
-      bodyArray: {
-        action: actionName,
-        tier: selectedTier,
-        tier_name: currentTierItems[0]?.name ?? '',
-        whentype: selectedDuration,
-        product_id: selectedProduct.sku,
-        store_product_id: selectedProduct.external_3rdparty_store_product_id ?? '',
-        payment_method: paymentMethod
-      }
-    }).then((fg: any) => {
-      if (fg?.code === 200) {
-        llStorage.currentProfile.load().then(() => {
-          setTimeout(() => {
-            Loaderx.hide();
-            navigation.goBack();
-          }, 800);
-        });
-      } else {
-        Loaderx.hide();
-        Alert.alert(fg?.message ?? 'There has been an error.');
-      }
-    });
+    if (paymentMethod === 'iap') {
+      Loaderx.hide();
+      Alert.alert('Info', 'IAP payment method is currently unavailable. Please try the credit card option or contact support.');
+      return;
+    } else if (paymentMethod === 'card') {
+      _http_request({
+        customApiUrl: hostServer() + "/api/secure/gateway/subscribe",
+        reqType: 'POST',
+        bodyArray: {
+          s_sku: getProductDetailsToBuy?.sku,
+          s_duration_int: getProductDetailsToBuy?.variantId,
+        }
+      }).then((fg: any) => {
+        if (fg?.code === 301 && fg?.type === "external" && fg?.url) {
+          // Handle payment redirect
+          Loaderx.hide();
+          Linking.openURL(fg.url).catch((e) => {
+            Alert.alert('Payment Error', 'Unable to open payment page. Please try again.');
+            logReport({
+              type: 'subscribe_redirect_error',
+              extra: 'Failed to open payment URL',
+              useraction: 'subscribe_payment_redirect',
+              url: fg.url,
+              logMessage: e?.message ?? "",
+              stackTrace: e
+            });
+          });
+        } else {
+          Loaderx.hide();
+          Alert.alert('Payment Error', fg?.message ?? 'There has been an error.');
+          logReport({
+            type: 'subscribe_payment_error',
+            extra: 'Unexpected response from subscribe API',
+            useraction: 'subscribe_payment_attempt',
+            logMessage: "",
+            stackTrace: "e"
+          });
+        }
+      });
+    }
   };
 
   const openPaymentSheet = () => {
@@ -275,7 +286,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
             ))
           )}
         </View>
- 
+
         <Text style={styles.sectionTitle}>Billing cadence</Text>
         <Animated.ScrollView
           horizontal
@@ -317,6 +328,10 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
                   onPress={() => {
                     setSelectedDuration(cycle);
                     openPaymentSheet();
+                    setProductDetailsToBuy({
+                      sku: product.sku,
+                      variantId: product.v_id,
+                    })
                   }}
                   style={[
                     styles.cyclePill,
