@@ -4,7 +4,7 @@ import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../fu
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { _http_request, help, convoHelper, llStorage, mediaHandler, screenWidth, hostServer, logReport, uploadHandler } from '../funcs/functions';
+import { _http_request, help,   llStorage, mediaHandler, screenWidth, hostServer, logReport, uploadHandler, navigationRef } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -606,7 +606,9 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     setConversations(response?.chatsMessageListings?.reverse() ?? getConversations);
                     setUser2Deets(response?.u2deets ?? getUser2Deets);
                     setConvoStarter(response?.convostarter ?? getConvoStarter);
-                    convoHelper.matchId.set(funt.matchId);
+
+                    navigationRef.setParams({ matchId: funt.matchId });
+                    
                 } else if (response !== null) {
                     Alert.alert('Error!', response?.message);
                     logReport({
@@ -624,7 +626,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         })();
 
         return () => {
-            convoHelper.matchId.set(null);
+            
         }
     }, [reloadIfRealtimeData_File]);
 

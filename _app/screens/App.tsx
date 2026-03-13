@@ -107,7 +107,6 @@ const MainApp: React.FC = () => {
 
     initializeApp().then(async () => {
       await __init__app({});
-
     }).finally(() => {
       setAllGood(true);
     });

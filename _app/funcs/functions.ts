@@ -158,11 +158,9 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): P
     const userId = llStorage.currentProfile.get()?.currentUser?.user_id;
     if (!userId) return;
     SocketClient.connect(userId, (data) => {
-      const matchId = convoHelper.matchId.get();
       const retrivedData = data?.message;
       if (data.event === 'message') {
         if (retrivedData?.type !== "single-convo") return;
-        console.log(66, retrivedData?.type)
         /*
         {
             "type":"single-convo",
@@ -173,9 +171,14 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): P
             }
         } 
         */
-        if (matchId === retrivedData?.matchId) {
-          if (navigationRef.isReady()) navigationRef.setParams({ realtimedata: retrivedData?.payload });
+        const navigationRef_route = navigationRef.getCurrentRoute();
 
+        if (navigationRef_route?.name === namer.navigation.conversation) {
+          if (navigationRef_route.params?.matchId === retrivedData?.matchId) {
+            if (navigationRef.isReady()) navigationRef.setParams({ realtimedata: retrivedData?.payload });
+          } else {
+
+          }
         } else {
           const nmessage = (retrivedData?.payload?.firstName ?? "Someone") + " has messaged you";
           if (AppState.currentState === 'active') {
@@ -192,6 +195,10 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): P
             displsyNotification(nmessage, "Tap to view message");
           }
         }
+
+
+
+
       }
     });
   })();
@@ -734,18 +741,6 @@ export class llStorage {
 }
 
 
-export class convoHelper {
-  private static tempMatchId: string | null;
-
-  public static matchId = {
-    get: () => {
-      return convoHelper.tempMatchId;
-    },
-    set: (val: string | null) => {
-      convoHelper.tempMatchId = val;
-    }
-  }
-}
 
 export class mediaHandler {
   public static handleSelectFromGallery = async (sacr: ImageLibraryOptions): Promise<Asset[] | null> => {
