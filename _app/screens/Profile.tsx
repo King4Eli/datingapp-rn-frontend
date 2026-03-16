@@ -15,14 +15,14 @@ import LottieView from 'lottie-react-native';
 
 export function Screen_profile({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
-    const __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
+    let __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
     const __product_MAPPER_consumables = llStorage.purchasing_product?.get()?.consumables;
 
     // Get profile data
     const [getProfile, setgetProfile] = useState(llStorage.currentProfile.get()?.currentUser);
-    const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
-    const userCurrentTier = getProfile?.user_effect?.subscription_plan;
- 
+    let activeSubscription = getProfile?.stats ?? {};
+    //activeSubscription = {"streakCount":1,"sub_id":"52ifcxelxzp8uhb2sgbngafb7s1pisr1smox5","sub_var":2,"sub_edate":"2026-03-20T18:15:37.000Z","sub_status":1};
+    console.log(activeSubscription)
 
     // Build tier data dynamically
     const tiers = useMemo(() => {
@@ -96,8 +96,6 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     const userVerified = getProfile?.user_verified
 
-    const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
-    const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";    //const smallPrk = getProfile.liltab;
     //console.log(getProfile?.user_verified);
 
     const profileCompletion = useMemo(() => {
@@ -231,9 +229,9 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     </View>
 
 
-                    {!userSubscriptionStep2 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
+                    {<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
 
-                        {!userSubscriptionStep1 && Object.keys(__product_MAPPER_mainsub || {}).map((tierKey, key) => {
+                        {Object.keys(__product_MAPPER_mainsub || {}).map((tierKey, key) => {
                             //console.log("Rendering tier:", tierKey, tiers[tierKey]);
                             const tier = tiers[tierKey];
                             const color = [['#000000', '#00000080'], ['#FF9E00', '#FF9E0080']]
