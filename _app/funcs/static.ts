@@ -10,17 +10,7 @@ export const colors = {
     success: '#00ff00',
     warning: '#ff9900',
     info: '#1faaff',
-    // lightGray: '#f0f0f0',
-    // darkGray: '#333',
-    // placeholder: '#999',
-    // cardBackground: '#f9f9f9',
-    // cardBorder: '#ddd',
-    // cardShadow: '#000',
-    // cardShadowOffset: { width: 0, height: 2 },
-    // cardShadowOpacity: 0.1,
-    // cardShadowRadius: 2,
-    // buttonBackground: '#1faaff',
-    // buttonText: '#fff',   
+    
     inputPlaceholder: '#999',
     sliderThumb: '#007AFF', // Blue thumb (iOS-like)
     sliderRail: '#E0E0E0', // Gray rail (inactive part)
@@ -259,18 +249,9 @@ export const namer = {
         login: "login",
         subscription: "payments" 
     },
-    firebase: {
-        /*
-          Users:{
-            userid: {
-              Message: {
-                FromUserId: string
-                Text: string
-              },
-            }
-          }
-        */
-    }
+    productCategoryName:{
+        mainsub:"mainsub"
+    }, 
 }
 
 export const resourceMap = {

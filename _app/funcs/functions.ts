@@ -536,94 +536,7 @@ export class llStorage {
   private static tempMapper: any = null;
   private static tempProducts: any = null;
 
-  private static normalizeProductsPayload = (rawProducts: any) => {
-    if (!rawProducts) return { mainsub: {}, consumables: [] };
-
-    if (!Array.isArray(rawProducts) && typeof rawProducts === "object") {
-      if (rawProducts?.mainsub || rawProducts?.consumables) {
-        return rawProducts;
-      }
-    }
-
-    if (!Array.isArray(rawProducts)) {
-      return { mainsub: {}, consumables: [] };
-    }
-
-    const normalized = {
-      mainsub: {} as Record<string, any[]>,
-      consumables: [] as any[],
-    };
-
-    const mainsubRows = rawProducts.filter(
-      (row: any) => String(row?.category ?? "").toLowerCase() === "mainsub"
-    );
-    let tierCounter = 1;
-
-    mainsubRows.forEach((row: any) => {
-      const productList = Array.isArray(row?.product_list) ? row.product_list : [];
-      productList.forEach((product: any) => {
-        const tierKey = `mainsub.${tierCounter++}`;
-        const variants = Array.isArray(product?.product_variant) ? product.product_variant : [];
-
-        const mappedVariants = variants.map((variant: any, variantIndex: number) => {
-          const parsedInterval = Number(variant?.interval_days ?? variant?.billing_interval ?? NaN);
-          const safeIntervalDays = Number.isFinite(parsedInterval) && parsedInterval > 0
-            ? parsedInterval
-            : (variantIndex + 1);
-
-          return {
-            sku: product?.sku ?? `${tierKey}.${variantIndex + 1}`,
-            name: product?.name ?? tierKey,
-            description: product?.description ?? {},
-            price: Number(variant?.price ?? 0),
-            interval_days: safeIntervalDays,
-            billing_interval: Number(variant?.billing_interval ?? variant?.interval_days ?? 0),
-            variant_name: variant?.variant_name ?? variant?.name ?? "",
-            meta_data:
-              (variant?.meta_data && typeof variant.meta_data === "object")
-                ? variant.meta_data
-                : ((variant?.description && typeof variant.description === "object")
-                  ? variant.description
-                  : { cycle: variant?.variant_name ?? variant?.name ?? "" }),
-            external_3rdparty_store_product_id: variant?.external_3rdparty_store_product_id ?? "",
-            v_id: variant?.v_id
-          };
-        });
-
-        normalized.mainsub[tierKey] = mappedVariants.length > 0
-          ? mappedVariants
-          : [{
-            sku: product?.sku ?? tierKey,
-            name: product?.name ?? tierKey,
-            description: product?.description ?? {},
-            price: 0,
-            interval_days: 0,
-            billing_interval: 0,
-            variant_name: "",
-            meta_data: {},
-            external_3rdparty_store_product_id: "",
-          }];
-      });
-    });
-
-    rawProducts
-      .filter((row: any) => String(row?.category ?? "").toLowerCase() !== "mainsub")
-      .forEach((row: any) => {
-        const productList = Array.isArray(row?.product_list) ? row.product_list : [];
-        productList.forEach((product: any) => {
-          normalized.consumables.push({
-            sku: product?.sku ?? "",
-            name: product?.name ?? String(row?.category ?? "consumable"),
-            description: product?.description ?? {},
-            category: row?.category ?? "consumables",
-            count: Number(product?.count ?? 0),
-          });
-        });
-      });
-
-    return normalized;
-  }
-
+ 
 
   public static CONFIG = {
     get: () => { return { mapper: this.tempMapper } },
@@ -644,7 +557,7 @@ export class llStorage {
       if (server?.code === 200) {
         await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
         this.tempMapper = server?.mapper_payload;
-        this.tempProducts = this.normalizeProductsPayload(server?.products);
+        this.tempProducts =  server?.products ;
       } else {
         logReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data", stackTrace: "" });
       }
@@ -740,7 +653,44 @@ export class llStorage {
   }
 }
 
+export const parseCategoryProducts = (categoryToGet:string) => {
+  const productLists= llStorage.purchasing_product?.get();
+        if (!productLists) return [];
 
+        if (Array.isArray(productLists)) {
+            const mainsubCategory = productLists.find(
+                (entry: any) => entry?.category_data?.category === categoryToGet
+            );
+            return mainsubCategory?.category_data?.products ?? productLists;
+        }
+
+        if (Array.isArray(productLists?.products)) {
+            const mainsubCategory = productLists.products.find(
+                (entry: any) => entry?.category_data?.category === categoryToGet
+            );
+            return mainsubCategory?.category_data?.products ?? [];
+        }
+
+        return Object.keys(productLists).map((tierKey) => {
+            const tierItems = productLists?.[tierKey] ?? [];
+            const firstTierItem = tierItems[0] ?? {};
+
+            return {
+                sku: firstTierItem?.sku ?? tierKey,
+                name: firstTierItem?.name ?? tierKey,
+                description: firstTierItem?.description,
+                variants: tierItems.map((item: any) => ({
+                    id: item?.v_id ?? item?.id,
+                    name: item?.meta_data?.cycle ?? item?.variant_name ?? item?.name,
+                    price: item?.price,
+                    metadata: item?.meta_data ?? {},
+                    interval_days: item?.interval_days,
+                    store_product_id: item?.store_product_id ?? '',
+                })),
+            };
+        });
+   
+    };
 
 export class mediaHandler {
   public static handleSelectFromGallery = async (sacr: ImageLibraryOptions): Promise<Asset[] | null> => {

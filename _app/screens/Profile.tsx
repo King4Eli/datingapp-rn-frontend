@@ -6,7 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, resourceMap } from '../funcs/static';
 import { ScrollView } from 'react-native-gesture-handler';
 import LinearGradient from 'react-native-linear-gradient';
-import { _http_request, help, llStorage, logReport, screenWidth } from '../funcs/functions';
+import { _http_request, help, llStorage, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
 import Svg, { Circle } from 'react-native-svg';
@@ -15,82 +15,16 @@ import LottieView from 'lottie-react-native';
 
 export function Screen_profile({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
-    let __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
+    const __product_MAPPER_mainsub = parseCategoryProducts(namer.productCategoryName.mainsub);
     const __product_MAPPER_consumables = llStorage.purchasing_product?.get()?.consumables;
-
+    
     // Get profile data
     const [getProfile, setgetProfile] = useState(llStorage.currentProfile.get()?.currentUser);
     let activeSubscription = getProfile?.stats ?? {};
     //activeSubscription = {"streakCount":1,"sub_id":"52ifcxelxzp8uhb2sgbngafb7s1pisr1smox5","sub_var":2,"sub_edate":"2026-03-20T18:15:37.000Z","sub_status":1};
     console.log(activeSubscription)
 
-    // Build tier data dynamically
-    const tiers = useMemo(() => {
-        const resolveFeatures = (tierItem: any): string[] => {
-            const normalize = (payload: any) => {
-                if (!payload) return null;
-                if (typeof payload === 'object') return payload;
-                if (typeof payload === 'string') {
-                    try {
-                        return JSON.parse(payload);
-                    } catch {
-                        return null;
-                    }
-                }
-                return null;
-            };
-
-            const toFeatureText = (feature: any): string | null => {
-                if (typeof feature === 'string') {
-                    const clean = feature.trim();
-                    return clean.length > 0 ? clean : null;
-                }
-
-                if (!feature || typeof feature !== 'object') return null;
-                const isEnabled = feature?.e ?? feature?.enabled ?? true;
-                if (!isEnabled) return null;
-
-                const text = feature?.d ?? feature?.description ?? feature?.text ?? '';
-                if (typeof text !== 'string') return null;
-
-                const clean = text.trim();
-                return clean.length > 0 ? clean : null;
-            };
-
-            const getFeatureList = (payload: any): string[] => {
-                const normalized = normalize(payload);
-                if (!Array.isArray(normalized?.features)) return [];
-
-                return normalized.features
-                    .map((feature: any) => toFeatureText(feature))
-                    .filter((feature: any) => typeof feature === 'string') as string[];
-            };
-
-            const fromDescription = getFeatureList(tierItem?.description);
-            if (fromDescription.length > 0) return fromDescription;
-
-            const fromMeta = getFeatureList(tierItem?.meta_data);
-            if (fromMeta.length > 0) return fromMeta;
-
-            return [];
-        };
-
-        const tierData: Record<string, any> = {};
-
-        Object.keys(__product_MAPPER_mainsub || {}).forEach((tierKey, index) => {
-            const tierItems = __product_MAPPER_mainsub?.[tierKey]?.[0] || {};
-            const features = resolveFeatures(tierItems);
-            tierData[tierKey] = {
-                name: tierItems?.name?.toUpperCase(),
-                color: ['#F25F7F', '#D4AF37', '#5B8DEF', '#34C759'][index] || '#F25F7F',
-                features,
-                id: tierKey
-            };
-        });
-
-        return tierData;
-    }, [__product_MAPPER_mainsub]);
-
+ 
 
     const headerHeight = useHeaderHeight();
 
@@ -231,35 +165,42 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
                     {<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
 
-                        {Object.keys(__product_MAPPER_mainsub || {}).map((tierKey, key) => {
-                            //console.log("Rendering tier:", tierKey, tiers[tierKey]);
-                            const tier = tiers[tierKey];
+                        {__product_MAPPER_mainsub?.map((tier: any, key: number) => {
                             const color = [['#000000', '#00000080'], ['#FF9E00', '#FF9E0080']]
                             const icon = ["diamond-outline", "crown-outline"]
+                            const features = (tier?.description?.features ?? [])
+                                .filter((feature: any) => feature?.e !== false && String(feature?.d ?? '').trim().length > 0)
+                                .map((feature: any) => feature.d);
 
                             return (
-                                <LinearGradient key={key}
-                                    colors={color[key]}
+                                <LinearGradient key={tier?.sku ?? key}
+                                    colors={color[key % color.length]}
                                     style={stylesx.featureCard}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 1 }}>
                                     <View style={{ padding: 16 }}>
                                         <View style={stylesx.cardHeader}>
                                             <Text style={stylesx.cardTitle}>{tier?.name}</Text>
-                                            <MIcon name={icon[key]} size={20} color="#fff" />
+                                            <MIcon name={icon[key % icon.length]} size={20} color="#fff" />
                                         </View>
 
                                         <View style={stylesx.featuresList}>
-                                            {(tier.features ?? []).map((feature: any, index: any) => (
+                                            {features.map((feature: any, index: number) => (
                                                 <View key={index} style={stylesx.featureItem}>
                                                     <IIcon name="checkmark-circle" size={16} color="#fff" />
                                                     <Text style={stylesx.featureText}>{feature}</Text>
                                                 </View>
                                             ))}
-                                            {(tier.features ?? []).length === 0 && (
+                                            {features.length === 0 && (
                                                 <Text style={stylesx.featureText}>No features configured</Text>
                                             )}
                                         </View>
+
+                                        {!!tier?.variants?.length && (
+                                            <Text style={stylesx.variantText}>
+                                                Starts at ${Number(tier.variants[0]?.price ?? 0).toFixed(2)}
+                                            </Text>
+                                        )}
 
                                         <TouchableOpacity style={stylesx.upgradeButton}
                                             onPress={() => navigation.push(namer.navigation.subscription)} >
@@ -433,6 +374,12 @@ const stylesx = StyleSheet.create({
         fontSize: 14,
         color: '#fff',
         marginLeft: 8,
+    },
+    variantText: {
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.85)',
+        marginBottom: 12,
+        fontWeight: 600,
     },
     upgradeButton: {
         backgroundColor: 'rgba(255,255,255,0.2)',
