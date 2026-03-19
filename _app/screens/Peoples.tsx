@@ -5,7 +5,7 @@ import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet,
 import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
-import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, screenHeight, sleep } from '../funcs/functions';
+import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, screenHeight } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TextInput } from 'react-native-gesture-handler';
@@ -576,7 +576,6 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 lottieRef.current?.play();
                                 setLoading(true);
                                 peoples_action('like', 0, false).then(async () => {
-                                    await sleep(600);
                                     setLoading(false);
                                     lottieRef.current?.reset();
                                 })

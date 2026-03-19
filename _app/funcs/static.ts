@@ -231,7 +231,8 @@ export const namer = {
         bundle_numcode: 'nm5wt4qadszx21',
         sessionId: 'yksgiuw5ieytjgvc', //x-omi-auth
         sessionIdVerify: 'u4iek8r6uyfh', // authorization
-        applog: 'fdgsdgn3t4gh'
+        applog: 'fdgsdgn3t4gh',
+        deviceSpecs: 'a54yregfdsg5534g'
     },
     navigation: {
         devpage: "zz_devv",

@@ -1,17 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, AppState, Dimensions, Image, PermissionsAndroid, Platform, Vibration } from 'react-native';
+import { Alert, AppState, Dimensions, PermissionsAndroid, Platform, Vibration } from 'react-native';
 import { sessionManager } from './SessionContext';
-import axios from 'axios';
 import DeviceInfo from 'react-native-device-info';
 import Geolocation from 'react-native-geolocation-service';
-import appjson from '../../app.json';
-import NetInfo from '@react-native-community/netinfo';
 import { namer } from './static';
-import notifee from '@notifee/react-native';
 import { Asset, ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
 import { createNavigationContainerRef } from '@react-navigation/native';
+import { xxa_logggingReport } from './functions/logging';
+import { xxa__http_requests } from './functions/httpRequest';
+import { xxa_getDeviceSpec } from './functions/deviceSpecs';
+
+export { xxa_getDeviceSpec as getDeviceInfo }
+export { xxa_logggingReport as logReport };
+export { xxa__http_requests as _http_request };
 
 // Define API URL
 export const hostServer = () => {
@@ -29,17 +32,13 @@ export const navigationRef = createNavigationContainerRef<any>();
 
 // Helper functions for encoding/decoding
 export const help = {
-  randomInt(min: number, max: number) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+  randomInt(minOrMax: number, max?: number) {
+    const min = max !== undefined ? minOrMax : 0;
+    const maxVal = max !== undefined ? max : minOrMax;
+
+    return Math.floor(Math.random() * (maxVal - min + 1)) + min;
   },
-  encodeStr: (st: string): string => {
-    // Placeholder for actual encoding logic
-    return st.split('').reverse().join('');
-  },
-  decodeStr: (st: string): string => {
-    // Placeholder for actual decoding logic
-    return st.split('').reverse().join('');
-  },
+
   randomAlphanumeric: (max: number, min: number = 6, upperCase: boolean = false) => {
     const chars =
       (upperCase ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : '') +
@@ -50,6 +49,14 @@ export const help = {
     return Array.from({ length }, () =>
       chars.charAt(Math.floor(Math.random() * chars.length))
     ).join('');
+  },
+  encodeStr: (st: string): string => {
+    // Placeholder for actual encoding logic
+    return st.split('').reverse().join('');
+  },
+  decodeStr: (st: string): string => {
+    // Placeholder for actual decoding logic
+    return st.split('').reverse().join('');
   },
 
   getageFromDOB: (yyyymmdd: string) => {
@@ -71,7 +78,7 @@ export const help = {
       }
       return age.toString();
     } catch (e: any) {
-      logReport({ type: 'function', extra: '', useraction: 'getageFromDOB', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: "yyyymmdd" + yyyymmdd, useraction: 'getageFromDOB', logMessage: e?.message, stackTrace: e });
       return null;
     }
   },
@@ -85,7 +92,7 @@ export const help = {
 
       return `${year}${month}${day}`;
     } catch (e: any) {
-      logReport({ type: 'function', extra: '', useraction: 'getDOBFromAge', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: 'age: ' + age, useraction: 'getDOBFromAge', logMessage: e?.message, stackTrace: e });
       return null;
     }
   },
@@ -99,7 +106,7 @@ export const help = {
 
       return (`${feet}ft' ${remainingInches}in`);
     } catch (e: any) {
-      logReport({ type: 'function', extra: '', useraction: 'cmToFtIn', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: 'cmValue ' + cmValue, useraction: 'cmToFtIn', logMessage: e?.message, stackTrace: e });
       return null;
     }
   },
@@ -111,7 +118,7 @@ export const help = {
 
       return km;
     } catch (e: any) {
-      logReport({ type: 'function', extra: '', useraction: 'milestokm', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: 'milesToKM: ' + milesValue, useraction: 'milestokm', logMessage: e?.message, stackTrace: e });
       return null;
     }
   },
@@ -149,7 +156,6 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): P
   //console.log(llStorage.CONFIG.get()?.mapper);
   ro += "sqlmapper ";
 
-  if (doAgain || !Array.isArray(llStorage.deviceSpec.get())) { await llStorage.deviceSpec.load(); ro += "device-specs "; };
   if (doAgain || !Array.isArray(llStorage.currentProfile.get()) && currentSession?.x_omi_payload_hash) { await llStorage.currentProfile.load(); ro += "userProfile "; };
 
   // connect with socket for realtime info
@@ -174,6 +180,7 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): P
         const navigationRef_route = navigationRef.getCurrentRoute();
 
         if (navigationRef_route?.name === namer.navigation.conversation) {
+          // @ts-ignore
           if (navigationRef_route.params?.matchId === retrivedData?.matchId) {
             if (navigationRef.isReady()) navigationRef.setParams({ realtimedata: retrivedData?.payload });
           } else {
@@ -192,7 +199,7 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): P
               }
             });
           } else if (AppState.currentState === 'background' || AppState.currentState === 'inactive') {
-            displsyNotification(nmessage, "Tap to view message");
+            //displsyNotification(nmessage, "Tap to view message");
           }
         }
 
@@ -206,169 +213,10 @@ export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): P
 
 
 
-// 
-export const displsyNotification = async (title: string, body?: string) => {
-  try {
-    await notifee.requestPermission();
-    // Create a channel (required for Android)
-    const channelId = await notifee.createChannel({
-      id: 'default',
-      name: 'Default Channel',
-    });
-    await notifee.displayNotification({
-      title: title,
-      body: body,
-      android: {
-        channelId: channelId,
-        pressAction: {
-          id: 'default',
-        },
-      },
-    });
-  } catch (error: any) {
-    logReport({ type: 'function', extra: "Error displaying notification:", useraction: 'displayNotification', logMessage: error?.message, stackTrace: error });
-  }
-};
 
 
-export const sleep = (ms: number) => new Promise((r: any) => setTimeout(r, ms));
-
-// Log function for debugging
-export const logReport = ({ type, extra, useraction, url, logMessage, stackTrace, reporteduserId }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any, reporteduserId?: string }): void => {
-
-  (async () => {
-    try {
-      const logD = {
-        "type": type,
-        "_error": {
-          "url": url,
-          "useraction": useraction,
-          "description": logMessage,
-          "extras": extra,
-          "stackMessage": stackTrace
-        },
-        "user": { "reporteduser": reporteduserId },
-        "device": llStorage.deviceSpec.get(),
-        "app": {
-          "version_app": DeviceInfo.getVersion(),
-          "version_bundle": appjson.appversion,
-          "buildNumber_app": DeviceInfo.getBuildNumber(),
-          "buildNumber_bundle": appjson.bundlebuildnumber,
-          "displayName_app": DeviceInfo.getApplicationName(),
-          "displayName_bundle": appjson.name,
-          "appPackageName": DeviceInfo.getBundleId(),
-          "appVersionName": DeviceInfo.getReadableVersion(),
-          "FirstInstallTime": await DeviceInfo.getFirstInstallTime(),
-          "LastUpdateTime": await DeviceInfo.getLastUpdateTime(),
-        },
-      }
-
-      try {
-        console.log("logReport:", logD);
-        const res = await fetch(hostServer() + '/api/core/v1/pushLogReport', {
-          method: 'POST', // Explicitly set method
-          headers: {
-            'Content-Type': 'application/json', // Specify content type
-            'Accept': 'application/json', // Specify accepted response type
-            'X-omi-Auth': sessionManager.getCurrentSession()?.x_omi_payload ?? '',
-            'X-omi-Hash': sessionManager.getCurrentSession()?.x_omi_payload_hash ?? ''
-          },
-          body: JSON.stringify({ // Properly stringify the entire body
-            action: 'generateLogStats',
-            scripts: JSON.stringify(logD) // No need to stringify logD twice
-          })
-        });
-      } catch (e: any) {
-        console.log("logReport fetch error:", e.message);
-        logD._error.extras += " |||| logReport fetch error: " + e.message;
-      }
-    } catch (error: any) {
-      console.error("logReport: fetching device info", error.message);
-    }
-  })();
-
-};
 
 
-// HTTP request function (GET/POST)
-export const _http_request = async ({ reqType, bodyArray, headerArray, customApiUrl }: {
-  reqType: 'GET' | 'POST', bodyArray?: Record<string, any>,
-  headerArray?: Record<string, string>, customApiUrl: string
-}): Promise<any | null> => {
-  //start
-  const currentSession = sessionManager.getCurrentSession();
-  const apiUrlToUse = customApiUrl;
-  let axiosResponse = null;
-
-  let config = {
-    method: reqType.toLowerCase(),
-    url: apiUrlToUse,
-    headers: headerArray ?? {
-      'Content-Type': 'application/json',
-      'X-omi-Auth': currentSession?.x_omi_payload,
-      'X-omi-Hash': currentSession?.x_omi_payload_hash,
-      "Accept-Encoding": "identity"
-    },
-    timeout: 20000,
-  } as any;
-
-  try {
-    const networkState = await NetInfo.fetch();
-    if (!networkState.isConnected) {
-      Alert.alert("Info", "You are not connected to the internet. Check your wifi connection");
-      return false;
-    }
-    //
-    //
-
-
-    if (reqType === 'POST') {
-      config.data = bodyArray;
-      if (bodyArray instanceof FormData) {
-        config.headers['Content-Type'] = 'multipart/form-data';
-      }
-    } else {
-      config.params = bodyArray;
-    }
-
-    axiosResponse = await axios(config);
-    //console.log(axiosResponse);
-    const contentType = axiosResponse?.headers['content-type'];
-    if (contentType?.includes('application/json')) {
-      const jsonres = axiosResponse?.data;
-
-      // json error
-      if (typeof jsonres !== 'object' || jsonres === null) {
-        logReport({ type: "http", extra: jsonres, useraction: 'http JSON parse', url: apiUrlToUse, logMessage: "", stackTrace: "" });
-      }
-      return jsonres;
-    }
-    // fallback for text
-    return typeof axiosResponse?.data === 'string' ? axiosResponse?.data : JSON.stringify(axiosResponse?.data);
-
-  } catch (err: any) {
-    const status = err.response?.status;
-    if (err.response) {
-      if (status === 401) {
-        //session expired 
-        sessionManager?.updateSession({ x_omi_payload: null, x_omi_payload_hash: null });
-        await AsyncStorage.removeItem(namer.storage.sessionId);
-        Toastx.show({ type: 'info', message: 'Session expired, login again.' });
-        return;
-      } else if (status === 404) {
-        Toastx.show({ type: 'error', message: 'Resource not found!' });
-      }
-      logReport({ type: "http " + status, useraction: 'url access', url: apiUrlToUse, logMessage: err.message, stackTrace: err.response });
-      return null;
-    } else {
-
-      Toastx.show({ type: 'error', message: 'Server Error: Network timeout' });
-    }
-
-    logReport({ type: 'http -' + status, extra: JSON.stringify(axiosResponse ?? config), useraction: 'HTTP request error', url: apiUrlToUse, logMessage: err.message, stackTrace: err });
-    return null;
-  }
-};
 
 
 // Handle login
@@ -380,7 +228,7 @@ export const _handle_Signin = async (phoneNumber: string, callingCode: string, v
     }
     //
     if (err === null) {
-      const loginRes = await _http_request({
+      const loginRes = await xxa__http_requests({
         customApiUrl: hostServer() + '/api/login',
         reqType: 'POST', bodyArray: {
           cc: callingCode,
@@ -469,7 +317,7 @@ export const _handle_Signup = async (
   }
 
   if (!err) {
-    const signupRes = await _http_request({
+    const signupRes = await xxa__http_requests({
       reqType: 'POST',
       customApiUrl: hostServer() + '/api/signup',
       bodyArray: {
@@ -531,12 +379,11 @@ export async function getCurrentLocation() {
 
 // Local storage management
 export class llStorage {
-  private static tempDevieSpec: any = null;
   private static tempProfile: any = null;
   private static tempMapper: any = null;
   private static tempProducts: any = null;
 
- 
+
 
   public static CONFIG = {
     get: () => { return { mapper: this.tempMapper } },
@@ -544,7 +391,7 @@ export class llStorage {
       const sessIdStorage = await AsyncStorage.getItem(namer.storage.sessionId);
       if (!sessIdStorage) return;
 
-      const server = await _http_request({
+      const server = await xxa__http_requests({
         reqType: "POST",
         customApiUrl: `${hostServer()}/api/core/v1/getVersioning`,
         bodyArray: {
@@ -557,12 +404,22 @@ export class llStorage {
       if (server?.code === 200) {
         await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
         this.tempMapper = server?.mapper_payload;
-        this.tempProducts =  server?.products ;
+        this.tempProducts = server?.products;
       } else {
-        logReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data", stackTrace: "" });
+        xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data", stackTrace: "" });
       }
 
     }
+
+  }
+
+  public get subscriptionDetails(): { isSubscribed: boolean; type: string } {
+    return {
+      isSubscribed: false,
+      type: ""
+    };
+  }
+  public set subscriptionDetails(profileData: any) {
 
   }
 
@@ -571,69 +428,13 @@ export class llStorage {
   }
 
 
-  public static deviceSpec = {
-    get: () => {
-      return this.tempDevieSpec;
-    },
-    load: async () => {
-
-      const deviceData = {
-        Id: DeviceInfo.getDeviceId(),
-        Type: DeviceInfo.getDeviceType(),
-        Model: DeviceInfo.getModel(),
-        Brand: DeviceInfo.getBrand(),
-        ScreenDimension: Dimensions.get('screen'),
-      };
-
-      // Parallel async calls
-      const asyncProps = await Promise.allSettled([
-        DeviceInfo.getDeviceName(),
-        DeviceInfo.getDevice(),
-        DeviceInfo.isEmulator(),
-        DeviceInfo.getManufacturer(),
-        DeviceInfo.getSerialNumber(),
-        DeviceInfo.getBootloader(),
-        DeviceInfo.getFingerprint(),
-        DeviceInfo.getUserAgent(),
-        DeviceInfo.getBaseOs(),
-        DeviceInfo.getBatteryLevel(),
-        DeviceInfo.getCarrier(),
-        DeviceInfo.getCodename(),
-        DeviceInfo.getDeviceToken(),
-        DeviceInfo.isPinOrFingerprintSet(),
-        DeviceInfo.isMouseConnected(),
-        DeviceInfo.getUniqueId(),
-      ]);
-
-      const [
-        Name, Device, isEmulator, Manufacturer, SerialNumber,
-        Bootloader, Fingerprint, UserAgent, BaseOs, BatteryLevel,
-        Carrier, Codename, Token, isPinOrFingerprintSet, isMouseConnected,
-        InstallationId
-      ] = asyncProps.map(r => r.status === 'fulfilled' ? r.value : null);
-
-
-
-      const deviceDataO = {
-        ...deviceData,
-        Name, Device, isEmulator, Manufacturer, SerialNumber,
-        Bootloader, Fingerprint, UserAgent, BaseOs, BatteryLevel,
-        Carrier, Codename, Token, isPinOrFingerprintSet, isMouseConnected,
-        InstallationId,
-        Os: `${DeviceInfo.getSystemName()} ${DeviceInfo.getSystemVersion()}`
-      }
-
-
-      this.tempDevieSpec = deviceDataO;
-    }
-  }
 
   public static currentProfile = {
     get: () => {
       return this.tempProfile;
     },
     load: async () => {
-      this.tempProfile = await _http_request({
+      this.tempProfile = await xxa__http_requests({
         customApiUrl: hostServer() + '/api/core/v1/getProfile',
         reqType: 'POST',
       });
@@ -653,44 +454,44 @@ export class llStorage {
   }
 }
 
-export const parseCategoryProducts = (categoryToGet:string) => {
-  const productLists= llStorage.purchasing_product?.get();
-        if (!productLists) return [];
+export const parseCategoryProducts = (categoryToGet: string) => {
+  const productLists = llStorage.purchasing_product?.get();
+  if (!productLists) return [];
 
-        if (Array.isArray(productLists)) {
-            const mainsubCategory = productLists.find(
-                (entry: any) => entry?.category_data?.category === categoryToGet
-            );
-            return mainsubCategory?.category_data?.products ?? productLists;
-        }
+  if (Array.isArray(productLists)) {
+    const mainsubCategory = productLists.find(
+      (entry: any) => entry?.category_data?.category === categoryToGet
+    );
+    return mainsubCategory?.category_data?.products ?? productLists;
+  }
 
-        if (Array.isArray(productLists?.products)) {
-            const mainsubCategory = productLists.products.find(
-                (entry: any) => entry?.category_data?.category === categoryToGet
-            );
-            return mainsubCategory?.category_data?.products ?? [];
-        }
+  if (Array.isArray(productLists?.products)) {
+    const mainsubCategory = productLists.products.find(
+      (entry: any) => entry?.category_data?.category === categoryToGet
+    );
+    return mainsubCategory?.category_data?.products ?? [];
+  }
 
-        return Object.keys(productLists).map((tierKey) => {
-            const tierItems = productLists?.[tierKey] ?? [];
-            const firstTierItem = tierItems[0] ?? {};
+  return Object.keys(productLists).map((tierKey) => {
+    const tierItems = productLists?.[tierKey] ?? [];
+    const firstTierItem = tierItems[0] ?? {};
 
-            return {
-                sku: firstTierItem?.sku ?? tierKey,
-                name: firstTierItem?.name ?? tierKey,
-                description: firstTierItem?.description,
-                variants: tierItems.map((item: any) => ({
-                    id: item?.v_id ?? item?.id,
-                    name: item?.meta_data?.cycle ?? item?.variant_name ?? item?.name,
-                    price: item?.price,
-                    metadata: item?.meta_data ?? {},
-                    interval_days: item?.interval_days,
-                    store_product_id: item?.store_product_id ?? '',
-                })),
-            };
-        });
-   
+    return {
+      sku: firstTierItem?.sku ?? tierKey,
+      name: firstTierItem?.name ?? tierKey,
+      description: firstTierItem?.description,
+      variants: tierItems.map((item: any) => ({
+        id: item?.v_id ?? item?.id,
+        name: item?.meta_data?.cycle ?? item?.variant_name ?? item?.name,
+        price: item?.price,
+        metadata: item?.meta_data ?? {},
+        interval_days: item?.interval_days,
+        store_product_id: item?.store_product_id ?? '',
+      })),
     };
+  });
+
+};
 
 export class mediaHandler {
   public static handleSelectFromGallery = async (sacr: ImageLibraryOptions): Promise<Asset[] | null> => {
@@ -703,7 +504,7 @@ export class mediaHandler {
       }
       return null;
     } catch (error) {
-      logReport({ type: "media", useraction: "select media error", logMessage: 'Error selecting media:', stackTrace: error });
+      xxa_logggingReport({ type: "media", useraction: "select media error", logMessage: 'Error selecting media:', stackTrace: error });
       Toastx.show({ type: 'error', message: 'Failed to select media' });
       return null;
     }
@@ -726,7 +527,7 @@ export class uploadHandler {
       requestBody.meta.convoId = convoId;
     }
 
-    const data = await _http_request({
+    const data = await xxa__http_requests({
       customApiUrl: hostServer() + "/api/core/v1/handleFileUpload",
       reqType: 'POST',
       bodyArray: requestBody
