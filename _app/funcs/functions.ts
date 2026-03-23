@@ -10,9 +10,9 @@ import { SocketClient } from './socket_realtimeData';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport } from './functions/logging';
 import { xxa__http_requests } from './functions/httpRequest';
-import { xxa_getDeviceSpec } from './functions/deviceSpecs';
+import { cacheStorage } from './functions/llstorage';
 
-export { xxa_getDeviceSpec as getDeviceInfo }
+export { cacheStorage as cacheStorage }
 export { xxa_logggingReport as logReport };
 export { xxa__http_requests as _http_request };
 
@@ -148,20 +148,17 @@ export const help = {
 };
 
 
-export const __init__app = async ({ doAgain = false }: { doAgain?: boolean }): Promise<void> => {
-  const currentSession = sessionManager.getCurrentSession();
-  let ro = "";
+
+export const __init__app = async (): Promise<void> => {
 
   await llStorage.CONFIG.generateFromServer();
-  //console.log(llStorage.CONFIG.get()?.mapper);
-  ro += "sqlmapper ";
+  //console.log(llStorage.CONFIG.get()?.mapper); 
 
-  if (doAgain || !Array.isArray(llStorage.currentProfile.get()) && currentSession?.x_omi_payload_hash) { await llStorage.currentProfile.load(); ro += "userProfile "; };
 
   // connect with socket for realtime info
   if (navigationRef === null) return;
   (() => {
-    const userId = llStorage.currentProfile.get()?.currentUser?.user_id;
+    const userId = cacheStorage.getCurrentUserProfile()?.user_id;
     if (!userId) return;
     SocketClient.connect(userId, (data) => {
       const retrivedData = data?.message;
@@ -379,7 +376,6 @@ export async function getCurrentLocation() {
 
 // Local storage management
 export class llStorage {
-  private static tempProfile: any = null;
   private static tempMapper: any = null;
   private static tempProducts: any = null;
 
@@ -428,30 +424,6 @@ export class llStorage {
   }
 
 
-
-  public static currentProfile = {
-    get: () => {
-      return this.tempProfile;
-    },
-    load: async () => {
-      this.tempProfile = await xxa__http_requests({
-        customApiUrl: hostServer() + '/api/core/v1/getProfile',
-        reqType: 'POST',
-      });
-    },
-    update: async (newData: any) => {
-      // update((getc: any) => ({ currentUser: { ...getc, settings: getuser_settings } }));
-      if (typeof newData === "function") {
-        this.tempProfile = {
-          ...this.tempProfile,
-          ...newData(this.tempProfile),
-        };
-      } else {
-        // direct object merge
-        this.tempProfile = { ...this.tempProfile, ...newData };
-      }
-    }
-  }
 }
 
 export const parseCategoryProducts = (categoryToGet: string) => {

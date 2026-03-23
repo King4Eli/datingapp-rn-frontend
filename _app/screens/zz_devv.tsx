@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { View, Text, Button, ScrollView, StyleSheet, Pressable, Linking } from 'react-native';
 import { Toastx } from '../funcs/customNotification';
-import { __init__app, hostServer, llStorage, logReport } from '../funcs/functions';
+import { __init__app, cacheStorage, hostServer, llStorage, logReport } from '../funcs/functions';
 import DeviceInfo from 'react-native-device-info';
 import RNRestart from 'react-native-restart';
 
@@ -15,7 +15,8 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
             <Text style={{ backgroundColor: "#7eb400", color: "#fffdfd", padding: 10 }}>Debug Tools</Text>
             <ScrollView style={[{ flex: 1 }]} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 10, gap: 20 }}>
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
-                    await __init__app({ doAgain: true });
+                    await __init__app( );
+                    await cacheStorage.getCurrentUserProfile(true);
                     Toastx.show({ type: "info", message: "_ _init__app updated successfully" });
                 }}>
                     <Text>reload update __init__app fun </Text>
@@ -27,7 +28,7 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
 
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
                     Linking.openURL(
-                        hostServer() + '/admin/admin_user_detail.php?id=' + llStorage.currentProfile.get()?.currentUser?.user_id
+                        hostServer() + '/admin/admin_user_detail.php?id=' + cacheStorage.getCurrentUserProfile()?.user_id
                     );
                 }}>
                     <Text>Profile admin url:{"\n"}{hostServer()}</Text>

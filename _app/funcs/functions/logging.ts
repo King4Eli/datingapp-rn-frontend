@@ -1,6 +1,6 @@
 import DeviceInfo from "react-native-device-info";
 import appjson from '../../../app.json';
-import { hostServer, getDeviceInfo } from "../functions.ts";
+import { hostServer, cacheStorage } from "../functions.ts";
 import { sessionManager } from "../SessionContext";
 
 // Log function for debugging
@@ -36,7 +36,7 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, s
                     "stackMessage": stackTrace
                 },
                 "user": {},
-                "device": await getDeviceInfo(),
+                "device": await cacheStorage.getDeviceData(),
                 "app": await getAppMeta(),
             }
 

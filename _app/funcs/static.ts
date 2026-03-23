@@ -232,7 +232,8 @@ export const namer = {
         sessionId: 'yksgiuw5ieytjgvc', //x-omi-auth
         sessionIdVerify: 'u4iek8r6uyfh', // authorization
         applog: 'fdgsdgn3t4gh',
-        deviceSpecs: 'a54yregfdsg5534g'
+        deviceSpecs: 'a54yregfdsg5534g',
+        currentUserProfile: "b5rb5vt8euiynry"
     },
     navigation: {
         devpage: "zz_devv",

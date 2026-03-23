@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { namer, styles } from '../funcs/static';
-import { __init__app, _http_request, hostServer, llStorage, logReport } from '../funcs/functions';
+import { __init__app, _http_request, cacheStorage, hostServer, llStorage, logReport } from '../funcs/functions';
 import appJson from '../../app.json';
 import DeviceInfo from 'react-native-device-info';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,7 +41,7 @@ const MODERN_COLORS = {
 
 
 export function Screen_settings({ navigation }: { navigation: any }) {
-  const [getProfile, setProfile] = useState(llStorage.currentProfile.get()?.currentUser);
+  const [getProfile, setProfile] = useState(cacheStorage.getCurrentUserProfile());
 
   const [getAllowOnlyVerified, setAllowOnlyVerified] = useState(getProfile?.messagefromonlyverified ?? false);
   const [getSnoozeAccount, setSnoozeAccount] = useState(getProfile?.snooze ?? false);
@@ -345,7 +345,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               message: "Upgrade to VIP to unlock this feature",
               duration: 3000
             });
-            navigation.push(namer.navigation.coin, { tab: "vip" });
           } else {
             onValueChange(!value);
           }
@@ -1094,7 +1093,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               />
             </ModernSection>
 
-            
+
 
             {/* Logout & Delete Section */}
             <View style={modernStyles.dangerSection}>
@@ -1155,9 +1154,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             onCancel={() => bottomSheetRef_email.ref.current?.close()}
             onComplete={async () => {
               // Refresh profile data
-              await __init__app({ doAgain: true });
+              await __init__app();
               bottomSheetRef_email.ref.current?.close();
-              setProfile(llStorage.currentProfile.get()?.currentUser);
+              setProfile(cacheStorage.getCurrentUserProfile());
 
             }} />
         </BottomSheetView>
@@ -1170,9 +1169,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           <PhoneChangeFlow currentPhone={getProfile?.user_phonenumber || ''}
             onComplete={async () => {
               // Refresh profile data
-              await __init__app({ doAgain: true });
+              await __init__app();
               bottomSheetRef_phone.ref.current?.close();
-              setProfile(llStorage.currentProfile.get()?.currentUser);
+              setProfile(cacheStorage.getCurrentUserProfile());
             }}
             onCancel={() => bottomSheetRef_phone.ref.current?.close()} />
         </BottomSheetView>

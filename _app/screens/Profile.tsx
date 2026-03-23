@@ -6,7 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, resourceMap } from '../funcs/static';
 import { ScrollView } from 'react-native-gesture-handler';
 import LinearGradient from 'react-native-linear-gradient';
-import { _http_request, help, llStorage, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
+import { _http_request, cacheStorage, help, llStorage, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import FastImage from 'react-native-fast-image';
 import Svg, { Circle } from 'react-native-svg';
@@ -17,18 +17,18 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
     const __product_MAPPER_mainsub = parseCategoryProducts(namer.productCategoryName.mainsub);
     const __product_MAPPER_consumables = llStorage.purchasing_product?.get()?.consumables;
-    
+
     // Get profile data
-    const [getProfile, setgetProfile] = useState(llStorage.currentProfile.get()?.currentUser);
+    const [getProfile, setProfile] = useState(cacheStorage.getCurrentUserProfile());
     let activeSubscription = getProfile?.stats ?? {};
     //activeSubscription = {"streakCount":1,"sub_id":"52ifcxelxzp8uhb2sgbngafb7s1pisr1smox5","sub_var":2,"sub_edate":"2026-03-20T18:15:37.000Z","sub_status":1};
     console.log(activeSubscription)
 
- 
+
 
     const headerHeight = useHeaderHeight();
 
-    const userVerified = getProfile?.user_verified
+    const userVerified = getProfile?.profile.verified
 
     //console.log(getProfile?.user_verified);
 
@@ -52,14 +52,16 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
 
     useFocusEffect(React.useCallback(() => {
-        setgetProfile(llStorage.currentProfile.get()?.currentUser);
+        const va=cacheStorage.getCurrentUserProfile()
+        setProfile(va);
+        console.log(va)
     }, []));
 
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTransparent: true,
             headerRight: () => (<View style={{ paddingRight: 5 }}>
-                <Pressable style={{ marginRight: 5 }} onPress={() => { navigation.push(namer.navigation.settings); }}>
+                <Pressable style={{ marginRight: 5 }} onPress={() => { navigation.navigate(namer.navigation.settings); }}>
                     <MIcon name="cog-outline" size={32} color="#333333" />
                 </Pressable>
             </View>),
@@ -100,13 +102,13 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                 <View style={{ gap: 10 }}>
                     <View style={{ gap: 10 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
-                            <Pressable onPress={async () => { navigation.push(namer.navigation.editprofile); }}>
+                            <Pressable onPress={async () => { navigation.navigate(namer.navigation.editprofile); }}>
                                 <View style={{ position: "relative", width: 108, height: 108, }}>
                                     <CircularProgress progress={profileCompletion} />
 
                                     <View style={{ borderRadius: 100, padding: 4, }}>
                                         <FastImage style={{ width: 100, height: 100, borderRadius: 100, alignSelf: 'center', }} resizeMode='cover' source={{ uri: String(__MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? "")) }}
-                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (getProfile?.user_image?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
+                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: __MAPPER?.img_domain[0] + (getProfile?.profile?.images?.[0]?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
 
                                         {userVerified && <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'white', borderRadius: 50 }}>
                                             <IIcon name="checkmark-done-circle-sharp" size={32} color="#4F8EF7" />
@@ -116,19 +118,19 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                             </Pressable>
 
                             <View style={{ gap: 15 }}>
-                                <Text style={{ fontSize: 16, fontWeight: 600, }}>{getProfile?.user_fullname}, {help.getageFromDOB(getProfile?.user_bio_dob)}</Text>
+                                <Text style={{ fontSize: 16, fontWeight: 600, }}>{getProfile?.profile?.fullname}, {help.getageFromDOB(getProfile?.profile?.dob)}</Text>
                             </View>
                         </View>
 
                         <View style={{ flexDirection: "row", gap: 5 }}>
-                            <Pressable onPress={() => navigation.push(namer.navigation.editprofile)}
+                            <Pressable onPress={() => navigation.navigate(namer.navigation.editprofile)}
                                 style={ag.aj} >
                                 <MIcon name="square-edit-outline" size={22} color="#fff" />
                                 <Text style={{ color: "#fff" }}>Edit Profile</Text>
                             </Pressable>
 
                             {!userVerified && (
-                                <Pressable onPress={() => navigation.push(namer.navigation.editprofile)}
+                                <Pressable onPress={() => navigation.navigate(namer.navigation.editprofile)}
                                     style={[ag.aj, { backgroundColor: "#b683e9ff" }]} >
                                     <MIcon name="camera" size={22} color="#ffffff" />
                                     <Text style={{ color: "#fff", lineHeight: 15 }}>Verify Account</Text>

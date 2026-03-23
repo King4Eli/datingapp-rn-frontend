@@ -23,7 +23,7 @@ import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import RadioGroup from 'react-native-radio-buttons-group';
 import { styles, namer, colors } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { _http_request, help, hostServer, llStorage, mediaHandler, uploadHandler } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, llStorage, mediaHandler, uploadHandler } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { AccordionItem } from '../funcs/customAccordion';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
@@ -387,7 +387,7 @@ const PhotoGrid = React.memo(({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export function Screen_editprofile({ navigation }: { navigation: any }) {
-    const getProfile = llStorage.currentProfile.get()?.currentUser;
+    const getProfile = cacheStorage.getCurrentUserProfile();
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
     const headerHeight = useHeaderHeight();
 
@@ -519,7 +519,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             Toastx.show({ type: 'error', message: error?.message ?? 'Unable to save profile.' });
         } finally {
             Loaderx.hide();
-            llStorage.currentProfile.load();
+            cacheStorage.getCurrentUserProfile(true);
         }
     };
 
@@ -674,7 +674,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
                             {/* ── Photo Grid ───────────────────────────────── */}
                             <View style={{ gap: 8, marginBottom: 4 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6,}}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, }}>
                                     <MIcons name="image-multiple-outline" size={15} color="#888" />
                                     <Text style={pgStyles.sectionLabel}>
                                         Profile Photos

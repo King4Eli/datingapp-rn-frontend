@@ -5,7 +5,7 @@ import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet,
 import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
-import { _http_request, getCurrentLocation, help, hostServer, llStorage, logReport, screenHeight } from '../funcs/functions';
+import { _http_request, cacheStorage, getCurrentLocation, help, hostServer, llStorage, logReport, screenHeight } from '../funcs/functions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TextInput } from 'react-native-gesture-handler';
@@ -25,7 +25,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const [gptmd, sptmd] = useState<boolean>(false);
     const scrollViewRef = useRef<ScrollView>(null);
     const headerHeight = useHeaderHeight();
-    const [getProfile, setProfile] = useState(llStorage.currentProfile.get()?.currentUser);
+    const [getProfile, setProfile] = useState(cacheStorage.getCurrentUserProfile());
     const [getSkippedPeoples, setSkippedPeoples] = useState<any[]>([]);
     const [photoIndex, setPhotoIndex] = useState(0);
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<string | null>(null);
@@ -265,9 +265,9 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 if (response?.code === 200) {
                                     Toastx.show({ type: 'success', message: "Location updated successfully!" });
 
-                                    llStorage.currentProfile.load().then(() => {
-                                        setProfile(llStorage.currentProfile.get()?.currentUser);
-                                    });
+
+                                    setProfile(cacheStorage.getCurrentUserProfile(true));
+
 
                                     sptmd(!gptmd); // Refresh the peoples list
                                 } else {
