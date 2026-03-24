@@ -23,7 +23,7 @@ import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import RadioGroup from 'react-native-radio-buttons-group';
 import { styles, namer, colors } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { _http_request, cacheStorage, help, hostServer, llStorage, mediaHandler, uploadHandler } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, llStorage, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { AccordionItem } from '../funcs/customAccordion';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
@@ -449,27 +449,27 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         // Basic info
                         id: profile?.profile?.id ?? null,
                         fullname: profile?.profile?.fullname ?? '',
-                        age: profile?.profile?.age ?? null,
-                        about: profile?.user_bio_about ?? '',
-                        city: profile?.user_location?.city ?? '',
+                        age: profile?.profile?.dob ?? null,
+                        about: profile?.bio?.about ?? '',
+                        city: profile?.profile?.location?.city ?? '',
 
                         // Preferences/Attributes
-                        gender: profile?.user_bio_gender ?? null,
-                        relationshipgoal: profile?.user_bio_relationshipgoal ?? null,
-                        children: profile?.user_bio_children ?? null,
-                        smoking: profile?.user_bio_smoking ?? null,
-                        drinking: profile?.user_bio_drinking ?? null,
-                        pets: profile?.user_bio_haspet ?? null,
-                        highEducation: profile?.user_bio_highesteducation ?? null,
-                        ethnicity: profile?.user_bio_ethnicity ?? null,
-                        bodytype: profile?.user_bio_bodytype ?? null,
-                        religion: profile?.user_bio_religion ?? null,
-                        politicalview: profile?.user_bio_politicalview ?? null,
+                        gender: profile?.bio?.gender ?? null,
+                        relationshipgoal: profile?.bio?.relationshipgoal ?? null,
+                        children: profile?.bio?.children ?? null,
+                        smoking: profile?.bio?.smoking ?? null,
+                        drinking: profile?.bio?.drinking ?? null,
+                        pets: profile?.bio?.haspet ?? null,
+                        highEducation: profile?.bio?.highesteducation ?? null,
+                        ethnicity: profile?.bio?.ethnicity ?? null,
+                        bodytype: profile?.bio?.bodytype ?? null,
+                        religion: profile?.bio?.religion ?? null,
+                        politicalview: profile?.bio?.politicalview ?? null,
 
                         // Text fields
-                        hometown: profile?.user_bio_hometown ?? '',
-                        schoolattended: profile?.user_bio_schoolattended ?? '',
-                        languages: profile?.user_bio_language ?? [],
+                        hometown: profile?.bio?.hometown ?? '',
+                        schoolattended: profile?.bio?.schoolattended ?? '',
+                        languages: profile?.bio?.language ?? [],
                     });
                     setPrompts(Array.isArray(profile?.user_bio_prompt) ? profile.user_bio_prompt : []);
                     setInterests(Array.isArray(profile?.user_bio_interests) ? profile.user_bio_interests : []);
@@ -567,12 +567,12 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                     prof_drinking: getProfileEdit?.drinking,
                     prof_children: getProfileEdit?.children,
                     prof_ethnicity: getProfileEdit?.ethnicity,
-                    prof_pet: getProfileEdit?.pets,
+                    //prof_pet: getProfileEdit?.pets,
                     prof_religion: getProfileEdit?.religion,
                     prof_bodytype: getProfileEdit?.bodytype,
                     prof_highesteducation: getProfileEdit?.highEducation,
                     prof_relationshipgoal: getProfileEdit?.relationshipgoal,
-                    prof_languages: getProfileEdit?.languages,
+                    prof_languages: JSON.stringify(getProfileEdit?.languages ?? []),
                     prof_gender: getProfileEdit?.gender,
                     prof_hometown: getProfileEdit?.hometown,
                     prof_schoolattended: getProfileEdit?.schoolattended,
@@ -584,6 +584,9 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             });
             if (response?.code === 200) {
                 Toastx.show({ type: 'success', message: response?.userpreferences?.message ?? 'Profile updated!' });
+                await cacheStorage.getCurrentUserProfile(true);
+                await sleep(2000);
+                Loaderx.hide();
                 navigation.goBack();
             } else {
                 Toastx.show({ type: 'error', message: response?.userpreferences?.message ?? 'Error updating profile!' });
@@ -592,7 +595,6 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             Toastx.show({ type: 'error', message: error?.message ?? 'Unable to save profile.' });
         } finally {
             Loaderx.hide();
-            cacheStorage.getCurrentUserProfile(true);
         }
     };
 
@@ -850,8 +852,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         labelStyle={pgStyles.radioLabel}
                                         radioButtons={buildRadios(__MAPPER?.bio_intent)}
                                         containerStyle={{ alignItems: 'flex-start' }}
-                                        onPress={(e) => updateProfileEdit({ relationshipgoal: e })}
-                                        selectedId={getProfileEdit.relationshipgoal ?? ""}
+                                        onPress={(v) => updateProfileEdit({ relationshipgoal: v })}
+                                        selectedId={getProfileEdit.relationshipgoal?.toString() ?? ""}
                                     />
                                 )}
                             />
@@ -866,8 +868,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         labelStyle={pgStyles.radioLabel}
                                         radioButtons={buildRadios(__MAPPER?.bio_gender)}
                                         containerStyle={{ alignItems: 'flex-start' }}
-                                        onPress={() => updateProfileEdit({ gender: "" })}
-                                        selectedId={getProfileEdit.gender ?? ""}
+                                        onPress={(v) => updateProfileEdit({ gender: v })}
+                                        selectedId={getProfileEdit.gender?.toString() ?? ""}
                                     />
                                 )}
                             />
@@ -945,7 +947,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                         radioButtons={buildRadios(__MAPPER?.bio_education)}
                                         containerStyle={{ alignItems: 'flex-start' }}
                                         onPress={(id) => updateProfileEdit({ highEducation: id })}
-                                        selectedId={getProfileEdit.highEducation ?? undefined}
+                                        selectedId={getProfileEdit.highEducation?.toString() ?? ""}
                                     />
                                 )}
                             />
@@ -960,7 +962,10 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     style={styles.editprofile_input}
                                     value={getProfileEdit.languages.join(', ')}
                                     onChangeText={(text) => updateProfileEdit({
-                                        languages: text.split(',').map(l => l.trim()).filter(l => l)
+                                        languages: text
+                                            .split(',')
+                                            .map((item) => item.trim())
+                                            .filter(Boolean)
                                     })}
                                     placeholder="Languages you speak (comma separated)"
                                     placeholderTextColor="#bbb"
@@ -1051,7 +1056,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                             radioButtons={buildRadios(map as Record<string, string>)}
                                             containerStyle={{ alignItems: 'flex-start' }}
                                             onPress={set}
-                                            selectedId={state ?? undefined}
+                                            selectedId={state?.toString() ?? undefined}
                                         />
                                     )}
                                 />

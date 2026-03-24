@@ -149,10 +149,11 @@ export const help = {
 
 
 
+
 export const __init__app = async (): Promise<void> => {
 
   await llStorage.CONFIG.getMapper();
-  
+
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
   const getSession_hash = sessionManager.getCurrentSession()?.x_omi_payload_hash;
 
@@ -380,7 +381,7 @@ export async function getCurrentLocation() {
 
 // Local storage management
 export class llStorage {
-  private static tempMapper: any = null; 
+  private static tempMapper: any = null;
 
 
 
@@ -402,7 +403,7 @@ export class llStorage {
 
       if (server?.code === 200) {
         await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
-        this.tempMapper = server?.mapper_payload; 
+        this.tempMapper = server?.mapper_payload;
       } else {
         xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data", stackTrace: "" });
       }
@@ -412,7 +413,7 @@ export class llStorage {
   }
 
 
- 
+
 
 
 }
@@ -501,3 +502,8 @@ export class uploadHandler {
     return data.data;
   };
 }
+
+
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise(rv => setTimeout(rv, ms));
+};
