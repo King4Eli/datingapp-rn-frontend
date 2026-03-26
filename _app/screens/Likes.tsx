@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, Dimensions, StyleSheet, Animated, Easing, FlatList, ScrollView, Image, ActivityIndicator } from 'react-native';
-import { _http_request, help, hostServer, llStorage, logReport, screenWidth } from '../funcs/functions';
-import { useFocusEffect } from '@react-navigation/native'; 
+import { _http_request, cacheStorage, help, hostServer, llStorage, logReport, screenWidth } from '../funcs/functions';
+import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, resourceMap } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import { BlurView } from '@react-native-community/blur';
@@ -14,7 +14,7 @@ import LottieView from 'lottie-react-native';
 export function Screen_likes({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
 
-    const getProfile = llStorage.currentProfile.get()?.currentUser;
+    const [getProfile, setProfile] = useState<any>(null);
     const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
     const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
     const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";
@@ -38,7 +38,25 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, [getNewLikes]);
 
 
+    // profile
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const [profile] = await Promise.all([cacheStorage.getCurrentUserProfile()]);
+                if (mounted && profile) {
+                    setProfile(profile);
+                }
+            } catch (error) {
+                console.error("Error loading profile:", error);
+                if (mounted) {
+                    setProfile(null);
+                }
+            }
+        })();
 
+        return () => { mounted = false; };
+    }, []);
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'left',

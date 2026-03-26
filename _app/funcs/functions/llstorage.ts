@@ -12,13 +12,13 @@ export class cacheStorage {
     public static getCurrentUserProfile = (forceRefresh = false): Promise<any> => {
         // Return from memory cache if available and not forcing refresh
         if (!forceRefresh && this.profileMemoryCache) {
-            console.log("profile from memory cache");
+            //console.log("profile from cache");
             return Promise.resolve(this.profileMemoryCache);
         }
 
         // Prevent duplicate concurrent requests
         if (!forceRefresh && this.profileLoadingPromise) {
-            console.log("profile request in progress, waiting...");
+            //console.log("profile request in progress, waiting...");
             return this.profileLoadingPromise;
         }
 
@@ -30,7 +30,7 @@ export class cacheStorage {
                     try {
                         const cachedProfile = await AsyncStorage.getItem(namer.storage.currentUserProfile);
                         if (cachedProfile) {
-                            console.log("profile from AsyncStorage");
+                            //console.log("profile from AsyncStorage");
                             this.profileMemoryCache = JSON.parse(cachedProfile);
                             return this.profileMemoryCache;
                         }
@@ -40,7 +40,7 @@ export class cacheStorage {
                 }
 
                 // Fetch fresh data from API
-                console.log("fetching profile from API");
+                //console.log("fetching profile from API");
                 const profile = await _http_request({
                     customApiUrl: hostServer() + '/api/core/v1/getProfile',
                     reqType: 'POST',
@@ -53,7 +53,7 @@ export class cacheStorage {
                 } else {
                     this.profileMemoryCache = null;
                     await AsyncStorage.removeItem(namer.storage.currentUserProfile);
-                    console.log("Profile removed")
+                    console.log("Profile removed. no valid data")
                 }
                 return this.profileMemoryCache;
             } catch (error) {
@@ -74,7 +74,7 @@ export class cacheStorage {
     public static getDeviceData = (forceRefresh = false): Promise<any> => {
         // memory cache
         if (!forceRefresh && this.deviceMemoryCache) {
-            console.log("device info from cache");
+            //console.log("device info from cache");
             return this.deviceMemoryCache;
         }
 
@@ -88,7 +88,7 @@ export class cacheStorage {
             if (!forceRefresh) {
                 const getFromLocalStorage = await AsyncStorage.getItem(namer.storage.deviceSpecs);
                 if (getFromLocalStorage) {
-                    console.log("device info from LocalStorage");
+                    //console.log("device info from LocalStorage");
                     this.deviceMemoryCache = JSON.parse(getFromLocalStorage);
                     return this.deviceMemoryCache;
                 }
@@ -174,13 +174,13 @@ export class cacheStorage {
     public static getProducts = (forceRefresh = false): Promise<any> => {
         // Return from memory cache if available and not forcing refresh
         if (!forceRefresh && this.productsMemoryCache) {
-            console.log("getProducts info from memory cache");
+            //console.log("getProducts info from cache");
             return Promise.resolve(this.productsMemoryCache);
         }
 
         // Prevent duplicate concurrent requests
         if (!forceRefresh && this.productsLoadingPromise) {
-            console.log("productsLoadingPromise request in progress, waiting...");
+            //console.log("productsLoadingPromise request in progress, waiting...");
             return this.productsLoadingPromise;
         }
 
@@ -192,7 +192,7 @@ export class cacheStorage {
                     try {
                         const cachedProducts = await AsyncStorage.getItem(namer.storage.products);
                         if (cachedProducts) {
-                            console.log("getProducts from AsyncStorage");
+                            //console.log("getProducts from AsyncStorage");
                             this.productsMemoryCache = JSON.parse(cachedProducts);
                             return this.productsMemoryCache;
                         }
@@ -202,20 +202,20 @@ export class cacheStorage {
                 }
 
                 // Fetch fresh data from API
-                console.log("fetching getProducts from API");
+                //console.log("fetching getProducts from API");
                 const response = await _http_request({
                     customApiUrl: hostServer() + '/api/core/v1/getProducts',
                     reqType: 'POST',
                 });
 
-                console.log("API response:", response);
+                //console.log("API response:", response);
 
                 // Extract products from response
                 const productsData = response?.products;
 
                 if (productsData !== undefined && productsData !== null && productsData !== "") {
                     // Cache in memory and AsyncStorage
-                    console.log("getProducts added successfully");
+                    //console.log("getProducts added successfully");
                     this.productsMemoryCache = productsData;
                     await AsyncStorage.setItem(namer.storage.products, JSON.stringify(productsData));
                 } else {

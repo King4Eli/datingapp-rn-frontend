@@ -4,7 +4,7 @@ import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../fu
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { _http_request, help,   llStorage, mediaHandler, screenWidth, hostServer, logReport, uploadHandler, navigationRef, cacheStorage } from '../funcs/functions';
+import { _http_request, help, llStorage, mediaHandler, screenWidth, hostServer, logReport, uploadHandler, navigationRef, cacheStorage } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
 import { ScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,8 +43,10 @@ interface convoInterface {
 }
 
 export function Screen_conversation({ navigation, route }: { navigation: any, route: any }) {
+
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
-    const [getProfile, setProfile] = useState(cacheStorage.getCurrentUserProfile());
+    const imageDomain = __MAPPER?.img_domain[0];
+     const [getProfile, setProfile] = useState<any>(null);
 
     const [getConversations, setConversations] = useState<convoInterface[]>([]);
     const [getUser2Deets, setUser2Deets] = useState<any>([]);
@@ -66,7 +68,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const bottomSheet_convotools = {
         ref: useRef<BottomSheet>(null), snap: useMemo(() => [], [])
     };
-    const bottomSheetSnapPoints_convotools = useMemo(() => ['20%'], []);
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<any | null>(null);
     const autoStopRecordingRef = useRef(false);
     const isRecordingRef = useRef(false);
@@ -78,8 +79,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             setStarterIndex(viewableItems[0].index);
         }
     }).current;
-
-    const img_server = String(__MAPPER?.img_domain?.[0] ?? "");
+ 
 
     useEffect(() => {
         isRecordingRef.current = isRecording;
@@ -103,7 +103,25 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         }
     }, [route?.params?.realtimedata])
 
+    // profile
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const [profile] = await Promise.all([cacheStorage.getCurrentUserProfile()]);
+                if (mounted && profile) {
+                    setProfile(profile);
+                }
+            } catch (error) {
+                console.error("Error loading profile:", error);
+                if (mounted) {
+                    setProfile(null);
+                }
+            }
+        })();
 
+        return () => { mounted = false; };
+    }, []);
 
     const handleInsertPrompt = (text: string) => {
         setInputText(text);
@@ -177,7 +195,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
 
         if (rawUri.startsWith('/')) {
-            return `${img_server}${rawUri}`;
+            return `${imageDomain}${rawUri}`;
         }
 
         return rawUri;
@@ -191,7 +209,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         if (normalized.startsWith('http') || normalized.startsWith('file:') || normalized.startsWith('content:')) {
             return normalized;
         }
-        return `${img_server}${normalized}`;
+        return `${imageDomain}${normalized}`;
     };
 
     const requestAudioPermission = async () => {
@@ -492,7 +510,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         };
     };
 
- 
+
     const buildUploadTarget = (rawName: string | null | undefined, mediaType: UploadDescriptor['mediaType']) => {
         const fallbackExt = mediaType === 'audio'
             ? 'm4a'
@@ -511,7 +529,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         };
     };
 
-    
+
 
     const uploadWithPresigned = async (descriptor: UploadDescriptor): Promise<UploadedMedia> => {
         // Fix content type for Android audio files
@@ -609,7 +627,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     setConvoStarter(response?.convostarter ?? getConvoStarter);
 
                     navigationRef.setParams({ matchId: funt.matchId });
-                    
+
                 } else if (response !== null) {
                     Alert.alert('Error!', response?.message);
                     logReport({
@@ -627,7 +645,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         })();
 
         return () => {
-            
+
         }
     }, [reloadIfRealtimeData_File]);
 
@@ -1140,7 +1158,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
                                 let imgPath = img?.p;
                                 if (!funt.isLocalFile(img)) {
-                                    imgPath = (img_server + img?.p) || img?.p;
+                                    imgPath = (imageDomain + img?.p) || img?.p;
                                 }
 
                                 return (
@@ -1185,7 +1203,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     <View style={{ paddingVertical: 5 }}>
                         <Pressable onPress={() => { navigation.push(namer.navigation.peoplesOnePerson, { alreadyLiked: true, likedMatchedId: funt.matchId, getOnePersonId: getUser2Deets?.uid }); }}
                             style={{ backgroundColor: '#f3f6ff', borderRadius: 14, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            {getUser2Deets?.image?.p ? <FastImage source={{ uri: img_server + getUser2Deets?.image?.p, cache: FastImage.cacheControl.immutable }}
+                            {getUser2Deets?.image?.p ? <FastImage source={{ uri: imageDomain + getUser2Deets?.image?.p, cache: FastImage.cacheControl.immutable }}
                                 style={{ width: 80, height: 80, borderRadius: 50 }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: '#d7def5' }} />}
                             <View style={{ flex: 1, gap: 4 }}>
                                 <Text style={{ fontSize: 16, fontWeight: 'bold', textTransform: "capitalize" }}>{getUser2Deets?.fullname || "Your match"}</Text>

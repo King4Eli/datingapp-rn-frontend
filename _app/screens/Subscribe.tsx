@@ -2,162 +2,156 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated, Dimensions, Linking } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { _http_request, hostServer, llStorage, logReport } from '../funcs/functions';
+import { _http_request, cacheStorage, hostServer, logReport, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { namer } from '../funcs/static';
 
-// Colors for tiers - will use dynamically based on tier count
 const TIER_COLORS = ['#F25F7F', '#D4AF37', '#5B8DEF', '#34C759'];
 
 const normalizePayload = (payload: any) => {
-  if (!payload) return null;
+  if (!payload || typeof payload !== 'object') return null;
   if (typeof payload === 'object') return payload;
-  if (typeof payload === 'string') {
-    try {
-      return JSON.parse(payload);
-    } catch {
-      return null;
-    }
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return null;
   }
-  return null;
 };
 
 const extractFeatureText = (feature: any): string | null => {
-  if (typeof feature === 'string') {
-    const clean = feature.trim();
-    return clean.length > 0 ? clean : null;
-  }
-
+  if (typeof feature === 'string') return feature.trim() || null;
   if (!feature || typeof feature !== 'object') return null;
   const isEnabled = feature?.e ?? feature?.enabled ?? true;
-  if (!isEnabled) return null;
-
   const text = feature?.d ?? feature?.description ?? feature?.text ?? '';
-  if (typeof text !== 'string') return null;
-
-  const clean = text.trim();
-  return clean.length > 0 ? clean : null;
+  return isEnabled && typeof text === 'string' ? text.trim() || null : null;
 };
 
 const extractFeaturesFromTierItem = (tierItem: any): string[] => {
-  const fromDescription = normalizePayload(tierItem?.description);
-  if (Array.isArray(fromDescription?.features)) {
-    const featureRows = fromDescription.features
-      .map((feature: any) => extractFeatureText(feature))
-      .filter((feature: any) => typeof feature === 'string') as string[];
-    if (featureRows.length > 0) return featureRows;
+  // Direct description.features array
+  if (tierItem?.description?.features && Array.isArray(tierItem.description.features)) {
+    const features = tierItem.description.features
+      .map(extractFeatureText)
+      .filter(Boolean) as string[];
+    if (features.length) return features;
   }
-
-  const fromMeta = normalizePayload(tierItem?.meta_data);
-  if (Array.isArray(fromMeta?.features)) {
-    return fromMeta.features
-      .map((feature: any) => extractFeatureText(feature))
-      .filter((feature: any) => typeof feature === 'string') as string[];
+  
+  // Fallback to meta_data if exists
+  const metaData = normalizePayload(tierItem?.meta_data);
+  if (metaData?.features && Array.isArray(metaData.features)) {
+    const features = metaData.features
+      .map(extractFeatureText)
+      .filter(Boolean) as string[];
+    if (features.length) return features;
   }
-
+  
   return [];
 };
 
-const getCycleLabel = (product: any): string => {
-  const cycle = product?.meta_data?.cycle ?? product?.variant_name ?? '';
-  if (typeof cycle === 'string' && cycle.trim().length > 0) return cycle.trim();
-
-  const numericDays = Number(product?.interval_days ?? product?.billing_interval ?? NaN);
-  if (Number.isFinite(numericDays) && numericDays > 0) return `${numericDays} days`;
-
+const getCycleLabel = (variant: any): string => {
+  // Use metadata.cycle first
+  if (variant?.metadata?.cycle) {
+    const cycle = variant.metadata.cycle.trim();
+    if (cycle) return cycle;
+  }
+  
+  // Fallback to variant name
+  if (variant?.name) {
+    const name = variant.name.trim();
+    if (name) return name;
+  }
+  
   return 'Billing cycle';
 };
 
 const formatPrice = (price: any): string => {
   const amount = Number(price);
-  if (!Number.isFinite(amount)) return '0.00';
-  return amount.toFixed(2);
+  return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
 };
 
 export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation: any }) => {
-  const __product_MAPPER_mainsub = llStorage.purchasing_product?.get()?.mainsub;
-  const [getProductDetailsToBuy, setProductDetailsToBuy] = useState<{
-    sku: string;
-    variantId?: string;
-  } | null>(null);
-
-  // Get all tier keys from the mapper
-  const tierKeys = Object.keys(__product_MAPPER_mainsub || {});
-
-  // Get profile data
-  const getProfile = llStorage.currentProfile.get()?.currentUser;
-  const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
-  const userCurrentTier = getProfile?.user_effect?.subscription_plan;
-
-  // Helper to find tier key by plan name
-  const getTierKeyByName = useCallback((planName?: string) => {
-    if (!planName || !__product_MAPPER_mainsub) return '';
-    const normalized = String(planName).toLowerCase();
-    return tierKeys.find(key =>
-      __product_MAPPER_mainsub[key]?.[0]?.name?.toLowerCase() === normalized
-    ) || '';
-  }, [__product_MAPPER_mainsub, tierKeys]);
-
-  // Initialize selected tier based on user's current subscription
-  const [selectedTier, setSelectedTier] = useState<string>(() => {
-    if (activeSubscription && userCurrentTier) {
-      const mapped = getTierKeyByName(userCurrentTier);
-      if (mapped) return mapped;
-    }
-    return route?.params?.tab || (tierKeys[0] || '');
-  });
-
-  // Get current tier items directly from original data
-  const currentTierItems = __product_MAPPER_mainsub?.[selectedTier] || [];
-  const activeTierKey = useMemo(
-    () => (activeSubscription ? getTierKeyByName(userCurrentTier) : ''),
-    [activeSubscription, getTierKeyByName, userCurrentTier]
-  );
-
-  // Initialize selected billing cycle based on available options
-  const [selectedDuration, setSelectedDuration] = useState<string>(() => {
-    return currentTierItems[0]?.interval_days ? String(currentTierItems[0].interval_days) : '';
-  });
-
-  // Find selected product item
-  const selectedProduct = currentTierItems.find(
-    (item: any) => String(item.interval_days) === selectedDuration
-  );
-
-  // Get available cycles for current tier
-  const availableCycles = useMemo(() =>
-    currentTierItems.map((item: any) => String(item.interval_days)),
-    [currentTierItems]
-  );
-  const currentTierFeatures = useMemo(
-    () => extractFeaturesFromTierItem(currentTierItems[0] || {}),
-    [currentTierItems]
-  );
-
-  // Update selected duration when tier changes
-  useEffect(() => {
-    if (currentTierItems.length > 0) {
-      setSelectedDuration(String(currentTierItems[0].interval_days));
-    }
-  }, [selectedTier]);
-  useEffect(() => {
-    if (selectedTier) return;
-    if (activeTierKey) {
-      setSelectedTier(activeTierKey);
-      return;
-    }
-    if (tierKeys[0]) {
-      setSelectedTier(tierKeys[0]);
-    }
-  }, [activeTierKey, selectedTier, tierKeys]);
-
+  const [profile, setProfile] = useState<any>(null);
+  const [products, setProducts] = useState<any>(null);
+  const [selectedTier, setSelectedTier] = useState<string>(() => route?.params?.tab || '');
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [productDetails, setProductDetails] = useState<{ sku: string; variantId?: number } | null>(null);
+  
   const paymentSheetRef = useRef<BottomSheet>(null);
-  const paymentSheetSnap = useMemo(() => ['55%'], []);
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
   const cycleItemWidth = Math.min(180, Math.max(140, Math.round(screenWidth * 0.45)));
   const cycleSidePadding = Math.max(16, Math.round((screenWidth - cycleItemWidth) / 2));
+
+  // Load data
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [rawProducts, userProfile] = await Promise.all([
+          cacheStorage.getProducts().then(raw => parseCategoryProducts(raw, namer.productCategoryName.mainsub)),
+          cacheStorage.getCurrentUserProfile()
+        ]);
+        if (mounted) {
+          setProducts(rawProducts);
+          setProfile(userProfile);
+        }
+      } catch {
+        if (mounted) {
+          setProducts(null);
+          setProfile(null);
+        }
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const tierKeys = useMemo(() => 
+    products?.map((tier: any) => tier.name?.trim()).filter(Boolean) ?? [],
+    [products]
+  );
+
+  const activeSubscription = profile?.user_effect?.has_active_subscription ?? false;
+  const userCurrentTier = profile?.user_effect?.subscription_plan;
+  
+  const getTierKeyByName = useCallback((planName?: string) => {
+    if (!planName || !products) return '';
+    const normalized = planName.toLowerCase().trim();
+    const match = products.find((tier: any) => 
+      tier.name?.toLowerCase().trim() === normalized
+    );
+    return match?.name?.trim() ?? '';
+  }, [products]);
+
+  const activeTierKey = activeSubscription ? getTierKeyByName(userCurrentTier) : '';
+
+  // Set initial tier
+  useEffect(() => {
+    if (!selectedTier) {
+      setSelectedTier(activeTierKey || tierKeys[0] || '');
+    }
+  }, [activeTierKey, tierKeys, selectedTier]);
+
+  const currentTier = products?.find((tier: any) => tier.name?.trim() === selectedTier) || null;
+  const currentVariants = currentTier?.variants ?? [];
+  
+  const currentTierFeatures = extractFeaturesFromTierItem(currentTier || {});
+
+  // Set initial variant
+  useEffect(() => {
+    if (currentVariants.length) {
+      setSelectedVariantId(currentVariants[0]?.id ?? null);
+    } else {
+      setSelectedVariantId(null);
+    }
+  }, [currentVariants]);
+
+  const selectedVariant = currentVariants.find((v: any) => v.id === selectedVariantId) || currentVariants[0] || null;
+
+  const getTierColor = useCallback((tierKey: string) => 
+    TIER_COLORS[tierKeys.indexOf(tierKey)] || '#F25F7F',
+    [tierKeys]
+  );
 
   const handleSubscribe = (paymentMethod: 'iap' | 'card') => {
     Loaderx.show();
@@ -165,86 +159,61 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
       Loaderx.hide();
       Alert.alert('Info', 'IAP payment method is currently unavailable. Please try the credit card option or contact support.');
       return;
-    } else if (paymentMethod === 'card') {
-      _http_request({
-        customApiUrl: hostServer() + "/api/secure/gateway/subscribe",
-        reqType: 'POST',
-        bodyArray: {
-          s_sku: getProductDetailsToBuy?.sku,
-          s_duration_int: getProductDetailsToBuy?.variantId,
-        }
-      }).then((fg: any) => {
-        if (fg?.code === 301 && fg?.type === "external" && fg?.url) {
-          // Handle payment redirect
-          Loaderx.hide();
-          Linking.openURL(fg.url).catch((e) => {
-            Alert.alert('Payment Error', 'Unable to open payment page. Please try again.');
-            logReport({
-              type: 'subscribe_redirect_error',
-              extra: 'Failed to open payment URL',
-              useraction: 'subscribe_payment_redirect',
-              url: fg.url,
-              logMessage: e?.message ?? "",
-              stackTrace: e
-            });
-          });
-        } else {
-          Loaderx.hide();
-          Alert.alert('Payment Error', fg?.message ?? 'There has been an error.');
-          logReport({
-            type: 'subscribe_payment_error',
-            extra: 'Unexpected response from subscribe API',
-            useraction: 'subscribe_payment_attempt',
-            logMessage: "",
-            stackTrace: "e"
-          });
-        }
-      });
     }
+    
+    _http_request({
+      customApiUrl: `${hostServer()}/api/secure/gateway/subscribe`,
+      reqType: 'POST',
+      bodyArray: {
+        s_sku: productDetails?.sku,
+        s_duration_int: productDetails?.variantId,
+      }
+    }).then((fg: any) => {
+      Loaderx.hide();
+      if (fg?.code === 301 && fg?.type === "external" && fg?.url) {
+        Linking.openURL(fg.url).catch(() => {
+          Alert.alert('Payment Error', 'Unable to open payment page. Please try again.');
+        });
+      } else {
+        Alert.alert('Payment Error', fg?.message ?? 'There has been an error.');
+      }
+    });
   };
 
   const openPaymentSheet = () => {
-    if (!selectedDuration || !selectedProduct) return;
+    if (!selectedVariantId || !selectedVariant) return;
     paymentSheetRef.current?.snapToIndex(0);
   };
-
-  // Get tier display color
-  const getTierColor = useCallback((tierKey: string) => {
-    const index = tierKeys.indexOf(tierKey);
-    return TIER_COLORS[index] || '#F25F7F';
-  }, [tierKeys]);
 
   return (
     <LinearGradient colors={['#0f0b14', '#171126', '#0f111a']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-
+        {/* Tier Selection */}
         <View style={styles.tierRow}>
-          {tierKeys.map((tierKey) => {
-            const tierItems = __product_MAPPER_mainsub?.[tierKey] || [];
-            const tierMeta = tierItems[0] || {};
+          {tierKeys.map(tierKey => {
+            const tierData = products?.find((tier: any) => tier.name?.trim() === tierKey);
             const tierColor = getTierColor(tierKey);
             const isSelected = selectedTier === tierKey;
-            const isLocked = activeSubscription && activeTierKey === tierKey;
             const isActive = activeSubscription && activeTierKey === tierKey;
-            const tierFeatures = extractFeaturesFromTierItem(tierMeta);
-            const tierHighlight = tierFeatures[0] || getCycleLabel(tierMeta);
+            const tierFeatures = extractFeaturesFromTierItem(tierData || {});
+            const tierHighlight = tierFeatures[0] || tierData?.variants?.[0]?.metadata?.cycle || tierData?.name || '';
 
             return (
               <TouchableOpacity
                 key={tierKey}
                 activeOpacity={0.9}
-                disabled={isLocked}
+                disabled={isActive}
                 onPress={() => setSelectedTier(tierKey)}
                 style={[
                   styles.tierCard,
                   { borderColor: tierColor },
                   isSelected && { backgroundColor: 'rgba(255,255,255,0.05)', shadowColor: tierColor },
-                  isLocked && styles.tierCardDisabled,
+                  isActive && styles.tierCardDisabled,
                 ]}
               >
                 <View style={styles.tierHeader}>
                   <Text style={[styles.tierName, { color: tierColor }]}>
-                    {(tierMeta.name || tierKey).toUpperCase()}
+                    {tierKey.toUpperCase()}
                   </Text>
                   {isActive && (
                     <View style={[styles.badge, { backgroundColor: tierColor }]}>
@@ -252,23 +221,20 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
                     </View>
                   )}
                 </View>
-                <Text style={styles.tierId}>{tierKey}</Text>
-                <Text style={styles.tierPrice}>${formatPrice(tierMeta.price)}</Text>
                 <View style={styles.tierFooter}>
                   <IIcon name="sparkles-outline" size={16} color={tierColor} />
-                  <Text style={styles.tierFooterText}>
-                    {tierHighlight}
-                  </Text>
+                  <Text style={styles.tierFooterText}>{tierHighlight}</Text>
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
 
+        {/* Benefits Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>What's included</Text>
           <Text style={styles.sectionHint}>
-            Tailored to {(currentTierItems[0]?.name || selectedTier).toUpperCase()}
+            Tailored to {selectedTier.toUpperCase()}
           </Text>
         </View>
 
@@ -276,7 +242,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
           {currentTierFeatures.length === 0 ? (
             <Text style={styles.emptyBenefit}>Benefits coming soon.</Text>
           ) : (
-            currentTierFeatures.map((benefit: string, index: number) => (
+            currentTierFeatures.map((benefit, index) => (
               <View key={index} style={styles.benefitItem}>
                 <View style={[styles.benefitIcon, { backgroundColor: getTierColor(selectedTier) }]}>
                   <IIcon name="checkmark" size={12} color="#0f0b14" />
@@ -287,6 +253,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
           )}
         </View>
 
+        {/* Billing Cycles */}
         <Text style={styles.sectionTitle}>Billing cadence</Text>
         <Animated.ScrollView
           horizontal
@@ -294,44 +261,30 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
           contentContainerStyle={[styles.cycleRow, { paddingHorizontal: cycleSidePadding }]}
           snapToInterval={cycleItemWidth + 12}
           decelerationRate="fast"
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: true }
-          )}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
           scrollEventThrottle={16}
         >
-          {availableCycles.map((cycle: string, index: number) => {
-            const product = currentTierItems.find((p: any) => String(p.interval_days) === cycle);
-            if (!product) return null;
-
-            const isSelected = selectedDuration === cycle;
+          {currentVariants.map((variant: any, index: number) => {
+            const isSelected = selectedVariantId === variant.id;
             const tierColor = getTierColor(selectedTier);
             const inputRange = [
               (index - 1) * (cycleItemWidth + 12),
               index * (cycleItemWidth + 12),
               (index + 1) * (cycleItemWidth + 12),
             ];
-            const scale = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.92, 1.05, 0.92],
-              extrapolate: 'clamp',
-            });
-            const opacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.7, 1, 0.7],
-              extrapolate: 'clamp',
-            });
+            const scale = scrollX.interpolate({ inputRange, outputRange: [0.92, 1.05, 0.92], extrapolate: 'clamp' });
+            const opacity = scrollX.interpolate({ inputRange, outputRange: [0.7, 1, 0.7], extrapolate: 'clamp' });
 
             return (
-              <Animated.View key={cycle} style={{ transform: [{ scale }], opacity, paddingTop: 20 }}>
+              <Animated.View key={variant.id} style={{ transform: [{ scale }], opacity, paddingTop: 20 }}>
                 <TouchableOpacity
                   onPress={() => {
-                    setSelectedDuration(cycle);
+                    setSelectedVariantId(variant.id);
                     openPaymentSheet();
-                    setProductDetailsToBuy({
-                      sku: product.sku,
-                      variantId: product.v_id,
-                    })
+                    setProductDetails({
+                      sku: currentTier?.sku,
+                      variantId: variant.id,
+                    });
                   }}
                   style={[
                     styles.cyclePill,
@@ -340,11 +293,16 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
                   ]}
                 >
                   <Text style={[styles.cycleText, isSelected && styles.cycleTextSelected]}>
-                    {getCycleLabel(product)}
+                    {getCycleLabel(variant)}
                   </Text>
                   <Text style={[styles.cyclePrice, isSelected && styles.cycleTextSelected]}>
-                    <Text style={{ fontSize: 20, fontWeight: '700' }}>${formatPrice(product.price)}</Text> / {getCycleLabel(product)}
+                    <Text style={{ fontSize: 20, fontWeight: '700' }}>${formatPrice(variant.price)}</Text> / {getCycleLabel(variant)}
                   </Text>
+                  {variant.metadata?.discount && (
+                    <Text style={[styles.discountBadge, isSelected && styles.discountBadgeSelected]}>
+                      {variant.metadata.discount}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </Animated.View>
             );
@@ -356,50 +314,45 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
         </Text>
       </ScrollView>
 
+      {/* Payment Sheet */}
       <BottomSheet
         ref={paymentSheetRef}
         index={-1}
         enablePanDownToClose
-        snapPoints={paymentSheetSnap}
+        snapPoints={['55%']}
         backdropComponent={bottomsheet_renderBackdrop}
       >
         <BottomSheetView style={styles.sheetContainer}>
           <SafeAreaView edges={['bottom']}>
             <Text style={styles.sheetTitle}>Choose payment method</Text>
             <Text style={styles.sheetSubtitle}>
-              {(currentTierItems[0]?.name || selectedTier).toUpperCase()} - {selectedProduct ? getCycleLabel(selectedProduct) : selectedDuration} - ${formatPrice(selectedProduct?.price)}
+              {selectedTier.toUpperCase()} - {selectedVariant ? getCycleLabel(selectedVariant) : ''} - ${formatPrice(selectedVariant?.price)}
             </Text>
 
             <View style={styles.sheetDetails}>
-              <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Plan</Text>
-                <Text style={styles.sheetValue}>
-                  {(currentTierItems[0]?.name || selectedTier).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Billing Cycle</Text>
-                <Text style={styles.sheetValue}>
-                  {selectedProduct ? getCycleLabel(selectedProduct) : selectedDuration}
-                </Text>
-              </View>
-              <View style={styles.sheetRow}>
-                <Text style={styles.sheetLabel}>Price</Text>
-                <Text style={styles.sheetValue}>${formatPrice(selectedProduct?.price)}</Text>
-              </View>
+              {[
+                { label: 'Plan', value: selectedTier.toUpperCase() },
+                { label: 'Billing Cycle', value: selectedVariant ? getCycleLabel(selectedVariant) : '' },
+                { label: 'Price', value: `$${formatPrice(selectedVariant?.price)}` }
+              ].map(({ label, value }) => (
+                <View key={label} style={styles.sheetRow}>
+                  <Text style={styles.sheetLabel}>{label}</Text>
+                  <Text style={styles.sheetValue}>{value}</Text>
+                </View>
+              ))}
+              {selectedVariant?.metadata?.discount && (
+                <View style={styles.sheetRow}>
+                  <Text style={styles.sheetLabel}>Discount</Text>
+                  <Text style={[styles.sheetValue, { color: '#10b981' }]}>{selectedVariant.metadata.discount}</Text>
+                </View>
+              )}
             </View>
 
-            <TouchableOpacity
-              style={[styles.sheetButton, styles.sheetButtonPrimary]}
-              onPress={() => handleSubscribe('iap')}
-            >
+            <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonPrimary]} onPress={() => handleSubscribe('iap')}>
               <Text style={styles.sheetButtonTextPrimary}>Pay with in-app purchase</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.sheetButton, styles.sheetButtonSecondary]}
-              onPress={() => handleSubscribe('card')}
-            >
+            <TouchableOpacity style={[styles.sheetButton, styles.sheetButtonSecondary]} onPress={() => handleSubscribe('card')}>
               <Text style={styles.sheetButtonTextSecondary}>Pay with credit card</Text>
             </TouchableOpacity>
 
@@ -430,8 +383,6 @@ const styles = StyleSheet.create({
   tierCardDisabled: { opacity: 0.45 },
   tierHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tierName: { fontSize: 16, fontWeight: '700' },
-  tierId: { color: '#9ca3af', marginTop: 4, fontSize: 13 },
-  tierPrice: { color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 10 },
   tierFooter: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
   tierFooterText: { color: '#cbd5e1', fontSize: 13 },
   badge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
@@ -446,19 +397,25 @@ const styles = StyleSheet.create({
   emptyBenefit: { color: '#9ca3af', fontSize: 14 },
   cycleRow: { flexDirection: 'row', marginBottom: 24 },
   cyclePill: {
-    flexBasis: '48%',
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#2f3040',
     backgroundColor: 'rgba(255,255,255,0.02)',
+    alignItems: 'center',
   },
-  cycleText: { color: '#e5e7eb', fontWeight: '700' },
+  cycleText: { color: '#e5e7eb', fontWeight: '700', textAlign: 'center' },
   cycleTextSelected: { color: '#0f0b14' },
-  cyclePrice: { color: '#cbd5e1', marginTop: 4, fontSize: 13 },
-  ctaButton: { padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 16 },
-  ctaText: { color: '#0f0b14', fontSize: 17, fontWeight: '800' },
-  ctaSubtext: { color: '#0f0b14', fontSize: 13, marginTop: 4 },
+  cyclePrice: { color: '#cbd5e1', marginTop: 4, fontSize: 13, textAlign: 'center' },
+  discountBadge: {
+    fontSize: 10,
+    color: '#10b981',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  discountBadgeSelected: {
+    color: '#0f0b14',
+  },
   disclaimer: { color: '#9ca3af', fontSize: 12, lineHeight: 16, textAlign: 'center' },
   sheetContainer: { padding: 20 },
   sheetTitle: { color: '#111827', fontSize: 18, fontWeight: '700' },

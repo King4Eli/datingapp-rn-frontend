@@ -18,15 +18,15 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     const [getProfile, setProfile] = useState<any>(null);
     const [__getProducts_mainsub, __setProducts_mainsub] = useState<any>(null);
+    const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const imageDomain = __MAPPER?.img_domain[0];
 
     const userVerified = getProfile?.profile.verified
 
 
 
-    const __MAPPER = llStorage.CONFIG.get()?.mapper;
     const __product_MAPPER_consumables: any = null;//llStorage.purchasing_product?.get()?.consumables;
 
-    const imageDomain = __MAPPER?.img_domain[0];
 
     let activeSubscription = getProfile?.stats ?? {};
     //activeSubscription = {"streakCount":1,"sub_id":"52ifcxelxzp8uhb2sgbngafb7s1pisr1smox5","sub_var":2,"sub_edate":"2026-03-20T18:15:37.000Z","sub_status":1};
