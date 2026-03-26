@@ -35,9 +35,13 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
             <Text style={{ backgroundColor: "#7eb400", color: "#fffdfd", padding: 10 }}>Debug Tools</Text>
             <ScrollView style={[{ flex: 1 }]} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 10, gap: 20 }}>
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
-                    await __init__app();
-                    const upo = await cacheStorage.getCurrentUserProfile(true);
-                    setProfile(upo);
+                 
+                    const [profile]=await Promise.all([
+                        cacheStorage.getCurrentUserProfile(true),
+                        cacheStorage.getProducts(true),
+                        __init__app()
+                    ]); 
+                    setProfile(profile);
                     Toastx.show({ type: "info", message: "_ _init__app updated successfully" });
                 }}>
                     <Text>reload update __init__app fun </Text>

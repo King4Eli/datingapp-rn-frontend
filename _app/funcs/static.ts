@@ -10,7 +10,7 @@ export const colors = {
     success: '#00ff00',
     warning: '#ff9900',
     info: '#1faaff',
-    
+
     inputPlaceholder: '#999',
     sliderThumb: '#007AFF', // Blue thumb (iOS-like)
     sliderRail: '#E0E0E0', // Gray rail (inactive part)
@@ -23,10 +23,10 @@ export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
-        paddingHorizontal:H_PADDING,
+        paddingHorizontal: H_PADDING,
     },
     conainerScrollView: {
-        paddingHorizontal:H_PADDING,
+        paddingHorizontal: H_PADDING,
         position: 'relative'
     },
     input: {
@@ -226,14 +226,14 @@ export const styles = StyleSheet.create({
 });
 
 export const namer = {
-    storage: { 
-        mapper_payload: 'cbvyshctds', 
+    storage: {
+        mapper_payload: 'cbvyshctds',
         sessionId: 'yksgiuw5ieytjgvc', //x-omi-auth
         sessionIdVerify: 'u4iek8r6uyfh', // authorization
         applog: 'fdgsdgn3t4gh',
         deviceSpecs: 'a54yregfdsg5534g',
         currentUserProfile: "b5rb5vt8euiynry",
-        products:"j6yn65ik57y"
+        products: "j6yn65ik57y"
     },
     navigation: {
         devpage: "zz_devv",
@@ -249,13 +249,14 @@ export const namer = {
         editpreference: "Editpreference",
         signup: "signup",
         login: "login",
-        subscription: "payments", 
-        consumables: "consumable", 
+        subscription: "payments",
+        consumables: "consumable",
     },
-    productCategoryName:{
-        mainsub:"mainsub",
-        superlike:"superlike"
-    }, 
+    productCategoryName: {
+        mainsub: "mainsub",
+        superlike: "superlike",
+        instantmessage: "instantmessage"
+    },
 }
 
 export const resourceMap = {

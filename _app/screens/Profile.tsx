@@ -177,7 +177,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
                         <View style={stylesx.powerHeader}>
                             <Pressable onPress={() => {
-                                navigation.navigate(namer.navigation.consumables, { productname: "instantmessage" })
+                                navigation.navigate(namer.navigation.consumables, { productcategory: namer.productCategoryName.superlike })
                             }}>
                                 <Text>consumable 1</Text>
                             </Pressable>
