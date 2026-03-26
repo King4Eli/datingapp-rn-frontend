@@ -1,22 +1,43 @@
-import React, { useRef, useMemo, useState } from 'react';
-import { View, Text, Button, ScrollView, StyleSheet, Pressable, Linking } from 'react-native';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
+import { View, Text, Button, ScrollView, StyleSheet, Pressable, Linking, Clipboard } from 'react-native';
 import { Toastx } from '../funcs/customNotification';
 import { __init__app, cacheStorage, hostServer, llStorage, logReport } from '../funcs/functions';
 import DeviceInfo from 'react-native-device-info';
 import RNRestart from 'react-native-restart';
+import { sessionManager } from '../funcs/SessionContext';
 
 
 export function Zz_devv({ route, navigation }: { route: any, navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
+    const [getProfile, setProfile] = useState<any>(null);
+    const getSession = sessionManager.getCurrentSession();
 
-
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const [userProfile] = await Promise.all([
+                    cacheStorage.getCurrentUserProfile()
+                ]);
+                if (mounted) {
+                    setProfile(userProfile);
+                }
+            } catch {
+                if (mounted) {
+                    setProfile(null);
+                }
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
     return (
         <View style={{ flex: 1 }}>
             <Text style={{ backgroundColor: "#7eb400", color: "#fffdfd", padding: 10 }}>Debug Tools</Text>
             <ScrollView style={[{ flex: 1 }]} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 10, gap: 20 }}>
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
                     await __init__app();
-                    await cacheStorage.getCurrentUserProfile(true);
+                    const upo = await cacheStorage.getCurrentUserProfile(true);
+                    setProfile(upo);
                     Toastx.show({ type: "info", message: "_ _init__app updated successfully" });
                 }}>
                     <Text>reload update __init__app fun </Text>
@@ -32,13 +53,18 @@ export function Zz_devv({ route, navigation }: { route: any, navigation: any }) 
 
                 <Pressable style={modernStyles.dangerSection} onPress={async () => {
                     Linking.openURL(
-                        hostServer() + '/admin/admin_user_detail.php?id=' + (await cacheStorage.getCurrentUserProfile())?.user_id
+                        hostServer() + '/admin/admin_user_detail.php?id=' + getProfile?.profile?.id
                     );
                 }}>
-                    <Text>Profile admin url:{"\n"}{hostServer()}</Text>
+                    <Text>Profile admin url: {hostServer()}{"\n"}[uid: {getProfile?.profile?.id}]</Text>
                 </Pressable>
 
-
+                <Pressable style={modernStyles.dangerSection} onPress={async () => {
+                    Clipboard.setString(getSession?.x_omi_payload + "\n" + getSession?.x_omi_payload_hash);
+                }}>
+                    <Text>session id: {getSession?.x_omi_payload} </Text>
+                    <Text>session hash: {getSession?.x_omi_payload_hash} </Text>
+                </Pressable>
 
                 <Pressable style={modernStyles.dangerSection} onPress={() => {
                     RNRestart.restart();

@@ -155,7 +155,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
     const handleEndReached = useCallback(() => {
         if (!activeSubscription) {
-            navigation.push(namer.navigation.subscription);
+            navigation.navigate(namer.navigation.subscription);
             return;
         }
         setTimeout(() => {
@@ -223,7 +223,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                                 <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>You have {totalLikesCount} likes</Text>
 
                                 <View style={{ marginTop: 10 }}>
-                                    <Pressable onPress={() => navigation.push(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                    <Pressable onPress={() => navigation.navigate(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                                         <MaterialCommunityIcons name="lightning-bolt-outline" size={18} color="#fff" />
                                         <Text style={{ color: '#fff', fontWeight: '700' }}>{activeSubscription ? 'Boost visibility' : 'Unlock all likes'}</Text>
                                     </Pressable>
@@ -257,7 +257,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                             <View style={{ width: layout.itemWidth, marginRight: (index % layout.numColumns) < (layout.numColumns - 1) ? 12 : 0 }}>
                                 <Pressable style={[stylesoy.card, { width: '100%', height: layout.itemHeight, position: "relative" }]}
                                     onPress={() => {
-                                        navigation.push(
+                                        navigation.navigate(
                                             activeSubscription ? namer.navigation.peoplesOnePerson : namer.navigation.subscription, {
                                             getOnePersonId: item?.likedUserId,
                                             likedMatchedId: item?.likedMatchedId
@@ -321,7 +321,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                     {!activeSubscription && <View style={{ position: "absolute", bottom: 24, left: 0, right: 0, alignItems: "center" }}>
                         <Animated.View style={{ transform: [{ translateY: bounceInterpolatex }] }}><Pressable
                             style={[styles.pressableButton, { flexDirection: "row", borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 6 }]}
-                            onPress={() => navigation.push(namer.navigation.subscription)}>
+                            onPress={() => navigation.navigate(namer.navigation.subscription)}>
                             <MaterialCommunityIcons name="heart-outline" size={24} color="#fff" />
 
                             <Text style={styles.pressableButtonText}>See who likes you</Text>

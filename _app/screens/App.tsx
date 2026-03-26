@@ -20,7 +20,7 @@ import { Screen_editpreference } from './PreferenceEdit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Zz_nofilee } from './zz_nofilee';
 import { namer, resourceMap } from '../funcs/static';
-import { Screen_Subscribe } from './Subscribe';
+import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
 import { __init__app, logReport, navigationRef } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import { View } from 'react-native';
@@ -31,6 +31,7 @@ import { Screen_social } from './Social';
 import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
+import { Screen_PurchaseConsumable } from './Purchase_Consumable';
 
 // Type definitions for props if needed
 const Stack = createStackNavigator<any>();
@@ -175,7 +176,15 @@ const MainApp: React.FC = () => {
                 <Stack.Screen name={namer.navigation.editprofile} component={Screen_editprofile} options={{ headerBackTitle: '', headerTransparent: true }} />
                 <Stack.Screen name={namer.navigation.editpreference} component={Screen_editpreference} />
                 <Stack.Screen name={namer.navigation.peoplesOnePerson} component={Peoples_Screen} options={{ headerBackTitle: '' }} />
-                <Stack.Screen name={namer.navigation.subscription} component={Screen_Subscribe} options={{
+                <Stack.Screen name={namer.navigation.subscription} component={Screen_PurchaseSubscribe} options={{
+                  headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    color: '#fff',
+                    fontFamily: 'Helvetica',
+                  }, headerStyle: { backgroundColor: '#1a1919ff' }
+                }} />
+                <Stack.Screen name={namer.navigation.consumables} component={Screen_PurchaseConsumable} options={{
                   headerTintColor: "#6d6139ff", title: "Upgrade Your Experience", headerBackTitle: '', headerTitleAlign: "center", headerTitleStyle: {
                     fontSize: 20,
                     fontWeight: 'bold',

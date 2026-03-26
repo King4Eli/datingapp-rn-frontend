@@ -36,7 +36,7 @@ const extractFeaturesFromTierItem = (tierItem: any): string[] => {
       .filter(Boolean) as string[];
     if (features.length) return features;
   }
-  
+
   // Fallback to meta_data if exists
   const metaData = normalizePayload(tierItem?.meta_data);
   if (metaData?.features && Array.isArray(metaData.features)) {
@@ -45,7 +45,7 @@ const extractFeaturesFromTierItem = (tierItem: any): string[] => {
       .filter(Boolean) as string[];
     if (features.length) return features;
   }
-  
+
   return [];
 };
 
@@ -55,13 +55,13 @@ const getCycleLabel = (variant: any): string => {
     const cycle = variant.metadata.cycle.trim();
     if (cycle) return cycle;
   }
-  
+
   // Fallback to variant name
   if (variant?.name) {
     const name = variant.name.trim();
     if (name) return name;
   }
-  
+
   return 'Billing cycle';
 };
 
@@ -70,13 +70,13 @@ const formatPrice = (price: any): string => {
   return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
 };
 
-export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation: any }) => {
+export const Screen_PurchaseConsumable = ({ route, navigation }: { route: any; navigation: any }) => {
   const [profile, setProfile] = useState<any>(null);
   const [products, setProducts] = useState<any>(null);
   const [selectedTier, setSelectedTier] = useState<string>(() => route?.params?.tab || '');
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [productDetails, setProductDetails] = useState<{ sku: string; variantId?: number } | null>(null);
-  
+
   const paymentSheetRef = useRef<BottomSheet>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
@@ -84,12 +84,14 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
   const cycleSidePadding = Math.max(16, Math.round((screenWidth - cycleItemWidth) / 2));
 
   // Load data
+  const productCategory = route?.params?.productname?.trim() || namer.productCategoryName.mainsub;
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const [rawProducts, userProfile] = await Promise.all([
-          cacheStorage.getProducts().then(raw => parseCategoryProducts(raw, namer.productCategoryName.mainsub)),
+          cacheStorage.getProducts().then(raw => parseCategoryProducts(raw, productCategory)),
           cacheStorage.getCurrentUserProfile()
         ]);
         if (mounted) {
@@ -106,18 +108,18 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
     return () => { mounted = false; };
   }, []);
 
-  const tierKeys = useMemo(() => 
+  const tierKeys = useMemo(() =>
     products?.map((tier: any) => tier.name?.trim()).filter(Boolean) ?? [],
     [products]
   );
 
   const activeSubscription = profile?.user_effect?.has_active_subscription ?? false;
   const userCurrentTier = profile?.user_effect?.subscription_plan;
-  
+
   const getTierKeyByName = useCallback((planName?: string) => {
     if (!planName || !products) return '';
     const normalized = planName.toLowerCase().trim();
-    const match = products.find((tier: any) => 
+    const match = products.find((tier: any) =>
       tier.name?.toLowerCase().trim() === normalized
     );
     return match?.name?.trim() ?? '';
@@ -134,7 +136,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
 
   const currentTier = products?.find((tier: any) => tier.name?.trim() === selectedTier) || null;
   const currentVariants = currentTier?.variants ?? [];
-  
+
   const currentTierFeatures = extractFeaturesFromTierItem(currentTier || {});
 
   // Set initial variant
@@ -148,7 +150,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
 
   const selectedVariant = currentVariants.find((v: any) => v.id === selectedVariantId) || currentVariants[0] || null;
 
-  const getTierColor = useCallback((tierKey: string) => 
+  const getTierColor = useCallback((tierKey: string) =>
     TIER_COLORS[tierKeys.indexOf(tierKey)] || '#F25F7F',
     [tierKeys]
   );
@@ -160,7 +162,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
       Alert.alert('Info', 'IAP payment method is currently unavailable. Please try the credit card option or contact support.');
       return;
     }
-    
+
     _http_request({
       customApiUrl: `${hostServer()}/api/secure/gateway/subscribe`,
       reqType: 'POST',
@@ -190,7 +192,7 @@ export const Screen_Subscribe = ({ route, navigation }: { route: any; navigation
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Tier Selection */}
         <View style={styles.tierRow}>
-          {tierKeys.map(tierKey => {
+          {tierKeys.map((tierKey: any) => {
             const tierData = products?.find((tier: any) => tier.name?.trim() === tierKey);
             const tierColor = getTierColor(tierKey);
             const isSelected = selectedTier === tierKey;

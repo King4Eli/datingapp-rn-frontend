@@ -119,7 +119,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     <Pressable style={{ gap: 3 }} onPress={() => { bottomSheetRef_location.ref.current?.expand(); }}>
                         <IIcon name="location-outline" size={28} color="#204586ff" />
                     </Pressable>
-                    <Pressable style={{ gap: 3 }} onPress={() => { navigation.push(namer.navigation.editpreference); }}>
+                    <Pressable style={{ gap: 3 }} onPress={() => { navigation.navigate(namer.navigation.editpreference); }}>
                         <IIcon name="filter-outline" size={30} color="#204586ff" />
                     </Pressable>
                 </View>),

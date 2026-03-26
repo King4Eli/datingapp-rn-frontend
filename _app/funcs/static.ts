@@ -249,10 +249,12 @@ export const namer = {
         editpreference: "Editpreference",
         signup: "signup",
         login: "login",
-        subscription: "payments" 
+        subscription: "payments", 
+        consumables: "consumable", 
     },
     productCategoryName:{
-        mainsub:"mainsub"
+        mainsub:"mainsub",
+        superlike:"superlike"
     }, 
 }
 

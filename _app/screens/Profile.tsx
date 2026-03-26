@@ -176,6 +176,12 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
 
                         <View style={stylesx.powerHeader}>
+                            <Pressable onPress={() => {
+                                navigation.navigate(namer.navigation.consumables, { productname: "instantmessage" })
+                            }}>
+                                <Text>consumable 1</Text>
+                            </Pressable>
+
                             {__product_MAPPER_consumables?.map((product: any, key: any) => (
                                 <View key={product?.sku} style={stylesx.productPill}>
                                     <View style={stylesx.powerPlus}><MIcon name="plus-circle" size={24} color="#ff7a00" /></View>
@@ -226,13 +232,11 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                         </View>
 
                                         {!!tier?.variants?.length && (
-                                            <Text style={stylesx.variantText}>
-                                                Starts at ${Number(tier.variants[0]?.price ?? 0).toFixed(2)}
-                                            </Text>
+                                            <Text style={stylesx.variantText}>View more benefits</Text>
                                         )}
 
                                         <TouchableOpacity style={stylesx.upgradeButton}
-                                            onPress={() => navigation.push(namer.navigation.subscription)} >
+                                            onPress={() => navigation.navigate(namer.navigation.subscription)} >
                                             <Text style={stylesx.upgradeButtonText}>Upgrade</Text>
                                         </TouchableOpacity>
                                     </View>
