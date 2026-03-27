@@ -71,87 +71,92 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
     });
   };
 
-  const ProductCard = ({ product, index }: { product: any; index: number }) => {
-    const isSelected = selectedProduct?.sku === product.sku;
-    const variants = Array.isArray(product.variants) ? product.variants : [];
-    const activeVariant = variants.find((v: any) => v.id === selectedVariantId) || variants[0] || null;
-    const price = activeVariant?.price || 0;
-    const cycle = activeVariant?.metadata?.cycle || activeVariant?.name || 'One-time';
-    const discount = activeVariant?.metadata?.discount;
+  const VariantItem = ({ variant, product, isSelected, onSelect }: any) => {
+    const price = variant?.price || 0;
+    const cycle = variant?.metadata?.cycle || variant?.name || 'One-time';
+    const discount = variant?.metadata?.discount;
 
     return (
       <TouchableOpacity
         activeOpacity={0.9}
-        onPress={() => {
-          setSelectedProduct(product);
-          setShowConfirm(true);
-        }}
+        onPress={() => onSelect(variant.id)}
         style={[
-          styles.productCard,
-          isSelected && styles.productCardSelected
+          styles.variantItem,
+          isSelected && styles.variantItemSelected
         ]}
       >
+        <View style={styles.variantContent}>
+          <View style={styles.variantInfo}>
+            <Text style={[styles.variantCycle, isSelected && styles.variantCycleSelected]}>
+              {cycle}
+            </Text>
+            {discount && (
+              <View style={styles.discountBadgeSmall}>
+                <Text style={styles.discountTextSmall}>{discount}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.variantPrice, isSelected && styles.variantPriceSelected]}>
+            ${formatPrice(price)}
+          </Text>
+        </View>
+        {isSelected && (
+          <View style={styles.checkmark}>
+            <Icon name="checkmark-circle" size={24} color="#8B5CF6" />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const ProductSection = ({ product, index }: { product: any; index: number }) => {
+    const isSelected = selectedProduct?.sku === product.sku;
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const features = product?.description?.features?.filter((f: any) => f?.d?.trim()) || [];
+
+    return (
+      <View style={styles.productSection}>
+        {/* Product Header */}
         <View style={styles.productHeader}>
           <Text style={styles.productName}>{product.name.toUpperCase()}</Text>
-          {discount && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{discount}</Text>
+          {features.length > 0 && (
+            <View style={styles.featureIcons}>
+              {features.slice(0, 2).map((_, idx) => (
+                <Icon key={idx} name="star" size={14} color="#8B5CF6" />
+              ))}
             </View>
           )}
         </View>
 
-        <Text style={styles.productPrice}>
-          ${formatPrice(price)}
-        </Text>
-        
-        <Text style={styles.productCycle}>{cycle}</Text>
-
-        {/* Variant selector */}
-        {variants.length > 1 && (
-          <View style={styles.variantRow}>
-            {variants.map((variant: any) => (
-              <TouchableOpacity
-                key={variant.id}
-                style={[
-                  styles.variantPill,
-                  selectedVariantId === variant.id && styles.variantPillActive
-                ]}
-                onPress={() => {
-                  setSelectedProduct(product);
-                  setSelectedVariantId(variant.id);
-                }}
-              >
-                <Text style={[
-                  styles.variantText,
-                  selectedVariantId === variant.id && styles.variantTextActive
-                ]}>
-                  {variant.metadata?.item || variant.name}
-                </Text>
-              </TouchableOpacity>
+        {/* Features List */}
+        {features.length > 0 && (
+          <View style={styles.featuresList}>
+            {features.map((feature: any, idx: number) => (
+              <View key={idx} style={styles.featureItem}>
+                <Icon name="checkmark-circle" size={14} color="#8B5CF6" />
+                <Text style={styles.featureText}>{feature.d}</Text>
+              </View>
             ))}
           </View>
         )}
 
-        {/* Features */}
-        {product?.description?.features && (
-          <View style={styles.featuresContainer}>
-            {product.description.features
-              .filter((f: any) => f?.d?.trim())
-              .slice(0, 2)
-              .map((feature: any, idx: number) => (
-                <View key={idx} style={styles.featureItem}>
-                  <Icon name="checkmark-circle" size={16} color="#8B5CF6" />
-                  <Text style={styles.featureText}>{feature.d}</Text>
-                </View>
-              ))}
-          </View>
-        )}
-
-        <View style={styles.purchaseButton}>
-          <Text style={styles.purchaseButtonText}>Buy Now</Text>
-          <Icon name="arrow-forward" size={18} color="#8B5CF6" />
+        {/* Variants Vertical List */}
+        <View style={styles.variantsList}>
+          {variants.map((variant: any) => (
+            <VariantItem
+              key={variant.id}
+              variant={variant}
+              product={product}
+              isSelected={selectedProduct?.sku === product.sku && selectedVariantId === variant.id}
+              onSelect={(variantId: number) => {
+                setSelectedProduct(product);
+                setSelectedVariantId(variantId);
+                setShowConfirm(true);
+              }}
+            />
+          ))}
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -165,10 +170,10 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
           <Text style={styles.subtitle}>Get noticed instantly</Text>
         </View>
 
-        {/* Products */}
+        {/* Products - Vertical List */}
         <View style={styles.productsContainer}>
           {products.map((product, idx) => (
-            <ProductCard key={product.sku} product={product} index={idx} />
+            <ProductSection key={product.sku} product={product} index={idx} />
           ))}
         </View>
 
@@ -203,7 +208,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
                   <>
                     {variant && variant.metadata?.cycle && (
                       <View style={styles.modalRow}>
-                        <Text style={styles.modalLabel}>Type</Text>
+                        <Text style={styles.modalLabel}>Quantity</Text>
                         <Text style={styles.modalValue}>{variant.metadata.cycle}</Text>
                       </View>
                     )}
@@ -254,21 +259,18 @@ const styles = StyleSheet.create({
   },
   
   productsContainer: { 
-    gap: 16,
+    gap: 24,
     marginBottom: 24,
   },
   
-  productCard: {
+  productSection: {
     backgroundColor: '#1F1F2A',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
     borderColor: '#2A2A35',
   },
-  productCardSelected: {
-    borderColor: '#8B5CF6',
-    backgroundColor: '#2A1F3A',
-  },
+  
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -281,23 +283,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  productPrice: {
-    color: '#8B5CF6',
-    fontSize: 36,
-    fontWeight: '800',
-    marginBottom: 4,
+  featureIcons: {
+    flexDirection: 'row',
+    gap: 4,
   },
-  productCycle: {
-    color: '#9CA3AF',
-    fontSize: 13,
-    marginBottom: 16,
-  },
-  featuresContainer: {
+  
+  featuresList: {
     gap: 8,
     marginBottom: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2A35',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A2A35',
   },
   featureItem: {
     flexDirection: 'row',
@@ -307,55 +303,67 @@ const styles = StyleSheet.create({
   featureText: {
     color: '#E5E7EB',
     fontSize: 13,
+    flex: 1,
   },
-  variantRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
+  
+  variantsList: {
+    gap: 12,
   },
-  variantPill: {
-    borderWidth: 1,
-    borderColor: '#2A2A35',
-    borderRadius: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: '#181826',
-  },
-  variantPillActive: {
-    borderColor: '#8B5CF6',
-    backgroundColor: '#2A1F3A',
-  },
-  variantText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  variantTextActive: {
-    color: '#FFF',
-  },
-  purchaseButton: {
+  
+  variantItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2A35',
+    backgroundColor: '#181826',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#2A2A35',
   },
-  purchaseButtonText: {
-    color: '#8B5CF6',
-    fontSize: 16,
+  variantItemSelected: {
+    borderColor: '#8B5CF6',
+    backgroundColor: '#2A1F3A',
+  },
+  variantContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  variantInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  variantCycle: {
+    color: '#E5E7EB',
+    fontSize: 15,
     fontWeight: '600',
   },
-  
-  discountBadge: {
-    backgroundColor: '#10B98120',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+  variantCycleSelected: {
+    color: '#FFF',
   },
-  discountText: {
+  variantPrice: {
+    color: '#8B5CF6',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  variantPriceSelected: {
+    color: '#8B5CF6',
+  },
+  checkmark: {
+    marginLeft: 12,
+  },
+  
+  discountBadgeSmall: {
+    backgroundColor: '#10B98120',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  discountTextSmall: {
     color: '#10B981',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
   },
   
