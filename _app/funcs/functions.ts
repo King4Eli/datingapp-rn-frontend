@@ -19,10 +19,9 @@ export { xxa__http_requests as _http_request };
 // Define API URL
 export const hostServer = () => {
   let h_0 = "https://api.q1-site.site"; //live server
-  // h_0 = "http://192.168.12.145:2000"; 
-  //return h_0;
+
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
-    h_0 = "http://10.0.2.2:2000"; // if android emulator
+    h_0 = "http://api.dating.app"; // if android emulator
   }
   return h_0;
 }
