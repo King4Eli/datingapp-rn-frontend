@@ -113,10 +113,6 @@ function getMimeTypeFromExt(ext: string): string {
     return map[ext] ?? 'application/octet-stream';
 }
 
-function encodeFilePath(filepath: string): string {
-    return filepath.split('/').map(encodeURIComponent).join('/');
-}
-
 // ─── DraggablePhoto ───────────────────────────────────────────────────────────
 // Defined at module level so React's Rules of Hooks are never violated.
 
@@ -645,7 +641,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 throw new Error('Profile image upload failed.');
             }
 
-            const uploadedPath = encodeFilePath(presigned.fullPath);
+            const uploadedPath = "/"+uploadHandler.joinPath(presigned.bucket, presigned.fileKey);
+            console.log(uploadedPath)
             updateProfileEdit(prev => {
                 const updated = [...prev.images];
                 while (updated.length <= index) updated.push({});

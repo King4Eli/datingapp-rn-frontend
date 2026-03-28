@@ -46,7 +46,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
     const imageDomain = __MAPPER?.img_domain[0];
-     const [getProfile, setProfile] = useState<any>(null);
+    const [getProfile, setProfile] = useState<any>(null);
 
     const [getConversations, setConversations] = useState<convoInterface[]>([]);
     const [getUser2Deets, setUser2Deets] = useState<any>([]);
@@ -79,7 +79,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             setStarterIndex(viewableItems[0].index);
         }
     }).current;
- 
+
 
     useEffect(() => {
         isRecordingRef.current = isRecording;
@@ -582,13 +582,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 throw new Error(`Upload failed: ${uploadResult.statusCode} - ${uploadResult.body || 'Unknown error'}`);
             }
 
-            // Encode the file path for URL safety
-            const encodeFilePath = (filepath: string) => {
-                return filepath.split('/').map(encodeURIComponent).join('/');
-            };
-
-            const encodedPath = encodeFilePath(presigned.fullPath);
-            console.log("Upload successful:", presigned, presigned.fullPath)
+            const encodedPath = "/"+uploadHandler.joinPath(presigned.bucket, presigned.fileKey );
             return {
                 mediaType: descriptor.mediaType,
                 src: {

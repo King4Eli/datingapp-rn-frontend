@@ -500,8 +500,15 @@ export class uploadHandler {
     }
     return data.data;
   };
-}
 
+public static joinPath(...parts: string[]): string {
+  return parts
+    .map(p => p.replace(/^\/+|\/+$/g, "")) // trim slashes
+    .filter(Boolean)
+    //.map(segment => encodeURIComponent(segment))
+    .join("/")
+}
+}
 
 export const sleep = (ms: number): Promise<void> => {
   return new Promise(rv => setTimeout(rv, ms));
