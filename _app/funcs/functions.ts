@@ -159,6 +159,7 @@ export const __init__app = async (): Promise<void> => {
 
   // connect with socket for realtime info
   if (!getSession_omi || !getSession_hash || navigationRef === null) return;
+
   (async () => {
     const getProfile = await cacheStorage.getCurrentUserProfile();
     console.log("For socket", getProfile)
@@ -213,10 +214,40 @@ export const __init__app = async (): Promise<void> => {
 }
 
 
+export function handleDeepLink(url: string) {
+  if (!url) return;
 
+  console.log("Handling deep link:", url);
 
+  try {
+    const match = url.match(/^(\w+):\/\/([^/]+)(\/.*)?$/);
+    if (!match) return;
 
+    const [, scheme, host, rawPath = '/'] = match;
 
+    // clean path
+    const path = rawPath.split('?')[0].replace(/\/$/, '') || '/';
+
+    const routes: Record<string, Record<string, () => void>> = {
+      payment: {
+        '/success': () => console.log('Payment success'),
+        '/failed': () => console.log('Payment failed'),
+        '/.com': () => console.log('Payment loacdomtion'),
+      },
+    };
+
+    const handler = routes[host as string]?.[path];
+
+    if (handler) {
+      handler();
+    } else {
+      console.log('No route match:', host, path);
+    }
+
+  } catch (error) {
+    console.error('Deep link error:', error);
+  }
+}
 
 
 
@@ -501,13 +532,13 @@ export class uploadHandler {
     return data.data;
   };
 
-public static joinPath(...parts: string[]): string {
-  return parts
-    .map(p => p.replace(/^\/+|\/+$/g, "")) // trim slashes
-    .filter(Boolean)
-    //.map(segment => encodeURIComponent(segment))
-    .join("/")
-}
+  public static joinPath(...parts: string[]): string {
+    return parts
+      .map(p => p.replace(/^\/+|\/+$/g, "")) // trim slashes
+      .filter(Boolean)
+      //.map(segment => encodeURIComponent(segment))
+      .join("/")
+  }
 }
 
 export const sleep = (ms: number): Promise<void> => {

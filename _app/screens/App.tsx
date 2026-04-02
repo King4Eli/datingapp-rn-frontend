@@ -21,11 +21,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Zz_nofilee } from './zz_nofilee';
 import { namer, resourceMap } from '../funcs/static';
 import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
-import { __init__app, logReport, navigationRef } from '../funcs/functions';
+import { __init__app,   handleDeepLink,   logReport, navigationRef } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import QuickActions from 'react-native-quick-actions';
 import { Toastx } from '../funcs/customNotification';
 import { Screen_social } from './Social';
 import LottieView from 'lottie-react-native';
@@ -43,31 +42,19 @@ const MainApp: React.FC = () => {
 
   // Handle deep linking to Settings screen
   useEffect(() => {
-    let navTimeout: ReturnType<typeof setTimeout> | null = null;  // store timeout ID so we can destroy it
-
-    QuickActions.popInitialAction().then(action => {
-      console.log("Quick Action:", action);
-      const tryNavigate = () => {
-        if (navigationRef.isReady()) {
-          Toastx.show({ message: 'Navigating to Dev Page...', type: 'info' });
-          navigationRef.navigate(namer.navigation.devpage);
-
-          // DESTROY timeout once navigation happens
-          if (navTimeout) clearTimeout(navTimeout);
-          return;
-        } else {
-          navTimeout = setTimeout(tryNavigate, 50);
-        }
-      };
-      if (action?.type === 'setting-settings') {
-        tryNavigate();
-
+      // cold start
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
       }
     });
-    // CLEANUP ON UNMOUNT (VERY IMPORTANT)
-    return () => {
-      if (navTimeout) clearTimeout(navTimeout);
-    };
+
+    // running app
+    const sub = Linking.addEventListener('url', (e) => {
+      handleDeepLink(e.url);
+    });
+
+    return () => sub.remove();
   }, []);
 
 

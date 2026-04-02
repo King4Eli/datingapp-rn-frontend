@@ -600,7 +600,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 lottieRef.current?.play();
                                 setLoading(true);
                                 peoples_action('like', 0, false).then(async () => {
-                                    sleep(700).then(() => {
+                                    sleep(300).then(() => {
                                         setLoading(false);
                                         lottieRef.current?.reset();
                                     })

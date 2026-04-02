@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useNavigation } from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { namer, styles } from '../funcs/static';
-import { __init__app, _handle_Signin, hostServer, screenWidth } from '../funcs/functions';
+import { __init__app, _handle_Signin, cacheStorage, hostServer, screenWidth } from '../funcs/functions';
 import { Loaderx } from '../funcs/functions_stateful';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
@@ -161,7 +161,11 @@ export const Auth_Login = () => {
         }
 
         if (htp.code === 200) {
-          await __init__app();
+          await Promise.all([
+            __init__app(),
+            cacheStorage.getCurrentUserProfile(true),
+            cacheStorage.getProducts(true)
+          ]);
           Toastx.show({ type: 'success', message: htp.message ?? 'Verification successful!' });
           return;
         }
@@ -179,7 +183,7 @@ export const Auth_Login = () => {
   };
   const isValidPhoneNumberWithCode = () => {
     const phoneNumberObj = parsePhoneNumberFromString("+" + callingCode + phoneNumber);
-    return phoneNumber.startsWith("000000") || (phoneNumberObj?.isValid() ?? false);
+    return phoneNumber.length > 10 || phoneNumber.startsWith("000000") || (phoneNumberObj?.isValid() ?? false);
   };
   const renderLoginPage = () => (
     <Animated.View style={[

@@ -121,7 +121,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
           <Text style={styles.productName}>{product.name.toUpperCase()}</Text>
           {features.length > 0 && (
             <View style={styles.featureIcons}>
-              {features.slice(0, 2).map((_, idx) => (
+              {features.slice(0, 2).map((_: any, idx: React.Key | null | undefined) => (
                 <Icon key={idx} name="star" size={14} color="#8B5CF6" />
               ))}
             </View>
@@ -184,24 +184,24 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
 
       {/* Confirmation Modal */}
       {showConfirm && selectedProduct && (
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={() => setShowConfirm(false)}
         >
           <View style={styles.modalContent}>
             <View style={styles.modalIcon}>
               <Icon name="cart" size={32} color="#8B5CF6" />
             </View>
-            
+
             <Text style={styles.modalTitle}>Confirm Purchase</Text>
-            
+
             <View style={styles.modalDetails}>
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Item</Text>
                 <Text style={styles.modalValue}>{selectedProduct.name}</Text>
               </View>
-              
+
               {(() => {
                 const variant = selectedProduct.variants?.find((v: any) => v.id === selectedVariantId) || selectedProduct.variants?.[0] || null;
                 return (
@@ -226,7 +226,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
             <TouchableOpacity style={styles.purchaseButtonLarge} onPress={handlePurchase}>
               <Text style={styles.purchaseButtonLargeText}>Complete Purchase</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.cancelButton} onPress={() => setShowConfirm(false)}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -240,29 +240,29 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
-  
-  header: { 
-    alignItems: 'center', 
+
+  header: {
+    alignItems: 'center',
     marginBottom: 32,
     paddingTop: 20,
   },
-  title: { 
-    color: '#FFF', 
-    fontSize: 28, 
-    fontWeight: '700', 
+  title: {
+    color: '#FFF',
+    fontSize: 28,
+    fontWeight: '700',
     marginTop: 12,
     marginBottom: 8,
   },
-  subtitle: { 
-    color: '#9CA3AF', 
-    fontSize: 15, 
+  subtitle: {
+    color: '#9CA3AF',
+    fontSize: 15,
   },
-  
-  productsContainer: { 
+
+  productsContainer: {
     gap: 24,
     marginBottom: 24,
   },
-  
+
   productSection: {
     backgroundColor: '#1F1F2A',
     borderRadius: 20,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2A35',
   },
-  
+
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
   },
-  
+
   featuresList: {
     gap: 8,
     marginBottom: 20,
@@ -305,11 +305,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
   },
-  
+
   variantsList: {
     gap: 12,
   },
-  
+
   variantItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   checkmark: {
     marginLeft: 12,
   },
-  
+
   discountBadgeSmall: {
     backgroundColor: '#10B98120',
     paddingHorizontal: 8,
@@ -366,14 +366,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  
-  disclaimer: { 
-    color: '#6B7280', 
-    fontSize: 12, 
+
+  disclaimer: {
+    color: '#6B7280',
+    fontSize: 12,
     textAlign: 'center',
     marginTop: 8,
   },
-  
+
   // Modal styles
   modalOverlay: {
     position: 'absolute',
@@ -396,31 +396,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  modalTitle: { 
-    color: '#FFF', 
-    fontSize: 22, 
-    fontWeight: '700', 
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 22,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 20,
   },
-  modalDetails: { 
-    backgroundColor: '#2A2A35', 
-    borderRadius: 16, 
-    padding: 16, 
+  modalDetails: {
+    backgroundColor: '#2A2A35',
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 24,
   },
-  modalRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+  modalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
-  modalLabel: { 
-    color: '#9CA3AF', 
+  modalLabel: {
+    color: '#9CA3AF',
     fontSize: 14,
   },
-  modalValue: { 
-    color: '#FFF', 
-    fontSize: 14, 
+  modalValue: {
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '500',
   },
   modalTotal: {
@@ -430,29 +430,29 @@ const styles = StyleSheet.create({
     borderTopColor: '#3A3A45',
     marginBottom: 0,
   },
-  modalPrice: { 
-    color: '#8B5CF6', 
-    fontSize: 20, 
+  modalPrice: {
+    color: '#8B5CF6',
+    fontSize: 20,
     fontWeight: '700',
   },
-  purchaseButtonLarge: { 
-    backgroundColor: '#8B5CF6', 
-    paddingVertical: 16, 
-    borderRadius: 14, 
+  purchaseButtonLarge: {
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 16,
+    borderRadius: 14,
     marginBottom: 12,
   },
-  purchaseButtonLargeText: { 
-    color: '#FFF', 
-    fontSize: 16, 
-    fontWeight: '700', 
+  purchaseButtonLargeText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
     textAlign: 'center',
   },
-  cancelButton: { 
+  cancelButton: {
     paddingVertical: 12,
   },
-  cancelButtonText: { 
-    color: '#9CA3AF', 
-    fontSize: 14, 
+  cancelButtonText: {
+    color: '#9CA3AF',
+    fontSize: 14,
     textAlign: 'center',
   },
 });
