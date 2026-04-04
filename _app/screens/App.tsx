@@ -21,7 +21,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Zz_nofilee } from './zz_nofilee';
 import { namer, resourceMap } from '../funcs/static';
 import { Screen_PurchaseSubscribe } from './Purchase_Subscribe';
-import { __init__app,   handleDeepLink,   logReport, navigationRef } from '../funcs/functions';
+import { __init__app, handleDeepLink, logReport, navigationRef } from '../funcs/functions';
 import { SocketClient } from '../funcs/socket_realtimeData';
 import { Linking, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -42,18 +42,10 @@ const MainApp: React.FC = () => {
 
   // Handle deep linking to Settings screen
   useEffect(() => {
-      // cold start
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLink(url);
-      }
-    });
-
+    // cold start
+    Linking.getInitialURL().then((url) => { if (url) { handleDeepLink(url); } });
     // running app
-    const sub = Linking.addEventListener('url', (e) => {
-      handleDeepLink(e.url);
-    });
-
+    const sub = Linking.addEventListener('url', (e) => { handleDeepLink(e.url); });
     return () => sub.remove();
   }, []);
 

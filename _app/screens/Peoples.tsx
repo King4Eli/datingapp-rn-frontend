@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 're
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { View, Text, Pressable, ScrollView, Alert, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
+import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, colors, resourceMap } from '../funcs/static';
 import { _http_request, cacheStorage, getCurrentLocation, help, hostServer, llStorage, logReport, screenHeight, sleep } from '../funcs/functions';
@@ -15,6 +15,7 @@ import FastImage from 'react-native-fast-image';
 import LottieView from 'lottie-react-native';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
+import ImageViewing from 'react-native-image-viewing';
 
 
 export default function Peoples_Screen({ route, navigation }: { route: any, navigation: any }) {
@@ -29,7 +30,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     const headerHeight = useHeaderHeight();
     const [getSkippedPeoples, setSkippedPeoples] = useState<any[]>([]);
     const [photoIndex, setPhotoIndex] = useState(0);
-    const [getFullscreenClickImage, setFullscreenClickImage] = useState<string | null>(null);
+    const [getFullscreenClickImageIndex, setFullscreenClickImageIndex] = useState<number | null>(null);
     const [showItsAMatchModal, setShowItsAMatchModal] = useState(false);
 
     const carouselRef = useRef<CarouselRef>(null);
@@ -530,7 +531,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                                 <Text style={deckStyles.sectionTitle}>Photos</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                                     {currentUserImages.map((img: any, idx: number) => (
-                                        <Pressable key={idx} onPress={() => setFullscreenClickImage(imageDomain + img.p)}>
+                                        <Pressable key={idx} onPress={() => setFullscreenClickImageIndex(idx)}>
                                             <FastImage source={{ uri: imageDomain + img.p }} style={deckStyles.galleryImage} resizeMode="cover"
                                                 onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imageDomain + (img?.p ?? ""), useraction: 'Image Load', stackTrace: null }); }} />
                                         </Pressable>
@@ -677,8 +678,16 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
 
             {/* FULLSCREEN */}
-            <FullScreenImageModal visible={!!getFullscreenClickImage} uri={getFullscreenClickImage} onClose={() => setFullscreenClickImage(null)} />
-
+            <ImageViewing
+                images={currentUserImages.map((img: any) => ({ uri: imageDomain + img.p }))}
+                imageIndex={getFullscreenClickImageIndex ?? 0}
+                visible={!!getFullscreenClickImageIndex}
+                onRequestClose={() => { setFullscreenClickImageIndex(null) }}
+                swipeToCloseEnabled={true}
+                doubleTapToZoomEnabled={true}
+                presentationStyle="overFullScreen"
+                animationType="fade"
+            />
             {/* LOADERs */}
             {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}><LottieView ref={lottieRef} source={resourceMap.lottie.heartpop} loop autoPlay style={{ width: 250, height: 250 }} /></View>}
 

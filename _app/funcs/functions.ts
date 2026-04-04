@@ -162,7 +162,7 @@ export const __init__app = async (): Promise<void> => {
 
   (async () => {
     const getProfile = await cacheStorage.getCurrentUserProfile();
-    console.log("For socket", getProfile)
+    //console.log("For socket", getProfile)
     const userId = getProfile?.user_id;
     if (!userId) return;
     SocketClient.connect(userId, (data) => {

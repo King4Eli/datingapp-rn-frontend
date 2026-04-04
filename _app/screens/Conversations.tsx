@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { View, Text, Pressable, TextInput, Alert, FlatList, Platform, TouchableOpacity, KeyboardAvoidingView, PermissionsAndroid, Linking, ImageBackground } from 'react-native';
-import { Loaderx, FullScreenImageModal, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
+import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import IonIcon from 'react-native-vector-icons/Ionicons';
 import { namer, styles } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -15,12 +15,14 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import FastImage from 'react-native-fast-image';
 import { SocketClient } from '../funcs/socket_realtimeData';
+import ImageViewing from 'react-native-image-viewing';
 
 const CONFIG = {
-    imgSelectUploadLimit: 5
+    imgSelectUploadLimit: 4,
+    AUDIO_WAVE_BARS: 26,
+    MAX_RECORDING_MS: 3 * 60 * 1000,
 };
-const AUDIO_WAVE_BARS = 26;
-const MAX_RECORDING_MS = 3 * 60 * 1000;
+
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 const hashString = (value: string) => {
     let hash = 0;
@@ -39,7 +41,8 @@ interface convoInterface {
     fromMe: boolean;
     type: 'media' | 'text' | 'audio' | 'image' | 'video' | 'file';
     message: string | null;
-    src: any[] | null
+    src: any[] | null;
+    isUploading?: boolean;
 }
 
 export function Screen_conversation({ navigation, route }: { navigation: any, route: any }) {
@@ -61,7 +64,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const [voiceNoteLoading, setVoiceNoteLoading] = useState(false);
     const [audioPlayback, setAudioPlayback] = useState<{ id: string | null, position: number, duration: number, isPlaying: boolean }>({ id: null, position: 0, duration: 0, isPlaying: false });
     const inputTextRef = useRef<TextInput>(null);
-    const [getconvoSendingstatus, setConvoSendingstatus] = useState<"sending..." | "sent" | `${string} delivered` | null>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
 
@@ -160,11 +162,11 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const buildStaticWaveBars = (seedKey: string, ratio: number) => {
         const hash = hashString(seedKey);
         const progressRatio = clamp01(ratio);
-        return Array.from({ length: AUDIO_WAVE_BARS }, (_, idx) => {
+        return Array.from({ length: CONFIG.AUDIO_WAVE_BARS }, (_, idx) => {
             const angle = (idx + 1) * 0.73 + (hash % 37);
             const intensity = Math.abs((Math.sin(angle) * 0.72) + (Math.cos(angle * 1.7) * 0.28));
             const height = 4 + Math.round(intensity * 14);
-            const cutoff = (idx + 1) / AUDIO_WAVE_BARS;
+            const cutoff = (idx + 1) / CONFIG.AUDIO_WAVE_BARS;
             return {
                 key: `${seedKey}-${idx}`,
                 height,
@@ -172,7 +174,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             };
         });
     };
-    const normalizeWaveSamples = (samples: number[], min = AUDIO_WAVE_BARS) => {
+    const normalizeWaveSamples = (samples: number[], min = CONFIG.AUDIO_WAVE_BARS) => {
         const safe = (samples ?? []).map((v) => clamp01(v));
         if (safe.length >= min) return safe.slice(-min);
         const padded = [...safe];
@@ -267,10 +269,10 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 const fallbackSample = 0.25 + (Math.abs(Math.sin((currentPosition + 40) / 210)) * 0.6);
                 setRecordingSamples((prev) => {
                     const next = [...prev, meteringSample ?? fallbackSample];
-                    return next.slice(-AUDIO_WAVE_BARS);
+                    return next.slice(-CONFIG.AUDIO_WAVE_BARS);
                 });
 
-                if (!autoStopRecordingRef.current && currentPosition >= MAX_RECORDING_MS) {
+                if (!autoStopRecordingRef.current && currentPosition >= CONFIG.MAX_RECORDING_MS) {
                     autoStopRecordingRef.current = true;
                     stopVoiceNote(true);
                     Toastx.show({
@@ -532,57 +534,58 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
 
     const uploadWithPresigned = async (descriptor: UploadDescriptor): Promise<UploadedMedia> => {
-        // Fix content type for Android audio files
-        let contentType = descriptor.type;
-
-        // Android records as mp4 but it's actually AAC audio in MP4 container
-        if (descriptor.mediaType === 'audio' && descriptor.name.endsWith('.mp4')) {
-            contentType = 'audio/mp4';
-        }
-
-        // Get file extension
-        const extension = descriptor.name.split('.').pop() || '';
-
-        // Determine bucket type based on media type
-        let bucketType = '';
-        if (descriptor.mediaType === 'img') bucketType = 'convo-img';
-        else if (descriptor.mediaType === 'video') bucketType = 'convo-video';
-        else if (descriptor.mediaType === 'audio') bucketType = 'convo-audio';
-
-        // Get presigned URL with new format
-        const presigned = await uploadHandler.requestPresignedURL_Upload(
-            extension,
-            bucketType,
-            funt.matchId  // This is the convoId
-        );
-        console.log("Received presigned URL:", presigned);
         try {
-            // Use RNFS.uploadFiles for reliable file upload
-            const uploadResult = await RNFS.uploadFiles({
-                toUrl: presigned.uploadUrl,
-                files: [
-                    {
-                        name: "file", // Field name (some servers expect 'file')
-                        filename: descriptor.name,
-                        filepath: descriptor.uri.replace("file://", ""),
-                        filetype: contentType
-                    }
-                ],
-                method: presigned.method || "PUT",
-                headers: {
-                    "Content-Type": contentType,
-                    // Add any additional headers if needed
-                },
-                // Important: For presigned PUT URLs, we don't want multipart encoding
-                binaryStreamOnly: true, // This sends raw file data, not multipart/form-data
-            }).promise;
-
-            // Check if upload was successful
-            if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
-                throw new Error(`Upload failed: ${uploadResult.statusCode} - ${uploadResult.body || 'Unknown error'}`);
+            let contentType = descriptor.type;
+            if (descriptor.mediaType === 'audio' && descriptor.name.endsWith('.mp4')) {
+                contentType = 'audio/mp4';
             }
 
-            const encodedPath = "/"+uploadHandler.joinPath(presigned.bucket, presigned.fileKey );
+            const extension = descriptor.name.split('.').pop() || '';
+            let bucketType = '';
+            if (descriptor.mediaType === 'img') bucketType = 'convo-img';
+            else if (descriptor.mediaType === 'video') bucketType = 'convo-video';
+            else if (descriptor.mediaType === 'audio') bucketType = 'convo-audio';
+
+            const presigned = await uploadHandler.requestPresignedURL_Upload(
+                extension,
+                bucketType,
+                funt.matchId
+            );
+
+            // Add timeout and better error handling
+            const uploadOptions = {
+                toUrl: presigned.uploadUrl,
+                files: [{
+                    name: "file",
+                    filename: descriptor.name,
+                    filepath: descriptor.uri.replace("file://", ""),
+                    filetype: contentType
+                }],
+                method: presigned.method || "PUT",
+                headers: { "Content-Type": contentType },
+                binaryStreamOnly: true,
+                begin: (response: any) => {
+                    console.log('Upload began:', response);
+                },
+                progress: (response: any) => {
+                    const percentage = (response.totalBytesSent / response.totalBytesExpectedToSend) * 100;
+                    console.log(`Upload progress: ${Math.round(percentage)}%`);
+                },
+            };
+
+            // Add timeout promise
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Upload timeout after 60 seconds')), 160000);// ~ 2mins
+            });
+
+            const uploadPromise = RNFS.uploadFiles(uploadOptions).promise;
+            const uploadResult = (await Promise.race([uploadPromise, timeoutPromise])) as any;
+
+            if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
+                throw new Error(`Upload failed: ${uploadResult.statusCode}`);
+            }
+
+            const encodedPath = "/" + uploadHandler.joinPath(presigned.bucket, presigned.fileKey);
             return {
                 mediaType: descriptor.mediaType,
                 src: {
@@ -595,12 +598,13 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             };
         } catch (error) {
             logReport({
-                url: presigned.uploadUrl,
+                url: "presigned?.uploadUrl",
                 type: "http -convo",
                 useraction: "uploadWithPresigned",
-                logMessage: 'Upload error.',
+                logMessage: 'Upload error on slow network',
                 stackTrace: error
             });
+            console.log(error)
             throw error;
         }
     };
@@ -869,15 +873,72 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             });
         }
 
-        setConvoSendingstatus("sending...");
+        // Prepare optimistic messages with local data
+        let outgoingMessages: convoInterface[] = [];
+        let messageIdsToUpdate: string[] = [];
+
+        // Add media messages with local uris
+        if (uploadDescriptors.length > 0) {
+            // Group by media type
+            const imagesVideos = uploadDescriptors.filter((d) => d.mediaType === 'img' || d.mediaType === 'video');
+            const audios = uploadDescriptors.filter((d) => d.mediaType === 'audio');
+
+            if (imagesVideos.length > 0) {
+                const hasVideo = imagesVideos.some(d => d.mediaType === 'video');
+                const messageId = help.randomAlphanumeric(29);
+                messageIdsToUpdate.push(messageId);
+                outgoingMessages.push({
+                    messageId,
+                    fromMe: true,
+                    type: hasVideo ? "video" : "image",
+                    message: null,
+                    src: imagesVideos.map((d) => ({ p: d.uri, w: d.meta.w, h: d.meta.h, size: d.meta.size, d: d.meta.d, original: d.meta.original })),
+                    isUploading: true
+                });
+            }
+
+            if (audios.length > 0) {
+                const messageId = help.randomAlphanumeric(29);
+                messageIdsToUpdate.push(messageId);
+                outgoingMessages.push({
+                    messageId,
+                    fromMe: true,
+                    type: "audio",
+                    message: null,
+                    src: audios.map((d) => ({ p: d.uri, d: d.meta.d, size: d.meta.size, original: d.meta.original })),
+                    isUploading: true
+                });
+            }
+        }
+
+        // Add text message if exists
+        if (messageText.length > 0) {
+            const messageId = help.randomAlphanumeric(29);
+            outgoingMessages.push({
+                messageId,
+                fromMe: true,
+                type: "text",
+                message: messageText,
+                src: null,
+                isUploading: false
+            });
+        }
+
+        // Clear input states
+        setInputImageVideo([]);
+        setInputText('');
+        setInputAudio(null);
+        setRecordingSamples([]);
+
+        // Add optimistic messages to UI
+        setConversations((prev) => [...outgoingMessages, ...prev]);
+
         setIsUploadingMedia(true);
 
         let uploadedMedia: UploadedMedia[] = [];
         try {
             for (const descriptor of uploadDescriptors) {
-                //console.log("111111")
                 const aa = await uploadWithPresigned(descriptor);
-                //console.log("222222")
                 uploadedMedia.push(aa);
             }
         } catch (error) {
@@ -889,14 +950,29 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 stackTrace: error
             });
 
-            setConvoSendingstatus(null);
+            // Remove optimistic messages on upload error
+            setConversations((prev) => prev.filter(msg => !messageIdsToUpdate.includes(msg.messageId)));
             setIsUploadingMedia(false);
             return;
         }
 
+        // Update messages with uploaded src
+        setConversations((prev) => prev.map(msg => {
+            if (messageIdsToUpdate.includes(msg.messageId)) {
+                // Find corresponding uploaded media
+                const mediaType = msg.type === 'image' || msg.type === 'video' ? (msg.type === 'video' ? 'video' : 'img') : 'audio';
+                const uploadedForType = uploadedMedia.filter(m => m.mediaType === mediaType);
+                return {
+                    ...msg,
+                    src: uploadedForType.map(m => m.src),
+                    isUploading: false
+                };
+            }
+            return msg;
+        }));
+
         // Prepare file_meta array for backend
         const file_meta: any[] = uploadedMedia.map((item) => ({
-            // Backend currently uses `url` for media type detection and `path` for original filename parsing.
             url: item.src.p,
             path: item.src.p,
             w: item.src.w ?? null,
@@ -908,57 +984,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
         const hasUploadedVideo = uploadedMedia.some((m) => m.mediaType === 'video');
         const realTimeData_updates = messageText.length > 0 ? messageText : (hasUploadedVideo ? ">>>video" : (uploadedMedia.some(m => m.mediaType === 'img') ? ">>>photo" : (uploadedMedia.some(m => m.mediaType === 'audio') ? ">>>audio" : "")));
-
-        // Clear input states
-        setInputImageVideo([]);
-        setInputText('');
-        setInputAudio(null);
-        setRecordingSamples([]);
-
-        // Optimistically add messages to UI
-        let outgoingMessages: convoInterface[] = [];
-
-        // Add media messages
-        if (uploadedMedia.length > 0) {
-            // Group by media type
-            const imagesVideos = uploadedMedia.filter((m) => m.mediaType === 'img' || m.mediaType === 'video');
-            const audios = uploadedMedia.filter((m) => m.mediaType === 'audio');
-
-            if (imagesVideos.length > 0) {
-                const hasVideo = imagesVideos.some(m => m.mediaType === 'video');
-                outgoingMessages.push({
-                    messageId: help.randomAlphanumeric(29),
-                    fromMe: true,
-                    type: hasVideo ? "video" : "image",
-                    message: null,
-                    src: imagesVideos.map((m) => m.src)
-                });
-            }
-
-            if (audios.length > 0) {
-                outgoingMessages.push({
-                    messageId: help.randomAlphanumeric(29),
-                    fromMe: true,
-                    type: "audio",
-                    message: null,
-                    src: audios.map((m) => m.src)
-                });
-            }
-        }
-
-        // Add text message if exists
-        if (messageText.length > 0) {
-            outgoingMessages.push({
-                messageId: help.randomAlphanumeric(29),
-                fromMe: true,
-                type: "text",
-                message: messageText,
-                src: null
-            });
-        }
-
-        // Update UI immediately
-        setConversations((prev) => [...outgoingMessages, ...prev]);
 
         try {
             const response = await _http_request({
@@ -973,7 +998,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
             if (response?.code === 200) {
                 const jy = getProfile?.profile?.fullname ?? "";
-                setConvoSendingstatus("sent");
                 if (getUser2Deets?.uid) {
                     SocketClient.emit("/pushUser/" + getUser2Deets?.uid, {
                         matchId: funt.matchId,
@@ -989,17 +1013,15 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     const hours12 = hours24 % 12 || 12;
                     const minutes = String(d.getMinutes()).padStart(2, "0");
                     const ampm = hours24 >= 12 ? "pm" : "am";
-                    setConvoSendingstatus(`${hours12}:${minutes} ${ampm} delivered`);
                 }
             } else if (response !== null) {
                 Alert.alert('Error!', response?.message ?? 'Unable to send message.');
-                // Optionally remove optimistic update on error
+                // Remove optimistic update on error
                 setConversations((prev) => prev.filter(msg =>
                     !outgoingMessages.some(out => out.messageId === msg.messageId)
                 ));
-                setConvoSendingstatus(null);
             } else {
-                setConvoSendingstatus(null);
+                //setConvoSendingstatus(null);
             }
         } catch (error) {
             logReport({
@@ -1013,7 +1035,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 !outgoingMessages.some(out => out.messageId === msg.messageId)
             ));
             Alert.alert('Error!', 'Failed to send message.');
-            setConvoSendingstatus(null);
         } finally {
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
             setRecordingMs(0);
@@ -1067,15 +1088,15 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
 
                     {isVideo && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 }}>
-                            <TouchableOpacity onPress={() => {
+                            <TouchableOpacity disabled={item.isUploading} onPress={() => {
                                 const vidUri = resolveMediaUri(firstSrc);
                                 if (vidUri) Linking.openURL(vidUri);
                             }} style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', padding: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
                                 <MaterialCommunityIcons name="play-circle" size={22} color={item.fromMe ? "#000" : "#fff"} />
                                 <Text style={{ color: item.fromMe ? "#000" : "#fff" }}>
-                                    Video{fileSizeLabel ? ` | ${fileSizeLabel}` : ''}{durationFormatted ? ` | ${durationFormatted}` : ''}
+                                    {item.isUploading ? 'Uploading Video...' : `Video${fileSizeLabel ? ` | ${fileSizeLabel}` : ''}${durationFormatted ? ` | ${durationFormatted}` : ''}`}
                                 </Text>
-                            </TouchableOpacity>
+                             </TouchableOpacity>
                         </View>
                     )}
 
@@ -1096,17 +1117,19 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     {isAudio && (
                         <View style={{ paddingVertical: 5, maxWidth: '100%', minWidth: Math.min(screenWidth * 0.72, 320) }}>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-                                <TouchableOpacity onPress={() => { handleAudioPress(item.messageId, audioUri) }}
+                                <TouchableOpacity disabled={item.isUploading} onPress={() => { handleAudioPress(item.messageId, audioUri) }}
                                     style={{ backgroundColor: item.fromMe ? '#fff' : '#1b5ec766', width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" }}>
                                     <IonIcon name={(isCurrentAudio && audioPlayback.isPlaying) ? "pause" : "play"} size={20} color={item.fromMe ? "#000" : "#fff"} />
                                 </TouchableOpacity>
                                 <View style={{ flex: 1, gap: 5 }}>
                                     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                                        <Text style={{ color: (item.fromMe) ? "#000" : "#fff", fontWeight: "600" }}>Voice note</Text>
+                                        <Text style={{ color: (item.fromMe) ? "#000" : "#fff", fontWeight: "600" }}>
+                                            {item.isUploading ? 'Uploading Voice note...' : 'Voice note'}
+                                        </Text>
                                         {isCurrentAudio && audioPlayback.isPlaying && (
                                             <Text style={{ color: item.fromMe ? "#333" : "#dbe7ff", fontSize: 11 }}>playing</Text>
                                         )}
-                                    </View>
+                                     </View>
                                     <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 2, height: 20 }}>
                                         {audioWaveBars.map((bar) => (
                                             <View key={bar.key} style={{
@@ -1119,7 +1142,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                                     ? (item.fromMe ? '#0f172a' : '#e0f2fe')
                                                     : (item.fromMe ? '#94a3b8' : '#93c5fd99')
                                             }} />
-                                        ))}
+                                        ))} 
                                     </View>
                                     <View style={{
                                         height: 3,
@@ -1156,11 +1179,18 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                                 }
 
                                 return (
-                                    <Pressable key={key} style={{ gap: 5 }} onPress={() => {
+                                    <Pressable key={key} style={{ gap: 5 }} disabled={item.isUploading} onPress={() => {
                                         setFullscreenClickImage(imgPath);
                                     }}>
-                                        <FastImage source={{ cache: FastImage.cacheControl.immutable, uri: imgPath }} style={{ width: targetWidth, height: targetHeight }} resizeMode="contain"
-                                            onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imgPath, useraction: 'Image Load', stackTrace: null }); }} />
+                                        <View style={{ position: 'relative' }}>
+                                            <FastImage source={{ cache: FastImage.cacheControl.immutable, uri: imgPath }} style={{ width: targetWidth, height: targetHeight }} resizeMode="contain"
+                                                onError={() => { return logReport({ type: "http -image", logMessage: "Image load", url: imgPath, useraction: 'Image Load', stackTrace: null }); }} />
+                                            {item.isUploading && (
+                                                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
+                                                     <Text style={{ color: '#fff', marginTop: 5 }}>Uploading...</Text>
+                                                </View>
+                                            )}
+                                        </View>
                                     </Pressable>
                                 );
                             })}
@@ -1223,7 +1253,6 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                         initialNumToRender={4} maxToRenderPerBatch={4} windowSize={4}
                         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
                         contentContainerStyle={{ gap: 10 }}
-                        ListHeaderComponent={getconvoSendingstatus && <Text style={{ textAlign: "right", fontSize: 11 }}>{getconvoSendingstatus}</Text>}
 
                         ListEmptyComponent={<View style={{ paddingVertical: 20, alignItems: "center", width: '100%' }}>
                             <FlatList
@@ -1437,12 +1466,17 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
             </BottomSheetView>
         </BottomSheet>
 
-        <FullScreenImageModal
-            visible={!!getFullscreenClickImage}
-            uri={getFullscreenClickImage}
-            onClose={() => setFullscreenClickImage(null)} />
+<ImageViewing
+      images={[{ uri: getFullscreenClickImage }]}
+      imageIndex={0}
+      visible={!!getFullscreenClickImage}
+      onRequestClose={()=>{setFullscreenClickImage(null)}}
+      swipeToCloseEnabled={true}
+      doubleTapToZoomEnabled={true}
+      presentationStyle="overFullScreen"
+      animationType="fade"
+    />
+
     </>
     );
 };
-
-

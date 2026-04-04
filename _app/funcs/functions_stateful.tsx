@@ -28,21 +28,6 @@ Loaderx.hide = () => { if (showLoaderFunc) { showLoaderFunc(false); } else { con
 //
 
 
-// modal image full screen
-//
-//*****************************
-export const FullScreenImageModal: React.FC<{ visible: boolean; uri: string | null; onClose: () => void; }> = ({ visible, uri, onClose }) => {
-  if (!uri) return null;
-  return (
-    <Modal visible={visible} transparent statusBarTranslucent animationType="fade" onRequestClose={onClose} >
-      <View style={[styles.container, { backgroundColor: 'black' }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-          <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
-        </Pressable>
-      </View>
-    </Modal>
-  );
-};
 
 export const bottomsheet_renderBackdrop = useCallback((props: any) =>
 (<BottomSheetBackdrop {...props}

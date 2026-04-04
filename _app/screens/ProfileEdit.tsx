@@ -30,11 +30,6 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 // ─── Constants ───────────────────────────────────────────────────────────────
 const GAP = 5;
 const MAX_PHOTOS = 6;
@@ -641,7 +636,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 throw new Error('Profile image upload failed.');
             }
 
-            const uploadedPath = "/"+uploadHandler.joinPath(presigned.bucket, presigned.fileKey);
+            const uploadedPath = "/" + uploadHandler.joinPath(presigned.bucket, presigned.fileKey);
             console.log(uploadedPath)
             updateProfileEdit(prev => {
                 const updated = [...prev.images];
