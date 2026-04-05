@@ -239,6 +239,7 @@ export const namer = {
         devpage: "zz_devv",
         peoples: "Peoples",
         social: "Social",
+        home:"Home",
         peoplesOnePerson: "Peoplesoneperson",
         chat: "Chats",
         conversation: "Conversation",

@@ -7,7 +7,7 @@ import { namer } from './static';
 import { Asset, ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
-import { createNavigationContainerRef } from '@react-navigation/native';
+import { createNavigationContainerRef, StackActions } from '@react-navigation/native';
 import { xxa_logggingReport } from './functions/logging';
 import { xxa__http_requests } from './functions/httpRequest';
 import { cacheStorage } from './functions/llstorage';
@@ -230,7 +230,23 @@ export function handleDeepLink(url: string) {
 
     const routes: Record<string, Record<string, () => void>> = {
       payment: {
-        '/success': () => console.log('Payment success'),
+        '/success': async () => {
+          await Promise.all([
+            __init__app(),
+            cacheStorage.getCurrentUserProfile(),
+            cacheStorage.getProducts(),
+          ]);
+          if (navigationRef.isReady()) {
+            navigationRef.reset({
+              index: 0,
+              routes: [{ name: namer.navigation.home }],
+            });
+
+            Toastx.show({ type: 'success', message: 'Payment success, your plan has been activated', duration: 10000 });
+            
+          }
+          console.log('Payment success')
+        },
         '/failed': () => console.log('Payment failed'),
         '/.com': () => console.log('Payment loacdomtion'),
       },
