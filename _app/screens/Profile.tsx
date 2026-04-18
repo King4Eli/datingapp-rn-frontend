@@ -113,7 +113,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     if (getProfile === null) {
         return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><LottieView
-            source={resourceMap.lottie.pulsingLoading}
+            source={resourceMap.lottie.infinityLoading}
             autoPlay
             loop
             style={{ width: 220, height: 220 }}
