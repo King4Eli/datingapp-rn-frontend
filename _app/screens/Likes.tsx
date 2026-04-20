@@ -59,9 +59,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     }, []);
     useLayoutEffect(() => {
         navigation.setOptions({
-            headerTitleAlign: 'left',
+            headerTitleAlign: 'center',
             headerTitle: () => <View style={{ alignItems: "center", flexDirection: "row", gap: 5 }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>{"See who likes you"}</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', textTransform: "capitalize" }}>See who likes you</Text>
             </View>,
         });
     }, [activeSubscription]);
@@ -220,7 +220,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         ListHeaderComponent={<View style={{ gap: 12, marginBottom: 12 }}>
                             <View style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 14, overflow: 'hidden' }}>
                                 <View style={styles.zcircle1} />
-                                <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>You have {totalLikesCount} likes</Text>
+                                <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>You have {totalLikesCount} like{totalLikesCount > 1 ? "s" : ""}</Text>
 
                                 <View style={{ marginTop: 10 }}>
                                     <Pressable onPress={() => navigation.navigate(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>

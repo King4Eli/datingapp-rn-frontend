@@ -15,7 +15,7 @@ import LottieView from 'lottie-react-native';
 export function Screen_chat({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
   const __MAPPER = llStorage.CONFIG.get()?.mapper;
-    
+
   const imageDomain = __MAPPER?.img_domain[0];
 
   const [getNewMatches, setNewMatches] = useState<any>(null);
@@ -129,23 +129,19 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     { id: 'all', label: 'All chats' },
     { id: 'yourTurn', label: 'Your turn' },
     { id: 'unread', label: 'Unread' },
-    { id: 'verified', label: 'Verified' },
+    //{ id: 'verified', label: 'Verified' },
   ] as const;
 
   const countNewMatches = getNewMatches?.length ?? 0;
-  const countTotalConvo = getEngagedMessages?.length ?? 0;
+  // const countTotalConvo = getEngagedMessages?.length ?? 0;
 
-  const renderHeroSection = useCallback(() => {
-    if (help.randomInt(0, 13) !== 8) return null;
-
+  const renderHeroSection = useCallback(() => { 
     return (
       <View style={{ backgroundColor: '#0f172a', borderRadius: 18, padding: 16, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={{ color: '#cbd5e1', fontSize: 12 }}>Welcome back</Text>
             <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', textTransform: "capitalize" }}>{getProfile?.profile?.fullname || 'You'}</Text>
-            {countTotalConvo > 0 && <Text style={{ color: '#cbd5e1', fontSize: 13 }}>You have {countTotalConvo} open conversation.</Text>}
-            {countNewMatches > 0 && <Text style={{ color: '#cbd5e1', marginTop: 4, fontSize: 13 }}>You have {countNewMatches} new connection. Message them before the sparks fade.</Text>}
+            {countNewMatches > 0 && <Text style={{ color: '#cbd5e1', marginTop: 4, fontSize: 13 }}>You have {countNewMatches} new connection{countNewMatches > 1 ? "s" : ""}. Message them before the sparks fade.</Text>}
           </View>
         </View>
 
@@ -248,72 +244,6 @@ export function Screen_chat({ navigation }: { navigation: any }) {
     );
   }, [bounceInterpolate, getCountLikes, getNewMatches, getProfile]);
 
-  const RenderMessages = useCallback(() => {
-    if (filteredMessages.length === 0) {
-      return <NoConversationsScreen />;
-    }
-
-    const displayedMessages = filteredMessages.slice(0, visibleMessages);
-    return (
-      <View style={{ gap: 12, marginBottom: 10 }}>
-        {displayedMessages.map((item: any, index: any) => {
-          const isYourTurn = !item?.convo_from_me;
-          const isVerified = item?.user_verified;
-          const lastMessage = () => {
-            if (item?.user_lastmessage?.t === "text") {
-              return <Text>{item?.user_lastmessage?.str}</Text>
-            } else if (item?.user_lastmessage?.t === "image") {
-              return <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}><MIcon name="camera-outline" size={18} />
-                <Text style={{ fontSize: 12 }}>PHOTO</Text></View>
-            } else if (item?.user_lastmessage?.t === "audio") {
-              return <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                <View style={{ flexDirection: "row" }}>
-                  <MIcon name="waveform" size={22} />
-                  <MIcon name="waveform" size={22} style={{ marginLeft: -8 }} />
-                </View>
-                <Text style={{ fontSize: 12, }}>VOICE NOTE</Text></View>
-            } else {
-              return <MIcon name="file-outline" size={20} />
-            }
-          };
-          //console.log(item?.user_lastmessage);
-          return (
-            <Pressable key={`message-${item?.match_id}-${index}`} onPress={() => { navigation.navigate(namer.navigation.conversation, { matchId: item?.match_id }); }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
-                <FastImage style={{ height: 58, width: 58, borderRadius: 16, backgroundColor: '#e2e8f0' }} source={{ uri: String(imageDomain + item?.user_image?.p), cache: FastImage.cacheControl.immutable, }} />
-                <View style={{ flex: 1, gap: 5 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '700', textTransform: 'capitalize', color: '#0f172a' }} numberOfLines={1}>{item?.user_fullname}</Text>
-                      {isVerified && <IIcon name="checkmark-done-circle-sharp" size={20} color="#4F8EF7" />}
-                    </View>
-                    {item?.user_lastmessage_date && <Text style={{ fontSize: 11, color: '#64748b' }}>{help.timeAgo(item?.user_lastmessage_date)}</Text>}
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontSize: 13, color: '#475569', flex: 1, fontWeight: item?.last_message_read ? 400 : 800 }} numberOfLines={1} ellipsizeMode="tail">{lastMessage()}</Text>
-                    {isYourTurn && (
-                      <View style={{ backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
-                        <Text style={{ fontSize: 11, color: '#0369a1', fontWeight: '700' }}>Your turn</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {item?.user_distance && <View style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#f8fafc' }}><Text style={{ color: '#475569', fontSize: 11 }}>{item.user_distance} away</Text></View>}
-                  </View>
-                </View>
-              </View>
-            </Pressable>
-          );
-        })}
-        {visibleMessages < filteredMessages.length && (
-          <View style={{ alignItems: 'center', paddingVertical: 12, width: '100%' }}>
-            <ActivityIndicator size="small" color="#1d4ed8" />
-            <Text style={{ marginTop: 6, color: '#475569', fontSize: 12 }}>Loading more conversations...</Text>
-          </View>
-        )}
-      </View>
-    );
-  }, [filteredMessages, navigation, visibleMessages]);
 
 
   useFocusEffect(React.useCallback(() => {
@@ -427,10 +357,10 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           );
         }}
         ListHeaderComponent={
-          <View style={{ gap: 10, paddingTop: 12 }}>
+          <View style={{ gap: 10}}>
             {renderHeroSection()}
             {renderConnectionsSection()}
-            {filteredMessages.length > 0 && <Text style={{ fontSize: 17, fontWeight: '700', }}>Conversations</Text>}
+            {<Text style={{ fontSize: 17, fontWeight: '700', }}>Conversations</Text>}
             {renderFiltersRow()}
           </View>
         }

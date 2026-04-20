@@ -236,7 +236,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                         )}
 
                                         <TouchableOpacity style={stylesx.upgradeButton}
-                                            onPress={() => navigation.navigate(namer.navigation.subscription)} >
+                                            onPress={() => navigation.navigate(namer.navigation.subscription, { tab: tier?.name })} >
                                             <Text style={stylesx.upgradeButtonText}>Upgrade</Text>
                                         </TouchableOpacity>
                                     </View>

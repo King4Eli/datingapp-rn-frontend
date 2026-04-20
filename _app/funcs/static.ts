@@ -238,7 +238,7 @@ export const namer = {
     navigation: {
         devpage: "zz_devv",
         peoples: "Peoples",
-        social: "Social",
+        social: "Communities",
         home:"Home",
         peoplesOnePerson: "Peoplesoneperson",
         chat: "Chats",

@@ -26,7 +26,7 @@ import { SocketClient } from '../funcs/socket_realtimeData';
 import { Linking, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toastx } from '../funcs/customNotification';
-import { Screen_social } from './Social';
+import { Screen_communities } from './Communities';
 import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
@@ -118,10 +118,9 @@ const MainApp: React.FC = () => {
           tabBarIcon: () => <MIcon name="cards-outline" size={30} color="#4F8EF7" />,
         }} />
 
-      <TabBottom.Screen name={namer.navigation.social} component={Screen_social}
+      <TabBottom.Screen name={namer.navigation.social} component={Screen_communities}
         options={{
           tabBarIcon: () => <MIcon name="newspaper-variant-multiple" size={30} color="#4F8EF7" />,
-
           headerTransparent: true,
         }} />
       <TabBottom.Screen name={namer.navigation.profile} component={Screen_profile} options={{

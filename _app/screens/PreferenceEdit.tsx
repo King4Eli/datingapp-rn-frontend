@@ -355,8 +355,7 @@ const localStyles = StyleSheet.create({
     tabWrap: {
         flexDirection: 'row',
         backgroundColor: '#e2e8f0',
-        borderRadius: 14,
-        marginHorizontal: 10,
+        borderRadius: 14, 
         padding: 4,
         gap: 4,
     },
