@@ -21,7 +21,7 @@ export const hostServer = () => {
   let h_0 = "https://api.q1-site.site"; //live server
 
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
-    h_0 = "http://api.dating.app"; // if android emulator
+    h_0 = "https://api.dating.local"; // if android emulator
   }
   return h_0;
 }
