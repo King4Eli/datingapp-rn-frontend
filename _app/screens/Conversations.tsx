@@ -31,7 +31,7 @@ const hashString = (value: string) => {
         hash = ((hash * 31) + value.charCodeAt(i)) % 2147483647;
     }
     return Math.abs(hash);
-};
+}; 
 const normalizeMetering = (metering?: number | null) => {
     if (metering == null || Number.isNaN(metering)) return null;
     // Nitro sound metering is commonly in negative dB (-160..0); clamp at -60 for useful motion.
@@ -70,7 +70,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
 
     const bottomSheet_convotools = {
-        ref: useRef<BottomSheet>(null), snap: useMemo(() => [], [])
+        ref: useRef<BottomSheet>(null), snap: useMemo(() => ['28%'], [])
     };
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<any | null>(null);
     const autoStopRecordingRef = useRef(false);

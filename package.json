@@ -5,6 +5,9 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
+    "build:android": "./android/gradlew -p android assembleDebug",
+    "build:apk": "./android/gradlew -p android assembleRelease",
+    "build:ios": "xcodebuild -workspace ios/datingapp.xcworkspace -scheme datingapp -configuration Debug -sdk iphonesimulator build",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest"

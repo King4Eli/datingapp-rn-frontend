@@ -33,7 +33,8 @@ export const bottomsheet_renderBackdrop = useCallback((props: any) =>
 (<BottomSheetBackdrop {...props}
   appearsOnIndex={0}
   disappearsOnIndex={-1}
-  pressBehavior="none"   // 🔒 blocks touches
+  enableTouchThrough
+  pressBehavior="close" 
 />), []);
 //*****************************
 //
