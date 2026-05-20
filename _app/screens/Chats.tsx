@@ -23,7 +23,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
   const [getCountLikes, setCountLikes] = useState<number>(0);
   const [getImageLikes, setImageLikes] = useState<{ p: string, w: string, h: string }>({ p: "", w: "", h: "" });
   const headerHeight = useHeaderHeight();
-  const activeSubscription = getProfile?.stats?.has_active_subscription ?? false;
+  const activeSubscription = help.getSubscriptionState(getProfile).hasActive;
   const [activeFilter, setActiveFilter] = useState<'all' | 'yourTurn' | 'verified' | 'unread'>('all');
   const [visibleMessages, setVisibleMessages] = useState<number>(6);
   const CHATS_PAGE_SIZE = 5;
@@ -137,7 +137,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
 
   const renderHeroSection = useCallback(() => { 
     return (
-      <View style={{ backgroundColor: '#0f172a', borderRadius: 18, padding: 16, overflow: 'hidden' }}>
+      <View style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 14, overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', textTransform: "capitalize" }}>{getProfile?.profile?.fullname || 'You'}</Text>
@@ -145,13 +145,13 @@ export function Screen_chat({ navigation }: { navigation: any }) {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', marginTop: 12, gap: 10 }}>
-          <Pressable onPress={() => navigation.navigate(namer.navigation.likes)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <MaterialCommunityIcons name='lightning-bolt-outline' size={20} color="#fff" />
+        <View style={{ flexDirection: 'row', marginTop: 10, gap: 10 }}>
+          <Pressable onPress={() => navigation.navigate(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <MaterialCommunityIcons name='lightning-bolt-outline' size={18} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: '700' }}>Boost visibility</Text>
           </Pressable>
           {!activeSubscription && (
-            <Pressable onPress={() => { }} style={{ flex: 1, backgroundColor: '#0ea5e9', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Pressable onPress={() => navigation.navigate(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <IIcon name="diamond" size={18} color="#fff" />
               <Text style={{ color: '#fff', fontWeight: '700' }}>Unlock premium</Text>
             </Pressable>

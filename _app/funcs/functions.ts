@@ -143,6 +143,27 @@ export const help = {
     }
 
     return 'just now';
+  },
+  getSubscriptionState: (profile: any) => {
+    const rawPlan =
+      profile?.subscription?.product_name ??
+      null;
+    const rawVariant =
+      profile?.subscription?.plan_name ??
+      null;
+    const hasActive = Boolean(
+      profile?.subscription?.status === 'active'
+    );
+    const tier = String(rawPlan ?? '').trim().toLowerCase();
+
+    return {
+      hasActive,
+      plan: rawPlan,
+      variant: rawVariant,
+      tier,
+      isPlus: hasActive && tier === 'plus',
+      isVip: hasActive && tier === 'vip',
+    };
   }
 };
 
@@ -233,7 +254,7 @@ export function handleDeepLink(url: string) {
         '/success': async () => {
           await Promise.all([
             __init__app(),
-            cacheStorage.getCurrentUserProfile(),
+            cacheStorage.getCurrentUserProfile(true),
             cacheStorage.getProducts(),
           ]);
           if (navigationRef.isReady()) {

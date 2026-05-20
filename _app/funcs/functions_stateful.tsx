@@ -1,9 +1,8 @@
 // https://ionic.io/ionicons 
 // https://static.enapter.com/rn/icons/material-community.html 
 // https://oblador.github.io/react-native-vector-icons/ 
-import { ActivityIndicator, View, Text, Modal, Pressable, Image, StyleSheet } from 'react-native';
-import { useCallback, useEffect, useState } from 'react';
-import { styles } from './static';
+import { ActivityIndicator, View, Text } from 'react-native';
+import { useEffect, useState } from 'react';
 import React from 'react';
 
 import { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
@@ -29,13 +28,13 @@ Loaderx.hide = () => { if (showLoaderFunc) { showLoaderFunc(false); } else { con
 
 
 
-export const bottomsheet_renderBackdrop = useCallback((props: any) =>
+export const bottomsheet_renderBackdrop =  (props: any) =>
 (<BottomSheetBackdrop {...props}
   appearsOnIndex={0}
   disappearsOnIndex={-1}
-  enableTouchThrough
-  pressBehavior="close" 
-/>), []);
+  enableTouchThrough={true}
+  pressBehavior="close"
+/>) ;
 //*****************************
 //
 //

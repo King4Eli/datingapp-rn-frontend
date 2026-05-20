@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, TextInput, Alert, FlatList, Platform, TouchableOpacity, KeyboardAvoidingView, PermissionsAndroid, Linking, ImageBackground } from 'react-native';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import IonIcon from 'react-native-vector-icons/Ionicons';
@@ -6,7 +6,7 @@ import { namer, styles } from '../funcs/static';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { _http_request, help, llStorage, mediaHandler, screenWidth, hostServer, logReport, uploadHandler, navigationRef, cacheStorage } from '../funcs/functions';
 import { Asset } from 'react-native-image-picker';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Sound, { AudioEncoderAndroidType, AudioSourceAndroidType, AVEncoderAudioQualityIOSType, OutputFormatAndroidType } from 'react-native-nitro-sound';
 import RNFS from 'react-native-fs';
@@ -47,6 +47,7 @@ interface convoInterface {
 }
 
 export function Screen_conversation({ navigation, route }: { navigation: any, route: any }) {
+    const ajjj=useCallback(bottomsheet_renderBackdrop,[]);
 
     const headerHeight = useHeaderHeight();
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
@@ -68,9 +69,10 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const inputTextRef = useRef<TextInput>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
+    const [bottomSheet_convotools_visible, setShowConvoToolsSheet] = useState(false);
 
     const bottomSheet_convotools = {
-        ref: useRef<BottomSheet>(null), snap: useMemo(() => ['28%'], [])
+        ref: useRef<BottomSheet>(null), snap: useMemo(() => ['35%'], [])
     };
     const [getFullscreenClickImage, setFullscreenClickImage] = useState<any | null>(null);
     const autoStopRecordingRef = useRef(false);
@@ -812,7 +814,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <Pressable
                     style={{ padding: 4 }}
                     onPress={() => {
-                        bottomSheet_convotools?.ref.current?.snapToIndex(0);
+                        setShowConvoToolsSheet(true);
                     }}
                 >
                     <IonIcon name="ellipsis-horizontal" size={25} color="#4F8EF7" />
@@ -1221,7 +1223,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         <SafeAreaView style={[styles.container, { paddingTop: headerHeight}]} edges={['bottom']}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={0}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
                 style={{ flex: 1 }} >
 
                 <View style={{ paddingVertical: 5 }}>
@@ -1449,7 +1451,16 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                     <TouchableOpacity disabled={voiceNoteLoading} onPress={() => toggleVoiceNote()} style={{ paddingHorizontal: 6, opacity: voiceNoteLoading ? 0.5 : 1 }}>
                         <MaterialCommunityIcons name={voiceNoteLoading ? "timer-sand" : (isRecording ? "stop-circle" : "microphone")} size={25} color={isRecording ? "#d00" : "#4F8EF7"} />
                     </TouchableOpacity>
-                    <TextInput ref={inputTextRef} style={styles.conversation_textInput} value={inputText} onChangeText={setInputText} placeholder="Send a message" placeholderTextColor="#aaa" multiline />
+                    <TextInput
+                        ref={inputTextRef}
+                        style={styles.conversation_textInput}
+                        value={inputText}
+                        onChangeText={setInputText}
+                        placeholder="Send a message"
+                        placeholderTextColor="#aaa"
+                        multiline
+                        textAlignVertical="center"
+                    />
                     <TouchableOpacity disabled={(inputText.trim() || (getInputImageVideo.length > 0) || getInputAudio) ? false : true} onPress={() => sendMessage()} style={{ paddingHorizontal: 6, justifyContent: 'center' }}>
                         <MaterialCommunityIcons name="send" size={25} color="#4F8EF7" style={{ opacity: (inputText.trim() || (getInputImageVideo.length > 0) || getInputAudio) ? 1 : 0.4 }} />
                     </TouchableOpacity>
@@ -1458,14 +1469,15 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         </SafeAreaView>
 
 
-        <BottomSheet ref={bottomSheet_convotools?.ref}
-            index={-1} enablePanDownToClose
+        {bottomSheet_convotools_visible && <BottomSheet ref={bottomSheet_convotools?.ref}
+            index={0} enablePanDownToClose
             snapPoints={bottomSheet_convotools?.snap}
-            backdropComponent={bottomsheet_renderBackdrop} >
+            backdropComponent={ajjj}
+            onClose={() => setShowConvoToolsSheet(false)} >
             <BottomSheetView>
                 <SafeAreaView edges={['bottom']}>{funt.convoTools}</SafeAreaView>
             </BottomSheetView>
-        </BottomSheet>
+        </BottomSheet>}
 
         <ImageViewing
             images={[{ uri: getFullscreenClickImage }]}

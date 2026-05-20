@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { namer, styles } from '../funcs/static';
-import { __init__app, _http_request, cacheStorage, hostServer, llStorage, logReport } from '../funcs/functions';
+import { __init__app, _http_request, cacheStorage, help, hostServer,  logReport } from '../funcs/functions';
 import appJson from '../../app.json';
 import DeviceInfo from 'react-native-device-info';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,7 +41,7 @@ const MODERN_COLORS = {
 
 
 export function Screen_settings({ navigation }: { navigation: any }) {
-  const [getProfile, setProfile] = useState(cacheStorage.getCurrentUserProfile());
+  const [getProfile, setProfile] = useState<any>(null);
 
   const [getAllowOnlyVerified, setAllowOnlyVerified] = useState(getProfile?.messagefromonlyverified ?? false);
   const [getSnoozeAccount, setSnoozeAccount] = useState(getProfile?.snooze ?? false);
@@ -52,10 +52,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const [notifyPushEnabled, setNotifyPushEnabled] = useState(true);
   const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
 
-  const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
-  const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
-  const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";
-
+  const subscriptionState = help.getSubscriptionState(getProfile);
+  const activeSubscription = subscriptionState.hasActive;
+  
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerOpacity = scrollY.interpolate({ inputRange: [0, 100], outputRange: [1, 0.9], extrapolate: 'clamp' });
 
@@ -105,6 +104,20 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     pushEnabled: true,
     emailEnabled: true,
   };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const profile = await cacheStorage.getCurrentUserProfile();
+        if (mounted) setProfile(profile);
+      } catch {
+        if (mounted) setProfile(null);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     const loadPrivacySettings = async () => {
@@ -339,7 +352,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </View>
       <TouchableOpacity
         onPress={() => {
-          if (premiumLock && !userSubscriptionStep2) {
+          if (premiumLock && !subscriptionState.isVip) {
             Toastx.show({
               type: "warning",
               message: "Upgrade to VIP to unlock this feature",
@@ -354,7 +367,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         <View style={[
           modernStyles.switchTrack,
           value && modernStyles.switchTrackActive,
-          premiumLock && !userSubscriptionStep2 && modernStyles.switchTrackDisabled
+          premiumLock && !subscriptionState.isVip && modernStyles.switchTrackDisabled
         ]}>
           <View style={[
             modernStyles.switchThumb,
@@ -1042,7 +1055,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 subtitle="Only receive messages from verified accounts"
                 value={getAllowOnlyVerified}
                 onValueChange={setAllowOnlyVerified}
-                premiumLock={!userSubscriptionStep2}
+                premiumLock={!subscriptionState.isVip}
               />
               <ModernSwitch
                 icon="moon-outline"
@@ -1155,7 +1168,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               // Refresh profile data
               await __init__app();
               bottomSheetRef_email.ref.current?.close();
-              setProfile(cacheStorage.getCurrentUserProfile());
+              setProfile(await cacheStorage.getCurrentUserProfile(true));
 
             }} />
         </BottomSheetView>
@@ -1170,7 +1183,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               // Refresh profile data
               await __init__app();
               bottomSheetRef_phone.ref.current?.close();
-              setProfile(cacheStorage.getCurrentUserProfile());
+              setProfile(await cacheStorage.getCurrentUserProfile(true));
             }}
             onCancel={() => bottomSheetRef_phone.ref.current?.close()} />
         </BottomSheetView>

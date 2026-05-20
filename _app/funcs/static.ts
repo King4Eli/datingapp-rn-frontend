@@ -119,6 +119,7 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         paddingRight: 10,
         paddingVertical: 12,
+        minHeight: 44,
         maxHeight: 100,
     },
     conversation_textInputContainer: {
@@ -268,4 +269,3 @@ export const resourceMap = {
     },
     loading1: require('../assets/images/loading1.gif'),
 };
-

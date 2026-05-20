@@ -497,6 +497,8 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     // ── Bottom sheet refs ───────────────────────────────────────────────────
     const addNewPrompt_ref = useRef<BottomSheet>(null);
     const addInterests_ref = useRef<BottomSheet>(null);
+    const [showAddNewPromptSheet, setShowAddNewPromptSheet] = useState(false);
+    const [showAddInterestsSheet, setShowAddInterestsSheet] = useState(false);
     const addNewPromptSnapPoints = useMemo(() => ['80%'], []);
     const addInterestsSnapPoints = useMemo(() => ['85%'], []);
 
@@ -882,7 +884,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         <View style={styles.editprofile_inputborder}>
                             <Pressable
                                 style={{ gap: 8 }}
-                                onPress={() => addInterests_ref.current?.snapToIndex(0)}
+                                onPress={() => setShowAddInterestsSheet(true)}
                             >
                                 <View style={pgStyles.inputHeader}>
                                     <Text style={styles.editprofile_inputtitle}>
@@ -1030,7 +1032,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             {getPrompts.length < MAX_PROMPTS && (
                                 <Pressable
                                     style={pgStyles.addPromptBtn}
-                                    onPress={() => addNewPrompt_ref.current?.snapToIndex(0)}
+                                    onPress={() => setShowAddNewPromptSheet(true)}
                                 >
                                     <MIcons name="plus-circle-outline" size={18} color="#f95f62" />
                                     <Text style={pgStyles.addPromptText}>Add a Prompt</Text>
@@ -1072,12 +1074,13 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
 
             {/* ── Add New Prompt Bottom Sheet ───────────────────────────────── */}
-            <BottomSheet
+            {showAddNewPromptSheet && <BottomSheet
                 ref={addNewPrompt_ref}
-                index={-1}
+                index={0}
                 enablePanDownToClose
                 snapPoints={addNewPromptSnapPoints}
                 backdropComponent={bottomsheet_renderBackdrop}
+                onClose={() => setShowAddNewPromptSheet(false)}
             >
                 <BottomSheetView style={{ flex: 1, padding: 20 }}>
                     <Text style={pgStyles.sheetTitle}>Add a Prompt</Text>
@@ -1129,15 +1132,16 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             ))}
                     </ScrollView>
                 </BottomSheetView>
-            </BottomSheet>
+            </BottomSheet>}
 
             {/* ── Interests Bottom Sheet ────────────────────────────────────── */}
-            <BottomSheet
+            {showAddInterestsSheet && <BottomSheet
                 ref={addInterests_ref}
-                index={-1}
+                index={0}
                 enablePanDownToClose
                 snapPoints={addInterestsSnapPoints}
                 backdropComponent={bottomsheet_renderBackdrop}
+                onClose={() => setShowAddInterestsSheet(false)}
             >
                 <BottomSheetView style={{ flex: 1, padding: 20 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -1178,7 +1182,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         ))}
                     </ScrollView>
                 </BottomSheetView>
-            </BottomSheet>
+            </BottomSheet>}
         </SafeAreaView >
     );
 }

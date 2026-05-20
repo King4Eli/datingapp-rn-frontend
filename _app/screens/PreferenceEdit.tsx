@@ -49,7 +49,7 @@ export function Screen_editpreference({ navigation }: { navigation: any }) {
 
 
 
-    const hasPremium = getProfile?.subscription?.status === 'active';
+    const hasPremium = help.getSubscriptionState(getProfile).hasActive;
 
     const [activeTab, setActiveTab] = useState<TabMode>('basics');
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking, Animated } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import IIcon from 'react-native-vector-icons/Ionicons';
-import { _http_request, cacheStorage, hostServer, parseCategoryProducts } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, parseCategoryProducts } from '../funcs/functions';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -123,8 +123,9 @@ export const Screen_PurchaseSubscribe = ({ route, navigation }: { route: any; na
     return TIER_COLORS[index >= 0 ? index % TIER_COLORS.length : 0];
   }, [tierKeys]);
 
-  const activeSubscription = profile?.user_effect?.has_active_subscription ?? false;
-  const userCurrentTier = profile?.user_effect?.subscription_plan;
+  const subscriptionState = help.getSubscriptionState(profile);
+  const activeSubscription = subscriptionState.hasActive;
+  const userCurrentTier = subscriptionState.plan;
 
   const getTierKeyByName = useCallback((planName?: string) => {
     if (!planName || !products) return '';

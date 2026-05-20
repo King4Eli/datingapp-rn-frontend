@@ -15,13 +15,12 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     const __MAPPER = llStorage.CONFIG.get()?.mapper;
 
     const [getProfile, setProfile] = useState<any>(null);
-    const activeSubscription = getProfile?.user_effect?.has_active_subscription ?? false;
-    const userSubscriptionStep1 = activeSubscription && getProfile?.user_effect?.subscription_plan === "plus";
-    const userSubscriptionStep2 = activeSubscription && getProfile?.user_effect?.subscription_plan === "vip";
-
+    const subscriptionState = help.getSubscriptionState(getProfile);
+    const activeSubscription = subscriptionState.hasActive;
+ 
     const headerHeight = useHeaderHeight();
     const [getNewLikes, setNewLikes] = useState<any>(null);
-    const [activeFilter, setActiveFilter] = useState<'all' | 'verifiedOnly' | 'newestfirst'>('all');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'verifiedOnly'   >('all');
     const [layout, setLayout] = useState({
         numColumns: 2,
         itemWidth: 0,
@@ -138,11 +137,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
         let list = Array.isArray(getNewLikes) ? [...getNewLikes] : [];
         if (activeFilter === 'verifiedOnly') {
             list = list.filter((x: any) => x?.verified || x?.user_verfied === 1);
-        } else if (activeFilter === 'newestfirst') {
-            list = list.sort((a: any, b: any) => {
-                return getDateMs(b) - getDateMs(a);
-            });
-        }
+        }  
         return list;
     }, [activeFilter, getNewLikes]);
 
@@ -220,7 +215,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         ListHeaderComponent={<View style={{ gap: 12, marginBottom: 12 }}>
                             <View style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 14, overflow: 'hidden' }}>
                                 <View style={styles.zcircle1} />
-                                <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>You have {totalLikesCount} like{totalLikesCount > 1 ? "s" : ""}</Text>
+                                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>You have {totalLikesCount} like{totalLikesCount > 1 ? "s" : ""}</Text>
 
                                 <View style={{ marginTop: 10 }}>
                                     <Pressable onPress={() => navigation.navigate(namer.navigation.subscription)} style={{ flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -233,8 +228,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                                 {[
                                     { id: 'all', label: 'Super Likes' },
-                                    { id: 'newestfirst', label: 'Most Recent' },
-                                    { id: 'verifiedOnly', label: 'Verified only' },
+                                     { id: 'verifiedOnly', label: 'Verified only' },
 
                                 ].map((f) => {
                                     const active = activeFilter === f.id;

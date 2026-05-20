@@ -31,6 +31,7 @@ import LottieView from 'lottie-react-native';
 import { Zz_devv } from './zz_devv';
 import { Auth_Signup } from './Auth_Signup';
 import { Screen_PurchaseConsumable } from './Purchase_Consumable';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 // Type definitions for props if needed
 const Stack = createStackNavigator<any>();
@@ -190,9 +191,11 @@ const MainApp: React.FC = () => {
 const App = () => (
   <SafeAreaProvider style={{ flex: 1, position: 'relative' }}>
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Loaderx />
+      <BottomSheetModalProvider>
+        <Loaderx />
       <MainApp />
       <Toastx />
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   </SafeAreaProvider>
 );

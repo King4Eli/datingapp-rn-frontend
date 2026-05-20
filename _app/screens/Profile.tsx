@@ -12,6 +12,13 @@ import FastImage from 'react-native-fast-image';
 import Svg, { Circle } from 'react-native-svg';
 import LottieView from 'lottie-react-native';
 
+const PLAN_UI: Record<string, { icon: string; color: string; cardColors: string[] }> = {
+    plus: { icon: 'diamond-outline', color: '#111827', cardColors: ['#000000', '#00000080'] },
+    vip: { icon: 'crown-outline', color: '#40008a', cardColors: ['#ea9000', '#FF9E0080'] },
+    free: { icon: 'account-heart-outline', color: '#6b7280', cardColors: ['#000000', '#00000080'] },
+};
+
+const getPlanUi = (plan?: string | null) => PLAN_UI[String(plan ?? '').trim().toLowerCase()] ?? PLAN_UI.free;
 
 export function Screen_profile({ navigation }: { navigation: any }) {
     const headerHeight = useHeaderHeight();
@@ -28,9 +35,17 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     const __product_MAPPER_consumables: any = null;//llStorage.purchasing_product?.get()?.consumables;
 
 
-    let activeSubscription = getProfile?.stats ?? {};
-    //activeSubscription = {"streakCount":1,"sub_id":"52ifcxelxzp8uhb2sgbngafb7s1pisr1smox5","sub_var":2,"sub_edate":"2026-03-20T18:15:37.000Z","sub_status":1};
-    //console.log("stats", __MAPPER)
+    const subscriptionState = help.getSubscriptionState(getProfile);
+    const activeSubscription = subscriptionState.hasActive;
+    const subscriptionPlanUi = getPlanUi(subscriptionState.tier);
+    const visibleMainSubProducts = useMemo(() => {
+        const products = __getProducts_mainsub ?? [];
+        if (subscriptionState.isVip) return [];
+        if (subscriptionState.isPlus) {
+            return products.filter((tier: any) => String(tier?.name ?? '').trim().toLowerCase() === 'vip');
+        }
+        return products;
+    }, [__getProducts_mainsub, subscriptionState.isPlus, subscriptionState.isVip]);
 
 
 
@@ -146,6 +161,12 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
                             <View style={{ gap: 15 }}>
                                 <Text style={{ fontSize: 16, fontWeight: 600, }}>{getProfile?.profile?.fullname}, {help.getageFromDOB(getProfile?.profile?.dob)}</Text>
+                                <View style={stylesx.subscriptionBadge}>
+                                    <MIcon name={subscriptionPlanUi.icon} size={15} color={subscriptionPlanUi.color} />
+                                    <Text style={stylesx.subscriptionBadgeText}>
+                                        {activeSubscription ? `${subscriptionState.plan} ${subscriptionState.variant ?? ''}`.trim() : 'Free plan'}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
 
@@ -198,25 +219,26 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     </View>
 
 
-                    {<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
+                    {visibleMainSubProducts.length > 0 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
 
-                        {__getProducts_mainsub?.map((tier: any, key: number) => {
-                            const color = [['#000000', '#00000080'], ['#FF9E00', '#FF9E0080']]
-                            const icon = ["diamond-outline", "crown-outline"]
+                        {visibleMainSubProducts.map((tier: any, key: number) => {
+                            const tierName = String(tier?.name ?? '').trim();
+                            const tierUi = getPlanUi(tierName);
+                            const isCurrentTier = activeSubscription && subscriptionState.tier === tierName.toLowerCase();
                             const features = (tier?.description?.features ?? [])
                                 .filter((feature: any) => feature?.e !== false && String(feature?.d ?? '').trim().length > 0)
                                 .map((feature: any) => feature.d);
 
                             return (
                                 <LinearGradient key={tier?.sku ?? key}
-                                    colors={color[key % color.length]}
+                                    colors={tierUi.cardColors}
                                     style={stylesx.featureCard}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 1 }}>
                                     <View style={{ padding: 16 }}>
                                         <View style={stylesx.cardHeader}>
                                             <Text style={stylesx.cardTitle}>{tier?.name}</Text>
-                                            <MIcon name={icon[key % icon.length]} size={20} color="#fff" />
+                                            <MIcon name={tierUi.icon} size={20} color="#fff" />
                                         </View>
 
                                         <View style={stylesx.featuresList}>
@@ -235,9 +257,10 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                                             <Text style={stylesx.variantText}>View more benefits</Text>
                                         )}
 
-                                        <TouchableOpacity style={stylesx.upgradeButton}
+                                        <TouchableOpacity style={[stylesx.upgradeButton, isCurrentTier && stylesx.currentPlanButton]}
+                                            disabled={isCurrentTier}
                                             onPress={() => navigation.navigate(namer.navigation.subscription, { tab: tier?.name })} >
-                                            <Text style={stylesx.upgradeButtonText}>Upgrade</Text>
+                                            <Text style={stylesx.upgradeButtonText}>{isCurrentTier ? 'Current plan' : 'Upgrade'}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </LinearGradient>
@@ -334,6 +357,22 @@ const stylesx = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
     },
+    subscriptionBadge: {
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        backgroundColor: '#fff7df',
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+    },
+    subscriptionBadgeText: {
+        color: '#4b5563',
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'capitalize',
+    },
 
     productLabel: {
         fontSize: 14,
@@ -419,6 +458,9 @@ const stylesx = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: 20,
         alignItems: 'center',
+    },
+    currentPlanButton: {
+        backgroundColor: 'rgba(255,255,255,0.34)',
     },
     upgradeButtonText: {
         color: '#fff',
