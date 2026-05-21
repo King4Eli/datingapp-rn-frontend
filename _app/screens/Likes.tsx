@@ -28,13 +28,9 @@ export function Screen_likes({ navigation }: { navigation: any }) {
     });
     const LIKES_PAGE_SIZE = 12;
     const [visibleLikes, setVisibleLikes] = useState<number>(LIKES_PAGE_SIZE);
-    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(true);
     const totalLikesCount = useMemo(() => (getNewLikes?.length ?? 0), [getNewLikes]);
-    const verifiedCount = useMemo(() => (getNewLikes ?? []).filter((x: any) => x?.verified || x?.user_verfied === 1).length, [getNewLikes]);
-    const nearestDistance = useMemo(() => {
-        const distances = (getNewLikes ?? []).map((x: any) => Number(x?.distance)).filter((d: number) => !isNaN(d));
-        return distances.length > 0 ? Math.min(...distances) : null;
-    }, [getNewLikes]);
+  
 
 
     // profile
@@ -128,11 +124,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
         return item?.is_superlike === true || item?.match_status === 5 || item?.match_status === '5';
     };
 
-    const getDateMs = (item: any) => {
-        const dateStr = item?.LikedUserDate;
-        const parsed = dateStr ? Date.parse(dateStr) : NaN;
-        return isNaN(parsed) ? 0 : parsed;
-    };
+     
     const filteredLikes = useMemo(() => {
         let list = Array.isArray(getNewLikes) ? [...getNewLikes] : [];
         if (activeFilter === 'verifiedOnly') {
@@ -154,26 +146,18 @@ export function Screen_likes({ navigation }: { navigation: any }) {
             return;
         }
         setTimeout(() => {
-            if (visibleLikes >= filteredLikesCount) return;
+            if (visibleLikes >= filteredLikesCount){
+                setIsLoadingMore(false);
+                return;
+            }
             setIsLoadingMore(true);
             setVisibleLikes((prev) => {
                 if (prev >= filteredLikesCount) return prev;
                 return Math.min(prev + LIKES_PAGE_SIZE, filteredLikesCount || prev + LIKES_PAGE_SIZE);
             });
         }, 1000);
-    }, [activeSubscription, filteredLikesCount, navigation, visibleLikes]);
+    }, [activeFilter,activeSubscription, filteredLikesCount, navigation, visibleLikes]);
 
-    useEffect(() => {
-        setVisibleLikes(LIKES_PAGE_SIZE);
-        setIsLoadingMore(false);
-    }, [activeFilter]);
-
-    useEffect(() => {
-        // Stop the spinner once we've applied the new slice
-        if (visibleLikes >= filteredLikesCount) {
-            setIsLoadingMore(false);
-        }
-    }, [filteredLikesCount, visibleLikes]);
 
     // Fetch new likes when screen is focused
     useFocusEffect(React.useCallback(() => {

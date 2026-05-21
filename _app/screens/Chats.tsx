@@ -197,7 +197,7 @@ export function Screen_chat({ navigation }: { navigation: any }) {
                   style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
                   source={{ cache: 'default', uri: imageDomain + String(getImageLikes?.p) }} >
                   <View style={{ backgroundColor: 'rgba(15,23,42,0.7)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center' }}>
-                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>+{getCountLikes}</Text>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{getCountLikes > 99 ? '99+' : '+'+ getCountLikes}</Text>
                   </View>
                   <Text style={{ color: '#fff', marginTop: 10, fontWeight: '700' }}>See likes</Text>
                 </ImageBackground>

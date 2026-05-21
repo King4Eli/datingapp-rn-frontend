@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { namer, styles } from '../funcs/static';
-import { __init__app, _http_request, cacheStorage, help, hostServer,  logReport } from '../funcs/functions';
+import { __init__app, _http_request, cacheStorage, help, hostServer, logReport } from '../funcs/functions';
 import appJson from '../../app.json';
 import DeviceInfo from 'react-native-device-info';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +14,6 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
-
 
 // Modern color palette
 const MODERN_COLORS = {
@@ -35,11 +34,6 @@ const MODERN_COLORS = {
   overlay: 'rgba(0, 0, 0, 0.5)',
 };
 
-
-
-
-
-
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
 
@@ -54,42 +48,46 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
   const subscriptionState = help.getSubscriptionState(getProfile);
   const activeSubscription = subscriptionState.hasActive;
+  const profileDetails = getProfile?.profile ?? {};
+  const profileEmail = profileDetails?.email ?? getProfile?.user_email ?? '';
+  const profilePhone = profileDetails?.phonenumber ?? getProfile?.user_phonenumber ?? '';
+  const profileName = profileDetails?.fullname ?? getProfile?.user_fullname ?? 'User';
   
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerOpacity = scrollY.interpolate({ inputRange: [0, 100], outputRange: [1, 0.9], extrapolate: 'clamp' });
 
-  // Use the correct ref type
+  // Bottom sheet refs with larger snap points for keyboard
   const bottomSheetRef_push = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['45%', '80%'], [])
+    snap: useMemo(() => ['50%', '85%'], [])
   };
   const bottomSheetRef_feedback = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%', '75%'], [])
+    snap: useMemo(() => ['50%', '85%'], [])
   };
   const bottomSheetRef_support = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%', '75%'], [])
+    snap: useMemo(() => ['50%', '85%'], [])
   };
   const bottomSheetRef_payment = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%', '75%'], [])
+    snap: useMemo(() => ['50%', '85%'], [])
   };
   const bottomSheetRef_debug = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%', '75%'], [])
+    snap: useMemo(() => ['50%', '85%'], [])
   };
   const bottomSheetRef_email = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%', '75%'], [])
+    snap: useMemo(() => ['60%', '90%'], []) // Increased for keyboard
   };
   const bottomSheetRef_phone = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['35%', '75%'], [])
+    snap: useMemo(() => ['60%', '90%'], []) // Increased for keyboard
   };
   const bottomSheetRef_privacy = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['45%', '85%'], [])
+    snap: useMemo(() => ['50%', '85%'], [])
   };
 
   const PRIVACY_STORAGE_KEY = 'privacy_settings_v1';
@@ -247,7 +245,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           <View style={modernStyles.avatarContainer}>
             <View style={modernStyles.avatar}>
               <Text style={modernStyles.avatarText}>
-                {getProfile?.user_name?.charAt(0) || 'U'}
+                {profileName?.charAt(0) || 'U'}
               </Text>
             </View>
             {activeSubscription && (
@@ -257,9 +255,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             )}
           </View>
           <View style={modernStyles.profileDetails}>
-            <Text style={modernStyles.profileName}>{getProfile?.user_fullname || 'User'}</Text>
-
-
+            <Text style={modernStyles.profileName}>{profileName}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -292,10 +288,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     onPress,
     rightElement,
     danger = false,
-    premium = false
+    premium = false,
+    hr=true
   }: any) => (
     <TouchableOpacity
-      style={modernStyles.optionItem}
+      style={[modernStyles.optionItem, hr && { borderBottomWidth: 1, borderBottomColor: MODERN_COLORS.border }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -463,8 +460,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     </View>
   );
 
-
-  // Email Change Flow Component
+  // Email Change Flow Component - FIXED KeyboardAvoidingView position
   const EmailChangeFlow = ({ currentEmail, onComplete, onCancel }: { currentEmail: string, onComplete: () => void, onCancel: () => void }) => {
     const [step, setStep] = useState(0);
     const [newEmail, setNewEmail] = useState('');
@@ -491,7 +487,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 style={modernStyles.input}
                 placeholder="your@email.com"
                 keyboardType="email-address"
-                autoCapitalize="none" multiline
+                autoCapitalize="none"
+                autoCorrect={false}
                 value={newEmail}
                 onChangeText={(text) => {
                   setNewEmail(text);
@@ -509,13 +506,15 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 (!newEmail || isLoading) && modernStyles.buttonDisabled
               ]}
               onPress={async () => {
-                if (!newEmail || newEmail === currentEmail) {
+                const trimmedEmail = newEmail.trim().toLowerCase();
+                const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
+                if (!trimmedEmail || trimmedEmail === trimmedCurrentEmail) {
                   setError("Please enter a different email address");
                   return;
                 }
 
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(newEmail)) {
+                if (!emailRegex.test(trimmedEmail)) {
                   setError("Please enter a valid email address");
                   return;
                 }
@@ -528,13 +527,14 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     customApiUrl: hostServer() + "/api/core/v1/pushNewEmail",
                     reqType: 'POST',
                     bodyArray: {
-                      oldemail: currentEmail,
-                      newemail: newEmail,
+                      oldemail: trimmedCurrentEmail,
+                      newemail: trimmedEmail,
                       rnc: "1",
                     }
                   });
 
                   if (response?.code === 200) {
+                    setNewEmail(trimmedEmail);
                     setSuccessMessage("Verification code sent to your new email");
                     carouselRef.current?.goToNext();
                   } else {
@@ -607,8 +607,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     customApiUrl: hostServer() + "/api/core/v1/pushNewEmail",
                     reqType: 'POST',
                     bodyArray: {
-                      oldemail: currentEmail,
-                      newemail: newEmail,
+                      oldemail: currentEmail.trim().toLowerCase(),
+                      newemail: newEmail.trim().toLowerCase(),
                       rnc: "1",
                     }
                   });
@@ -662,8 +662,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                       customApiUrl: hostServer() + "/api/core/v1/pushNewEmail",
                       reqType: 'POST',
                       bodyArray: {
-                        oldemail: currentEmail,
-                        newemail: newEmail,
+                        oldemail: currentEmail.trim().toLowerCase(),
+                        newemail: newEmail.trim().toLowerCase(),
                         vcode: verificationCode,
                       }
                     });
@@ -702,35 +702,43 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         )
       }
     ];
-    return (
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} >
-        <ControlledCarousel ref={carouselRef} initialPage={0} onPageChange={setStep}
-          pages={steps.map((stepConfig, index) => (
-            <View key={index} style={{ flex: 1, paddingHorizontal: 10 }}>
-              <View style={modernStyles.flowHeader}>
-                <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
-                <Text style={modernStyles.flowSubtitle}>{stepConfig.subtitle}</Text>
-              </View>
-              {stepConfig.content}
-            </View>
-          ))} />
 
-        <View style={modernStyles.stepIndicator}>
-          {steps.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                modernStyles.stepDot,
-                index === step && modernStyles.stepDotActive
-              ]}
-            />
-          ))}
-        </View>
-      </KeyboardAvoidingView>
+    // FIXED: KeyboardAvoidingView now properly wrapped inside BottomSheetView
+    return (
+      <BottomSheetView style={{ flex: 1 }}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"} 
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
+        >
+          <ControlledCarousel ref={carouselRef} initialPage={0} onPageChange={setStep}
+            pages={steps.map((stepConfig, index) => (
+              <View key={index} style={{ flex: 1, paddingHorizontal: 10 }}>
+                <View style={modernStyles.flowHeader}>
+                  <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
+                  <Text style={modernStyles.flowSubtitle}>{stepConfig.subtitle}</Text>
+                </View>
+                {stepConfig.content}
+              </View>
+            ))} />
+
+          <View style={modernStyles.stepIndicator}>
+            {steps.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  modernStyles.stepDot,
+                  index === step && modernStyles.stepDotActive
+                ]}
+              />
+            ))}
+          </View>
+        </KeyboardAvoidingView>
+      </BottomSheetView>
     );
   };
 
-  // Phone Change Flow Component (similar structure, but for phone)
+  // Phone Change Flow Component - FIXED KeyboardAvoidingView position
   const PhoneChangeFlow = ({
     currentPhone,
     onComplete,
@@ -768,7 +776,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 autoCapitalize="none"
                 value={newPhone}
                 onChangeText={(text) => {
-                  setNewPhone(text);
+                  setNewPhone(text.replace(/[^0-9]/g, ''));
                   setError('');
                 }}
                 editable={!isLoading}
@@ -783,10 +791,14 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 (!newPhone || isLoading) && modernStyles.buttonDisabled
               ]}
               onPress={async () => {
-
-                const trimmedPhone = newPhone.trim();
-                if (!trimmedPhone || trimmedPhone === currentPhone) {
+                const trimmedPhone = newPhone.replace(/[^0-9]/g, '');
+                const currentPhoneDigits = currentPhone.replace(/[^0-9]/g, '');
+                if (!trimmedPhone || trimmedPhone === currentPhoneDigits) {
                   setError("Please enter a different phone number");
+                  return;
+                }
+                if (trimmedPhone.length < 7) {
+                  setError("Please enter a valid phone number");
                   return;
                 }
 
@@ -798,7 +810,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     customApiUrl: hostServer() + "/api/core/v1/pushNewPhonenumber",
                     reqType: 'POST',
                     bodyArray: {
-                      oldpnumber: currentPhone,
+                      oldpnumber: currentPhoneDigits,
                       newpnumber: trimmedPhone,
                       rnc: "1",
                     }
@@ -871,15 +883,14 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             <TouchableOpacity
               style={modernStyles.resendButton}
               onPress={async () => {
-
                 setIsLoading(true);
                 try {
                   const response = await _http_request({
                     customApiUrl: hostServer() + "/api/core/v1/pushNewPhonenumber",
                     reqType: 'POST',
                     bodyArray: {
-                      oldpnumber: currentPhone,
-                      newpnumber: newPhone.trim(),
+                      oldpnumber: currentPhone.replace(/[^0-9]/g, ''),
+                      newpnumber: newPhone.replace(/[^0-9]/g, ''),
                       rnc: "1",
                     }
                   });
@@ -922,7 +933,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   (verificationCode.length !== 6 || isLoading) && modernStyles.buttonDisabled
                 ]}
                 onPress={async () => {
-
                   if (verificationCode.length !== 6) {
                     setError("Please enter a valid 6-digit code");
                     return;
@@ -934,8 +944,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                       customApiUrl: hostServer() + "/api/core/v1/pushNewPhonenumber",
                       reqType: 'POST',
                       bodyArray: {
-                        oldpnumber: currentPhone,
-                        newpnumber: newPhone.trim(),
+                        oldpnumber: currentPhone.replace(/[^0-9]/g, ''),
+                        newpnumber: newPhone.replace(/[^0-9]/g, ''),
                         vcode: verificationCode,
                       }
                     });
@@ -975,34 +985,38 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       }
     ];
 
+    // FIXED: KeyboardAvoidingView now properly wrapped inside BottomSheetView
     return (
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} >
-        <ControlledCarousel ref={carouselRef} initialPage={0} onPageChange={setStep}
-          pages={steps.map((stepConfig, index) => (
-            <View key={index} style={{ flex: 1, paddingHorizontal: 10 }}>
-              <View style={modernStyles.flowHeader}>
-                <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
-                <Text style={modernStyles.flowSubtitle}>{stepConfig.subtitle}</Text>
+      <BottomSheetView style={{ flex: 1 }}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"} 
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
+        >
+          <ControlledCarousel ref={carouselRef} initialPage={0} onPageChange={setStep}
+            pages={steps.map((stepConfig, index) => (
+              <View key={index} style={{ flex: 1, paddingHorizontal: 10 }}>
+                <View style={modernStyles.flowHeader}>
+                  <Text style={modernStyles.flowTitle}>{stepConfig.title}</Text>
+                  <Text style={modernStyles.flowSubtitle}>{stepConfig.subtitle}</Text>
+                </View>
+                {stepConfig.content}
               </View>
-              {stepConfig.content}
-            </View>
-          ))} />
+            ))} />
 
-        <View style={modernStyles.stepIndicator}>
-          {steps.map((_, index) => (
-            <View key={index} style={[modernStyles.stepDot, index === step && modernStyles.stepDotActive]} />
-          ))}
-        </View>
-      </KeyboardAvoidingView>
+          <View style={modernStyles.stepIndicator}>
+            {steps.map((_, index) => (
+              <View key={index} style={[modernStyles.stepDot, index === step && modernStyles.stepDotActive]} />
+            ))}
+          </View>
+        </KeyboardAvoidingView>
+      </BottomSheetView>
     );
   };
 
-
-
-
-
-  // FIXED: All onPress handlers now properly reference the refs
-  return (<>
+  // Main render
+  return (
+    <>
       <SafeAreaView style={modernStyles.container} edges={["bottom"]}>
         <Animated.ScrollView
           showsVerticalScrollIndicator={false}
@@ -1023,15 +1037,15 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               <ModernOption
                 icon="mail-outline"
                 title="Email Address"
-                subtitle={getProfile?.user_email}
+                subtitle={profileEmail || 'Not set'}
                 onPress={() => {
                   bottomSheetRef_email.ref.current?.expand();
                 }}
               />
-              <ModernOption
+               <ModernOption
                 icon="call-outline"
                 title="Phone Number"
-                subtitle={getProfile?.user_phonenumber}
+                subtitle={profilePhone || 'Not set'}
                 onPress={() => {
                   bottomSheetRef_phone.ref.current?.expand();
                 }}
@@ -1042,8 +1056,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 subtitle="Manage alerts and preferences"
                 onPress={() => {
                   bottomSheetRef_push.ref.current?.expand();
-
                 }}
+                hr={false}
               />
             </ModernSection>
 
@@ -1086,6 +1100,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 subtitle="Learn about dating safely"
                 onPress={() => Linking.openURL(hostServer() + "/static_page/tnc.php")}
                 rightElement={<IIcon size={20} name='open-outline' />}
+              hr={false}
               />
             </ModernSection>
 
@@ -1102,10 +1117,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 title="Privacy Policy"
                 onPress={() => Linking.openURL(hostServer() + "/static_page/privacy.php")}
                 rightElement={<IIcon size={20} name='open-outline' />}
+                hr={false}
               />
             </ModernSection>
-
-
 
             {/* Logout & Delete Section */}
             <View style={modernStyles.dangerSection}>
@@ -1119,7 +1133,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     navigation.canGoBack() ? navigation.goBack() : null;
                   }}
                   danger
-                />
+                hr={false}/>
               </ModernCard>
               <Pressable onPress={() => {
                 Alert.alert(
@@ -1139,11 +1153,10 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               }} style={{ alignSelf: "flex-start" }}><Text style={{ color: "#ff7a7aff", marginTop: 20, fontSize: 12 }}>delete account</Text></Pressable>
             </View>
 
-
-            {/* Developer Options (Hidden unless enabled) */}
+            {/* Developer Options */}
             <ModernOption icon="code-slash-outline" title="Debug Tools"
-              onPress={() => navigation.push("zz_devv")} />
-
+             hr={false}
+             onPress={() => navigation.push("zz_devv")} />
 
             {/* App Version */}
             <View style={modernStyles.versionContainer}>
@@ -1156,43 +1169,55 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </Animated.ScrollView>
       </SafeAreaView>
 
-      {/* Custom Bottom Sheets */}
-
-      <BottomSheet ref={bottomSheetRef_email.ref} enablePanDownToClose index={-1}
+      {/* Bottom Sheets with keyboard configuration */}
+      <BottomSheet 
+        ref={bottomSheetRef_email.ref} 
+        enablePanDownToClose 
+        index={-1}
         snapPoints={bottomSheetRef_email.snap}
-        backdropComponent={bottomsheet_renderBackdrop}>
-        <BottomSheetView >
-          <EmailChangeFlow currentEmail={getProfile?.user_email || ''}
-            onCancel={() => bottomSheetRef_email.ref.current?.close()}
-            onComplete={async () => {
-              // Refresh profile data
-              await __init__app();
-              bottomSheetRef_email.ref.current?.close();
-              setProfile(await cacheStorage.getCurrentUserProfile(true));
-
-            }} />
-        </BottomSheetView>
+        backdropComponent={bottomsheet_renderBackdrop}
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
+      >
+        <EmailChangeFlow 
+          currentEmail={profileEmail}
+          onCancel={() => bottomSheetRef_email.ref.current?.close()}
+          onComplete={async () => {
+            await __init__app();
+            bottomSheetRef_email.ref.current?.close();
+            setProfile(await cacheStorage.getCurrentUserProfile(true));
+          }} 
+        />
       </BottomSheet>
 
-      <BottomSheet ref={bottomSheetRef_phone.ref} enablePanDownToClose index={-1}
+      <BottomSheet 
+        ref={bottomSheetRef_phone.ref} 
+        enablePanDownToClose 
+        index={-1}
         snapPoints={bottomSheetRef_phone.snap}
-        backdropComponent={bottomsheet_renderBackdrop} >
-        <BottomSheetView>
-          <PhoneChangeFlow currentPhone={getProfile?.user_phonenumber || ''}
-            onComplete={async () => {
-              // Refresh profile data
-              await __init__app();
-              bottomSheetRef_phone.ref.current?.close();
-              setProfile(await cacheStorage.getCurrentUserProfile(true));
-            }}
-            onCancel={() => bottomSheetRef_phone.ref.current?.close()} />
-        </BottomSheetView>
+        backdropComponent={bottomsheet_renderBackdrop}
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
+      >
+        <PhoneChangeFlow 
+          currentPhone={profilePhone}
+          onComplete={async () => {
+            await __init__app();
+            bottomSheetRef_phone.ref.current?.close();
+            setProfile(await cacheStorage.getCurrentUserProfile(true));
+          }}
+          onCancel={() => bottomSheetRef_phone.ref.current?.close()} 
+        />
       </BottomSheet>
 
-      <BottomSheet ref={bottomSheetRef_privacy.ref} index={-1} enablePanDownToClose
+      <BottomSheet 
+        ref={bottomSheetRef_privacy.ref} 
+        index={-1} 
+        enablePanDownToClose
         snapPoints={bottomSheetRef_privacy.snap}
-        backdropComponent={bottomsheet_renderBackdrop} >
-        <BottomSheetView >
+        backdropComponent={bottomsheet_renderBackdrop}
+      >
+        <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Privacy Settings</Text>
             <Text style={[modernStyles.optionSubtitle, { marginTop: 6 }]}>
@@ -1272,9 +1297,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet ref={bottomSheetRef_push.ref} index={-1} enablePanDownToClose
+      <BottomSheet 
+        ref={bottomSheetRef_push.ref} 
+        index={-1} 
+        enablePanDownToClose
         snapPoints={bottomSheetRef_push.snap}
-        backdropComponent={bottomsheet_renderBackdrop} >
+        backdropComponent={bottomsheet_renderBackdrop}
+      >
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Push Notifications</Text>
@@ -1327,7 +1356,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1, paddingHorizontal: 20 }}>
             <Text style={modernStyles.sectionTitle}>Payments</Text>
-            {/* Add payment content here */}
           </View>
         </BottomSheetView>
       </BottomSheet>
@@ -1342,7 +1370,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Feedback</Text>
-            {/* Add feedback content here */}
           </View>
         </BottomSheetView>
       </BottomSheet>
@@ -1357,7 +1384,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         <BottomSheetView style={{ padding: 23 }}>
           <View style={{ flex: 1 }}>
             <Text style={modernStyles.sectionTitle}>Support</Text>
-            {/* Add support content here */}
           </View>
         </BottomSheetView>
       </BottomSheet>
@@ -1606,7 +1632,6 @@ const modernStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1671,13 +1696,15 @@ const modernStyles = StyleSheet.create({
   cardGradient: {
     borderWidth: 0,
   },
+  hr:{// Horizontal divider style
+    height: 1,
+    backgroundColor: MODERN_COLORS.border,
+  },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: MODERN_COLORS.border,
+    paddingVertical: 14 
   },
   optionLeft: {
     flexDirection: 'row',

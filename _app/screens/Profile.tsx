@@ -219,7 +219,13 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                     </View>
 
 
-                    {visibleMainSubProducts.length > 0 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} >
+                    {visibleMainSubProducts.length > 0 && <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={[
+                            stylesx.planCardsContent,
+                            visibleMainSubProducts.length === 1 && stylesx.singlePlanCardsContent,
+                        ]}>
 
                         {visibleMainSubProducts.map((tier: any, key: number) => {
                             const tierName = String(tier?.name ?? '').trim();
@@ -232,7 +238,10 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                             return (
                                 <LinearGradient key={tier?.sku ?? key}
                                     colors={tierUi.cardColors}
-                                    style={stylesx.featureCard}
+                                    style={[
+                                        stylesx.featureCard,
+                                        visibleMainSubProducts.length === 1 && stylesx.singleFeatureCard,
+                                    ]}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 1 }}>
                                     <View style={{ padding: 16 }}>
@@ -392,10 +401,20 @@ const stylesx = StyleSheet.create({
 
 
 
+    planCardsContent: {
+        gap: 7,
+    },
+    singlePlanCardsContent: {
+        flexGrow: 1,
+    },
     featureCard: {
-        width: screenWidth * 0.80,
+        width: screenWidth * 0.82,
         flex: 1, // Set fixed height instead of flex
         borderRadius: 16,
+    },
+    singleFeatureCard: {
+        width: undefined,
+        flex: 1,
     },
     statNumber: {
         fontSize: 18,
