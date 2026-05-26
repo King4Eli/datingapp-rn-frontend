@@ -234,6 +234,7 @@ export const namer = {
         applog: 'fdgsdgn3t4gh',
         deviceSpecs: 'a54yregfdsg5534g',
         currentUserProfile: "b5rb5vt8euiynry",
+        mapper:"dhgfhst4hj6h6h6",
         products: "j6yn65ik57y"
     },
     navigation: {

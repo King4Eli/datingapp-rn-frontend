@@ -1,11 +1,11 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,Text,TextInput,TouchableOpacity,View,} from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
-import { navigationRef, screenWidth } from '../funcs/functions';
+import { cacheStorage, navigationRef, screenWidth } from '../funcs/functions';
 import { namer } from '../funcs/static';
 import { Toastx } from '../funcs/customNotification';
 
@@ -23,37 +23,75 @@ type SignupData = {
 
 type OptionCardProps = {
   label: string;
+  value: string;
   selected: boolean;
   onPress: () => void;
   icon?: string;
 };
 
-const intents = [
-  'Long-term relationship',
-  'Casual dating',
-  'New friends',
-  'Still figuring it out',
-];
+type MapperOption = {
+  label: string;
+  value: string;
+};
 
-const genders = ['Woman', 'Man', 'Non-binary', 'Self-describe'];
-const interestedInOptions = ['Women', 'Men', 'Everyone', 'Non-binary people'];
+const mapLabelsToOptions = (labels: string[]): MapperOption[] =>
+  labels.map(label => ({ label, value: label }));
+
+const fallbackOptions = {
+  intent: mapLabelsToOptions([
+    'Long-term relationship',
+    'Casual dating',
+    'New friends',
+    'Still figuring it out',
+  ]),
+  gender: mapLabelsToOptions(['Woman', 'Man', 'Non-binary' ]),
+  interestedIn: mapLabelsToOptions(['Women', 'Men', 'Everyone', 'Non-binary people']),
+  interests: mapLabelsToOptions([
+    'Music',
+    'Gym',
+    'Travel',
+    'Gaming',
+    'Food',
+    'Movies',
+    'Fashion',
+    'Books',
+    'Anime',
+    'Startups',
+  ]),
+};
+
 const promptExamples = [
   'My perfect weekend is...',
   'Green flags I love...',
   "I'll fall for you if...",
 ];
-const interestOptions = [
-  'Music',
-  'Gym',
-  'Travel',
-  'Gaming',
-  'Food',
-  'Movies',
-  'Fashion',
-  'Books',
-  'Anime',
-  'Startups',
-];
+
+const mapperToOptions = (mapper: any, keys: string[], fallback: MapperOption[]) => {
+  const mapperGroup = keys.map(key => mapper?.[key]).find(Boolean);
+  if (!mapperGroup) return fallback;
+
+  if (Array.isArray(mapperGroup)) {
+    const options = mapperGroup
+      .map((item: any) => ({
+        label: String(item?.label ?? item?.map_label ?? item?.interested_in ?? item ?? '').trim(),
+        value: String(item?.value ?? item?.code ?? item?.map_code ?? item?.id_ai ?? item ?? '').trim(),
+      }))
+      .filter((item: MapperOption) => item.label && item.value);
+
+    return options.length > 0 ? options : fallback;
+  }
+
+  if (typeof mapperGroup === 'object') {
+    const options = Object.entries(mapperGroup).map(([value, label]) => ({
+      value: String(value),
+      label: String(label),
+    }));
+
+    return options.length > 0 ? options : fallback;
+  }
+
+  return fallback;
+};
 
 const initialSignupData: SignupData = {
   intent: '',
@@ -74,6 +112,10 @@ export const Auth_Signup = () => {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [step, setStep] = useState(0);
   const [signupData, setSignupData] = useState<SignupData>(initialSignupData);
+  const [getMapper , setMapperOptions] = useState(fallbackOptions);
+
+ 
+ 
 
   const steps = useMemo(
     () => [
@@ -91,6 +133,30 @@ export const Auth_Signup = () => {
   const updateSignupData = <K extends keyof SignupData>(field: K, value: SignupData[K]) => {
     setSignupData(prev => ({ ...prev, [field]: value }));
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    cacheStorage
+      .getMapper(false, ['intent', 'gender', 'interested_in', 'interests'])
+      .then(mapper => {
+        if (!mounted || !mapper) return;
+
+        setMapperOptions({
+          intent: mapperToOptions(mapper, ['intent'], fallbackOptions.intent),
+          gender: mapperToOptions(mapper, ['gender'], fallbackOptions.gender),
+          interestedIn: mapperToOptions(mapper, ['interested_in', 'interestedIn'], fallbackOptions.interestedIn),
+          interests: mapperToOptions(mapper, ['interests', 'interest'], fallbackOptions.interests),
+        });
+      })
+      .catch(error => {
+        console.error('Error loading signup mapper:', error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const animatePageChange = (nextStep: number) => {
     setStep(nextStep);
@@ -156,8 +222,8 @@ export const Auth_Signup = () => {
       }
     }
 
-    if (step === 2 && signupData.photos.length < 2) {
-      Toastx.show({ type: 'error', message: 'Add at least two photos.' });
+    if (step === 2 && signupData.photos.length < 1) {
+      Toastx.show({ type: 'error', message: 'Add at least one photo.' });
       return false;
     }
 
@@ -267,13 +333,14 @@ export const Auth_Signup = () => {
       <StepScroll>
         <StepHeader eyebrow="Intent" title="What are you looking for?" />
         <View style={stylesx.optionStack}>
-          {intents.map((intent, index) => (
+          {getMapper.intent.map((intent, index) => (
             <OptionCard
-              key={intent}
-              label={intent}
+              key={intent.value}
+              label={intent.label}
+              value={intent.value}
               icon={['heart-outline', 'glass-cocktail', 'account-group-outline', 'compass-outline'][index]}
-              selected={signupData.intent === intent}
-              onPress={() => updateSignupData('intent', intent)}
+              selected={signupData.intent === intent.value}
+              onPress={() => updateSignupData('intent', intent.value)}
             />
           ))}
         </View>
@@ -310,24 +377,24 @@ export const Auth_Signup = () => {
 
             <FieldLabel label="Gender" />
             <View style={stylesx.chipWrap}>
-              {genders.map(gender => (
+              {getMapper.gender.map(gender => (
                 <Chip
-                  key={gender}
-                  label={gender}
-                  selected={signupData.gender === gender}
-                  onPress={() => updateSignupData('gender', gender)}
+                  key={gender.value}
+                  label={gender.label}
+                  selected={signupData.gender === gender.value}
+                  onPress={() => updateSignupData('gender', gender.value)}
                 />
               ))}
             </View>
 
             <FieldLabel label="Interested in" />
             <View style={stylesx.chipWrap}>
-              {interestedInOptions.map(option => (
+              {getMapper.interestedIn.map(option => (
                 <Chip
-                  key={option}
-                  label={option}
-                  selected={signupData.interestedIn === option}
-                  onPress={() => updateSignupData('interestedIn', option)}
+                  key={option.value}
+                  label={option.label}
+                  selected={signupData.interestedIn === option.value}
+                  onPress={() => updateSignupData('interestedIn', option.value)}
                 />
               ))}
             </View>
@@ -416,12 +483,12 @@ export const Auth_Signup = () => {
         <StepHeader eyebrow="Interests" title="Choose at least 3" helper={`${signupData.interests.length}/3 selected`} />
         <View style={stylesx.card}>
           <View style={stylesx.chipWrap}>
-            {interestOptions.map(interest => (
+            {getMapper.interests.map(interest => (
               <Chip
-                key={interest}
-                label={interest}
-                selected={signupData.interests.includes(interest)}
-                onPress={() => toggleInterest(interest)}
+                key={interest.value}
+                label={interest.label}
+                selected={signupData.interests.includes(interest.value)}
+                onPress={() => toggleInterest(interest.value)}
               />
             ))}
           </View>
@@ -506,7 +573,7 @@ export const Auth_Signup = () => {
         onPageChange={index => animatePageChange(index)}
       />
 
-      {step !== 6 && step !== 7 && (
+      {step !== 5 && step !== 6 && (
         <View style={stylesx.footer}>
           <TouchableOpacity style={stylesx.primaryButton} onPress={goNext}>
             <Text style={stylesx.primaryButtonText}>{step === 0 ? 'Create Profile' : 'Continue'}</Text>
@@ -522,14 +589,14 @@ const OptionCard = ({ label, selected, onPress, icon = 'heart-outline' }: Option
     <View style={[stylesx.optionIcon, selected && stylesx.optionIconSelected]}>
       <MaterialCommunityIcons name={icon} size={22} color={selected ? '#ffffff' : '#e8546f'} />
     </View>
-    <Text style={[stylesx.optionText, selected && stylesx.optionTextSelected]}>{label}</Text>
+    <Text style={[stylesx.optionText, selected && stylesx.optionTextSelected, {textTransform:"capitalize"}]}>{label}</Text>
     {selected && <MaterialCommunityIcons name="check-circle" size={22} color="#e8546f" />}
   </TouchableOpacity>
 );
 
 const Chip = ({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) => (
   <TouchableOpacity style={[stylesx.chip, selected && stylesx.chipSelected]} onPress={onPress}>
-    <Text style={[stylesx.chipText, selected && stylesx.chipTextSelected]}>{label}</Text>
+    <Text style={[stylesx.chipText, selected && stylesx.chipTextSelected,{textTransform:"capitalize"}]}>{label}</Text>
   </TouchableOpacity>
 );
 
@@ -800,7 +867,7 @@ const stylesx = StyleSheet.create({
   chip: {
     borderRadius: 999,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 15,
     backgroundColor: '#fbf5f7',
     borderWidth: 1,
     borderColor: '#efdbe2',

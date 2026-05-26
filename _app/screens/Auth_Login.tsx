@@ -41,8 +41,14 @@ export const Auth_Login = () => {
   const verificationValue = verificationCode.join('');
   const resendLabel = `${Math.floor(timer / 60)}:${(timer % 60).toString().padStart(2, '0')}`;
 
+
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
+ 
+   (async()=>{
+         const jsy=await cacheStorage.getMapper(true);
+          console.log(jsy.gender);
+       })();
 
     if (isResendDisabled) {
       interval = setInterval(() => {

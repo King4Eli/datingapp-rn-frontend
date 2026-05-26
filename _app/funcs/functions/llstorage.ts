@@ -240,11 +240,68 @@ export class cacheStorage {
 
 
 
-    // app json data
+    // mapper data
     private static mapperMemoryCache: any = null;
     private static mapperLoadingPromise: Promise<any> | null = null;
     // getWhat = ["intent","gender","interests"]
-    public static getMapper = (forceRefresh = false,getWhat = []): Promise<any> => {
-        return  ;
+    public static getMapper = (forceRefresh = false, getWhat: string[] = []): Promise<any> => {
+        // Return from memory cache if available and not forcing refresh
+        if (!forceRefresh && this.mapperMemoryCache) { 
+            return Promise.resolve(this.mapperMemoryCache);
+        }
+
+        // Prevent duplicate concurrent requests
+        if (!forceRefresh && this.mapperLoadingPromise) { 
+            return this.mapperLoadingPromise;
+        }
+
+        this.mapperLoadingPromise = (async () => {
+            try {
+                // Check AsyncStorage cache if not forcing refresh
+                if (!forceRefresh) {
+                    try {
+                        const cachedMapper = await AsyncStorage.getItem(namer.storage.mapper);
+                        if (cachedMapper) { 
+                            this.mapperMemoryCache = JSON.parse(cachedMapper);
+                            return this.mapperMemoryCache ;
+                        }
+                    } catch (error) {
+                        console.error("Error reading mapper from AsyncStorage:", error);
+                    }
+                }
+
+                const response = await _http_request({
+                    customApiUrl: hostServer() + '/api/core/v1/getMapper',
+                    reqType: 'POST',
+                    headerArray: {
+                        'Content-Type': 'application/json',
+                        'Accept-Encoding': 'identity'
+                    },
+                    bodyArray: {}
+                });
+
+                const mapperData = response?.data?.map ?? response?.map ?? response?.map;
+
+                if (response?.code === 200 && mapperData && Object.keys(mapperData).length > 0) {
+                    this.mapperMemoryCache = {
+                        ...(this.mapperMemoryCache ?? {}),
+                        ...mapperData
+                    };
+                    await AsyncStorage.setItem(namer.storage.mapper  , JSON.stringify(this.mapperMemoryCache));
+                } else {
+                    this.mapperMemoryCache = this.mapperMemoryCache ?? null;
+                    if (!this.mapperMemoryCache) await AsyncStorage.removeItem(namer.storage.mapper  );
+                    console.log("getMapper removed - no valid data");
+                }
+
+                return this.mapperMemoryCache;
+            } catch (error) {
+                console.error("Error fetching getMapper:", error);
+                this.mapperLoadingPromise = null;
+                throw error;
+            }
+        })();
+
+        return this.mapperLoadingPromise  ;
     }
-} 
+}
