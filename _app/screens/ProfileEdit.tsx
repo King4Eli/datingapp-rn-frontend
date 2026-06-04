@@ -5,7 +5,7 @@ import React, {
 import {
     View, Text, TextInput, Image, Pressable,
     KeyboardAvoidingView, Platform, TouchableOpacity,
-    StyleSheet, LayoutAnimation, UIManager,
+    StyleSheet, LayoutAnimation,
 } from 'react-native';
 import RNFS from 'react-native-fs';
 import { Loaderx, bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
@@ -20,13 +20,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import RadioGroup from 'react-native-radio-buttons-group';
-import { styles, namer, colors } from '../funcs/static';
+import { namer } from '../funcs/static';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { _http_request, cacheStorage, help, hostServer, llStorage, mediaHandler, sleep, uploadHandler } from '../funcs/functions';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { AccordionItem } from '../funcs/customAccordion';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -51,6 +49,24 @@ interface CellDim {
     x: number;
     y: number;
 }
+
+type PickerOption = {
+    id: string;
+    label: string;
+};
+
+type PickerSection = {
+    title: string;
+    options: PickerOption[];
+};
+
+type PickerSheetConfig = {
+    title: string;
+    subtitle?: string;
+    selectedId?: string | null;
+    sections: PickerSection[];
+    onSelect: (id: string) => void;
+};
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 function getCellDims(containerWidth: number): CellDim[] {
@@ -259,15 +275,15 @@ const photoStyles = StyleSheet.create({
     },
     cell: {
         flex: 1,
-        borderRadius: 14,
+        borderRadius: 18,
         overflow: 'hidden',
-        backgroundColor: '#f2f2f2',
+        backgroundColor: '#f8fafc',
     },
     emptyCell: {
-        borderWidth: 1.5,
-        borderColor: '#dedede',
+        borderWidth: 1.4,
+        borderColor: '#dbe3ef',
         borderStyle: 'dashed',
-        backgroundColor: '#fafafa',
+        backgroundColor: '#f8fafc',
     },
     dropTargetFilled: {
         borderWidth: 2.5,
@@ -289,7 +305,7 @@ const photoStyles = StyleSheet.create({
         position: 'absolute', top: 5, right: 5, zIndex: 10,
     },
     removeBtnInner: {
-        width: 22, height: 22, borderRadius: 11,
+        width: 26, height: 26, borderRadius: 13,
         backgroundColor: '#fff',
         alignItems: 'center', justifyContent: 'center',
         elevation: 4,
@@ -304,12 +320,12 @@ const photoStyles = StyleSheet.create({
     dragDot: { width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: '#fff' },
     mainBadge: {
         position: 'absolute', bottom: 7, left: 7,
-        backgroundColor: 'rgba(0,0,0,0.42)',
-        borderRadius: 8,
-        paddingHorizontal: 7, paddingVertical: 3,
+        backgroundColor: 'rgba(15,23,42,0.68)',
+        borderRadius: 999,
+        paddingHorizontal: 8, paddingVertical: 4,
         flexDirection: 'row', alignItems: 'center', gap: 3,
     },
-    mainBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
+    mainBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 });
 
 // ─── Photo Grid ───────────────────────────────────────────────────────────────
@@ -497,20 +513,24 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     // ── Bottom sheet refs ───────────────────────────────────────────────────
     const addNewPrompt_ref = useRef<BottomSheet>(null);
     const addInterests_ref = useRef<BottomSheet>(null);
+    const pickerSheet_ref = useRef<BottomSheet>(null);
     const [showAddNewPromptSheet, setShowAddNewPromptSheet] = useState(false);
     const [showAddInterestsSheet, setShowAddInterestsSheet] = useState(false);
-    const addNewPromptSnapPoints = useMemo(() => ['80%'], []);
-    const addInterestsSnapPoints = useMemo(() => ['85%'], []);
+    const [pickerSheet, setPickerSheet] = useState<PickerSheetConfig | null>(null);
+    const addNewPromptSnapPoints = useMemo(() => ['72%', '88%'], []);
+    const addInterestsSnapPoints = useMemo(() => ['72%', '90%'], []);
+    const pickerSnapPoints = useMemo(() => ['58%', '82%'], []);
 
     // ── Header ─────────────────────────────────────────────────────────────
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitle: () => (
-                <Text style={{ fontSize: 18, fontWeight: '600' }}>Your Profile</Text>
+                <Text style={pgStyles.headerTitle}>Edit Profile</Text>
             ),
             headerRight: () => (
-                <View style={{ paddingRight: 12, flexDirection: 'row', gap: 18, alignItems: 'center' }}>
+                <View style={pgStyles.headerActions}>
                     {getProfileEdit.id && <Pressable
+                        style={pgStyles.previewBtn}
                         onPress={() =>
                             navigation.push(namer.navigation.peoplesOnePerson, {
                                 getOnePersonId: getProfileEdit.id,
@@ -519,7 +539,7 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             })
                         }
                     >
-                        <Text style={{ fontSize: 14, color: '#555' }}>Preview</Text>
+                        <Text style={pgStyles.previewBtnText}>Preview</Text>
                     </Pressable>}
                     <Pressable
                         style={[pgStyles.saveBtn]}
@@ -729,16 +749,24 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
     }, []);
 
     // ── Radio builder ──────────────────────────────────────────────────────
-    const buildRadios = (map: Record<string, string> | undefined) =>
+    const buildOptions = (map: Record<string, string> | undefined): PickerOption[] =>
         Object.entries(map ?? {}).map(([key, value]) => ({
             id: key,
             label: value as string,
-            value: value as string,
         }));
+
+    const openPicker = useCallback((config: PickerSheetConfig) => {
+        setPickerSheet(config);
+    }, []);
+
+    const closePicker = useCallback(() => {
+        pickerSheet_ref.current?.close();
+        setPickerSheet(null);
+    }, []);
 
     // ─────────────────────────────────────────────────────────────────────
     return (
-        <SafeAreaView style={[styles.container, { paddingTop: headerHeight, backgroundColor: '#fff' }]} edges={['bottom']} >
+        <SafeAreaView style={[pgStyles.screen, { paddingTop: headerHeight }]} edges={['bottom']} >
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -747,22 +775,24 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
             >
                 <ScrollView
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+                    contentContainerStyle={pgStyles.scrollContent}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                     automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
                     showsVerticalScrollIndicator={false}
                 >
-                    <View style={{ gap: 12, marginBottom: 12 }}>
+                    <View style={pgStyles.formStack}>
 
                         {/* ── Photo Grid ───────────────────────────────── */}
-                        <View style={{ gap: 8, marginBottom: 4 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, }}>
-                                <MIcons name="image-multiple-outline" size={15} color="#888" />
-                                <Text style={pgStyles.sectionLabel}>
-                                    Profile Photos
-                                </Text>
-                                <Text style={pgStyles.sectionHint}>· drag to reorder</Text>
+                        <View style={pgStyles.sectionCard}>
+                            <View style={pgStyles.sectionHeader}>
+                                <View style={pgStyles.sectionIcon}>
+                                    <MIcons name="image-multiple-outline" size={18} color="#e8546f" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={pgStyles.sectionLabel}>Profile Photos</Text>
+                                    <Text style={pgStyles.sectionHint}>Tap to replace. Drag to reorder.</Text>
+                                </View>
                             </View>
 
                             <PhotoGrid
@@ -781,15 +811,15 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
 
                         {/* ── Vibes Banner ──────────────────────────────── */}
                         <LinearGradient
-                            colors={['#f95f62', '#f27a9c']}
-                            style={[styles.card, { padding: 0 }]}
+                            colors={['#e8546f', '#f27a9c']}
+                            style={pgStyles.bannerCard}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                         >
                             <View style={pgStyles.bannerRow}>
                                 <View style={{ gap: 6, flex: 1 }}>
                                     <View style={pgStyles.bannerBadge}>
-                                        <MIcons name="heart-multiple-outline" color="#f95f62" size={14} />
+                                        <MIcons name="heart-multiple-outline" color="#e8546f" size={14} />
                                         <Text style={pgStyles.bannerBadgeText}>Vibes &amp; Energy</Text>
                                     </View>
                                     <Text style={pgStyles.bannerTitle}>Show your best self today</Text>
@@ -802,45 +832,45 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                         </LinearGradient>
 
                         {/* ── Full Name (locked) ───────────────────────── */}
-                        <View style={styles.editprofile_inputborder}>
+                        <View style={pgStyles.formField}>
                             <View style={pgStyles.inputHeader}>
-                                <Text style={styles.editprofile_inputtitle}>Full Name</Text>
-                                <IIcon name="lock-closed" size={15} color="#bbb" />
+                                <Text style={pgStyles.fieldLabel}>Full Name</Text>
+                                <IIcon name="lock-closed" size={15} color="#94a3b8" />
                             </View>
                             <TextInput
-                                style={[styles.editprofile_input, pgStyles.readOnlyInput]}
+                                style={[pgStyles.textInput, pgStyles.readOnlyInput]}
                                 value={getProfileEdit.fullname}
                                 readOnly
                             />
                         </View>
 
                         {/* ── Age (locked) ─────────────────────────────── */}
-                        <View style={styles.editprofile_inputborder}>
+                        <View style={pgStyles.formField}>
                             <View style={pgStyles.inputHeader}>
-                                <Text style={styles.editprofile_inputtitle}>Age</Text>
-                                <IIcon name="lock-closed" size={15} color="#bbb" />
+                                <Text style={pgStyles.fieldLabel}>Age</Text>
+                                <IIcon name="lock-closed" size={15} color="#94a3b8" />
                             </View>
                             <TextInput
-                                style={[styles.editprofile_input, pgStyles.readOnlyInput]}
+                                style={[pgStyles.textInput, pgStyles.readOnlyInput]}
                                 value={help.getageFromDOB((getProfileEdit?.age)?.toString() ?? "") ?? '—'}
                                 readOnly
                             />
                         </View>
 
                         {/* ── About ────────────────────────────────────── */}
-                        <View style={styles.editprofile_inputborder}>
+                        <View style={pgStyles.formField}>
                             <View style={pgStyles.inputHeader}>
-                                <Text style={styles.editprofile_inputtitle}>About you</Text>
+                                <Text style={pgStyles.fieldLabel}>About you</Text>
                                 <IIcon name="create-outline" size={17} color="#888" />
                             </View>
                             <TextInput
-                                style={[styles.editprofile_input, { height: 180 }]}
+                                style={[pgStyles.textInput, pgStyles.textArea]}
                                 multiline
                                 numberOfLines={8}
                                 value={getProfileEdit.about}
                                 onChangeText={(e) => updateProfileEdit({ about: e })}
                                 placeholder="Write something about yourself…"
-                                placeholderTextColor="#bbb"
+                                placeholderTextColor="#94a3b8"
                                 maxLength={400}
                             />
                             <Text style={pgStyles.charCounter}>
@@ -848,46 +878,39 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             </Text>
                         </View>
 
-                        {/* ── Relationship Intention ───────────────────── */}
-                        <AccordionItem
-                            title="What are your Intentions?"
-                            titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                            subtitle={__MAPPER?.bio_intent?.[getProfileEdit.relationshipgoal ?? ""]}
-                            Content={() => (
-                                <RadioGroup
-                                    labelStyle={pgStyles.radioLabel}
-                                    radioButtons={buildRadios(__MAPPER?.bio_intent)}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={(v) => updateProfileEdit({ relationshipgoal: v })}
-                                    selectedId={getProfileEdit.relationshipgoal?.toString() ?? ""}
-                                />
-                            )}
-                        />
-
-                        {/* ── Gender ───────────────────────────────────── */}
-                        <AccordionItem
-                            title="What is your gender?"
-                            titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                            subtitle={__MAPPER?.bio_gender?.[getProfileEdit.gender ?? ""]}
-                            Content={() => (
-                                <RadioGroup
-                                    labelStyle={pgStyles.radioLabel}
-                                    radioButtons={buildRadios(__MAPPER?.bio_gender)}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={(v) => updateProfileEdit({ gender: v })}
-                                    selectedId={getProfileEdit.gender?.toString() ?? ""}
-                                />
-                            )}
-                        />
+                        <FormGroup title="Core Details" hint="These help people understand who you are looking for.">
+                            <PickerField
+                                label="Intentions"
+                                value={__MAPPER?.bio_intent?.[getProfileEdit.relationshipgoal ?? ""]}
+                                icon="heart-outline"
+                                onPress={() => openPicker({
+                                    title: 'What are your intentions?',
+                                    selectedId: getProfileEdit.relationshipgoal,
+                                    sections: [{ title: 'Dating goals', options: buildOptions(__MAPPER?.bio_intent) }],
+                                    onSelect: (id) => updateProfileEdit({ relationshipgoal: id }),
+                                })}
+                            />
+                            <PickerField
+                                label="Gender"
+                                value={__MAPPER?.bio_gender?.[getProfileEdit.gender ?? ""]}
+                                icon="account-outline"
+                                onPress={() => openPicker({
+                                    title: 'What is your gender?',
+                                    selectedId: getProfileEdit.gender,
+                                    sections: [{ title: 'Gender', options: buildOptions(__MAPPER?.bio_gender) }],
+                                    onSelect: (id) => updateProfileEdit({ gender: id }),
+                                })}
+                            />
+                        </FormGroup>
 
                         {/* ── Interests ────────────────────────────────── */}
-                        <View style={styles.editprofile_inputborder}>
+                        <View style={pgStyles.formField}>
                             <Pressable
                                 style={{ gap: 8 }}
                                 onPress={() => setShowAddInterestsSheet(true)}
                             >
                                 <View style={pgStyles.inputHeader}>
-                                    <Text style={styles.editprofile_inputtitle}>
+                                    <Text style={pgStyles.fieldLabel}>
                                         Interests
                                         <Text style={pgStyles.countBadge}> {getInterests.length}/{MAX_INTERESTS}</Text>
                                     </Text>
@@ -915,88 +938,56 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                             </Pressable>
                         </View>
 
-                        {/* ── Location (display only) ──────────────────── */}
-                        <View style={styles.editprofile_inputborder}>
-                            <View style={pgStyles.inputHeader}>
-                                <Text style={styles.editprofile_inputtitle}>Location</Text>
-                                <IIcon name="location-outline" size={17} color="#888" />
-                            </View>
-                            <Text style={[styles.editprofile_input, pgStyles.readOnlyInput]}>
-                                {getProfileEdit.city || '—'}
-                            </Text>
-                        </View>
-
-                        {/* ── Hometown ─────────────────────────────────── */}
-                        <View style={styles.editprofile_inputborder}>
-                            <View style={pgStyles.inputHeader}>
-                                <Text style={styles.editprofile_inputtitle}>Hometown</Text>
-                                <IIcon name="create-outline" size={16} color="#888" />
-                            </View>
-                            <TextInput
-                                style={styles.editprofile_input}
-                                value={getProfileEdit.hometown}
-                                onChangeText={(text) => updateProfileEdit({ hometown: text })}
-                                placeholder="Where are you from?"
-                                placeholderTextColor="#bbb"
-                                maxLength={45}
+                        <FormGroup title="Background" hint="A few real-world details for better context.">
+                            <StaticField
+                                label="Location"
+                                value={getProfileEdit.city || '—'}
+                                icon="map-marker-outline"
                             />
-                        </View>
-
-                        {/* ── Highest Education ────────────────────────── */}
-                        <AccordionItem
-                            title="Highest Education Achieved?"
-                            titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                            subtitle={__MAPPER?.bio_education?.[getProfileEdit.highEducation ?? '']}
-                            Content={() => (
-                                <RadioGroup
-                                    labelStyle={pgStyles.radioLabel}
-                                    radioButtons={buildRadios(__MAPPER?.bio_education)}
-                                    containerStyle={{ alignItems: 'flex-start' }}
-                                    onPress={(id) => updateProfileEdit({ highEducation: id })}
-                                    selectedId={getProfileEdit.highEducation?.toString() ?? ""}
-                                />
-                            )}
-                        />
-
-                        {/* Languages */}
-                        <View style={styles.editprofile_inputborder}>
-                            <View style={pgStyles.inputHeader}>
-                                <Text style={styles.editprofile_inputtitle}>Languages</Text>
-                                <IIcon name="language-outline" size={17} color="#888" />
-                            </View>
-                            <TextInput
-                                style={styles.editprofile_input}
+                            <InlineTextField
+                                label="Hometown"
+                                value={getProfileEdit.hometown}
+                                icon="home-heart"
+                                placeholder="Where are you from?"
+                                maxLength={45}
+                                onChangeText={(text) => updateProfileEdit({ hometown: text })}
+                            />
+                            <PickerField
+                                label="Highest Education"
+                                value={__MAPPER?.bio_education?.[getProfileEdit.highEducation ?? '']}
+                                icon="school-outline"
+                                onPress={() => openPicker({
+                                    title: 'Highest education achieved?',
+                                    selectedId: getProfileEdit.highEducation,
+                                    sections: [{ title: 'Education', options: buildOptions(__MAPPER?.bio_education) }],
+                                    onSelect: (id) => updateProfileEdit({ highEducation: id }),
+                                })}
+                            />
+                            <InlineTextField
+                                label="Languages"
                                 value={getProfileEdit.languages.join(', ')}
+                                icon="translate"
+                                placeholder="Languages you speak (comma separated)"
                                 onChangeText={(text) => updateProfileEdit({
                                     languages: text
                                         .split(',')
                                         .map((item) => item.trim())
                                         .filter(Boolean)
                                 })}
-                                placeholder="Languages you speak (comma separated)"
-                                placeholderTextColor="#bbb"
                             />
-                        </View>
-
-                        {/* School Attended */}
-                        <View style={styles.editprofile_inputborder}>
-                            <View style={pgStyles.inputHeader}>
-                                <Text style={styles.editprofile_inputtitle}>School Attended</Text>
-                                <IIcon name="create-outline" size={16} color="#888" />
-                            </View>
-                            <TextInput
-                                style={styles.editprofile_input}
+                            <InlineTextField
+                                label="School Attended"
                                 value={getProfileEdit.schoolattended}
-                                onChangeText={(text) => updateProfileEdit({ schoolattended: text })}
+                                icon="school"
                                 placeholder="What school did you attend?"
-                                placeholderTextColor="#bbb"
                                 maxLength={45}
+                                onChangeText={(text) => updateProfileEdit({ schoolattended: text })}
                             />
-                        </View>
+                        </FormGroup>
 
                         {/* ── Prompts ──────────────────────────────────── */}
-                        <View style={[styles.editprofile_inputborder, { padding: 10, gap: 8 }]}>
-                            <Text style={styles.editprofile_inputtitle}>
+                        <View style={pgStyles.formField}>
+                            <Text style={pgStyles.fieldLabel}>
                                 Prompts
                                 <Text style={pgStyles.countBadge}> {getPrompts.length}/{MAX_PROMPTS}</Text>
                             </Text>
@@ -1012,10 +1003,10 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     </Pressable>
                                     <Text style={pgStyles.promptQuestion}>{item?.q}</Text>
                                     <TextInput
-                                        style={[styles.editprofile_input, pgStyles.promptAnswer]}
+                                        style={[pgStyles.textInput, pgStyles.promptAnswer]}
                                         value={item?.a}
                                         placeholder={item?.q}
-                                        placeholderTextColor="#bbb"
+                                        placeholderTextColor="#94a3b8"
                                         multiline
                                         maxLength={140}
                                         onChangeText={text => {
@@ -1034,39 +1025,55 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                                     style={pgStyles.addPromptBtn}
                                     onPress={() => setShowAddNewPromptSheet(true)}
                                 >
-                                    <MIcons name="plus-circle-outline" size={18} color="#f95f62" />
+                                    <MIcons name="plus-circle-outline" size={18} color="#e8546f" />
                                     <Text style={pgStyles.addPromptText}>Add a Prompt</Text>
                                 </Pressable>
                             )}
                         </View>
 
-                        {/* ── Life Style Accordions ─────────────────────── */}
-                        {[
-                            { title: 'Do you have children?', map: __MAPPER?.bio_children, state: getProfileEdit.children, set: (id: string) => updateProfileEdit({ children: id }) },
-                            { title: 'Do you smoke?', map: __MAPPER?.bio_smoking, state: getProfileEdit.smoking, set: (id: string) => updateProfileEdit({ smoking: id }) },
-                            { title: 'Do you drink?', map: __MAPPER?.bio_drinking, state: getProfileEdit.drinking, set: (id: string) => updateProfileEdit({ drinking: id }) },
-                            { title: 'Do you have a pet?', map: __MAPPER?.bio_pets, state: getProfileEdit.pets, set: (id: string) => updateProfileEdit({ pets: id }) },
-                            { title: 'What is your religion?', map: __MAPPER?.bio_religion, state: getProfileEdit.religion, set: (id: string) => updateProfileEdit({ religion: id }) },
-                            { title: 'What is your ethnicity?', map: __MAPPER?.bio_ethnicity, state: getProfileEdit.ethnicity, set: (id: string) => updateProfileEdit({ ethnicity: id }) },
-                            { title: 'Describe your body type', map: __MAPPER?.bio_bodytype, state: getProfileEdit.bodytype, set: (id: string) => updateProfileEdit({ bodytype: id }) },
-                            { title: 'Political Views?', map: __MAPPER?.bio_politicalview, state: getProfileEdit.politicalview, set: (id: string) => updateProfileEdit({ politicalview: id }) },
-                        ].map(({ title, map, state, set }) => (
-                            <AccordionItem
-                                key={title}
-                                title={title}
-                                titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                                subtitle={(map as Record<string, string>)?.[state ?? '']}
-                                Content={() => (
-                                    <RadioGroup
-                                        labelStyle={pgStyles.radioLabel}
-                                        radioButtons={buildRadios(map as Record<string, string>)}
-                                        containerStyle={{ alignItems: 'flex-start' }}
-                                        onPress={set}
-                                        selectedId={state?.toString() ?? undefined}
-                                    />
-                                )}
-                            />
-                        ))}
+                        <FormGroup title="Lifestyle" hint="Optional details that make matching more thoughtful.">
+                            {[
+                                { label: 'Children', title: 'Do you have children?', icon: 'human-male-child', map: __MAPPER?.bio_children, state: getProfileEdit.children, set: (id: string) => updateProfileEdit({ children: id }) },
+                                { label: 'Smoking', title: 'Do you smoke?', icon: 'smoking-off', map: __MAPPER?.bio_smoking, state: getProfileEdit.smoking, set: (id: string) => updateProfileEdit({ smoking: id }) },
+                                { label: 'Drinking', title: 'Do you drink?', icon: 'glass-cocktail', map: __MAPPER?.bio_drinking, state: getProfileEdit.drinking, set: (id: string) => updateProfileEdit({ drinking: id }) },
+                                { label: 'Pets', title: 'Do you have a pet?', icon: 'paw-outline', map: __MAPPER?.bio_pets, state: getProfileEdit.pets, set: (id: string) => updateProfileEdit({ pets: id }) },
+                            ].map(({ label, title, icon, map, state, set }) => (
+                                <PickerField
+                                    key={title}
+                                    label={label}
+                                    value={(map as Record<string, string>)?.[state ?? '']}
+                                    icon={icon}
+                                    onPress={() => openPicker({
+                                        title,
+                                        selectedId: state,
+                                        sections: [{ title: 'Lifestyle', options: buildOptions(map as Record<string, string>) }],
+                                        onSelect: set,
+                                    })}
+                                />
+                            ))}
+                        </FormGroup>
+
+                        <FormGroup title="Identity" hint="Share as much or as little as feels right.">
+                            {[
+                                { label: 'Religion', title: 'What is your religion?', icon: 'hands-pray', map: __MAPPER?.bio_religion, state: getProfileEdit.religion, set: (id: string) => updateProfileEdit({ religion: id }) },
+                                { label: 'Ethnicity', title: 'What is your ethnicity?', icon: 'account-group-outline', map: __MAPPER?.bio_ethnicity, state: getProfileEdit.ethnicity, set: (id: string) => updateProfileEdit({ ethnicity: id }) },
+                                { label: 'Body Type', title: 'Describe your body type', icon: 'human', map: __MAPPER?.bio_bodytype, state: getProfileEdit.bodytype, set: (id: string) => updateProfileEdit({ bodytype: id }) },
+                                { label: 'Political Views', title: 'Political views?', icon: 'scale-balance', map: __MAPPER?.bio_politicalview, state: getProfileEdit.politicalview, set: (id: string) => updateProfileEdit({ politicalview: id }) },
+                            ].map(({ label, title, icon, map, state, set }) => (
+                                <PickerField
+                                    key={title}
+                                    label={label}
+                                    value={(map as Record<string, string>)?.[state ?? '']}
+                                    icon={icon}
+                                    onPress={() => openPicker({
+                                        title,
+                                        selectedId: state,
+                                        sections: [{ title: 'Identity', options: buildOptions(map as Record<string, string>) }],
+                                        onSelect: set,
+                                    })}
+                                />
+                            ))}
+                        </FormGroup>
 
                     </View>
                 </ScrollView>
@@ -1082,55 +1089,34 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 backdropComponent={bottomsheet_renderBackdrop}
                 onClose={() => setShowAddNewPromptSheet(false)}
             >
-                <BottomSheetView style={{ flex: 1, padding: 20 }}>
+                <BottomSheetView style={pgStyles.sheetBody}>
                     <Text style={pgStyles.sheetTitle}>Add a Prompt</Text>
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16, gap: 10 }}>
+                    <BottomSheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={pgStyles.sheetScrollContent}>
                         {Object.values(__MAPPER?.bio_prompt ?? {})
                             .filter(prompt => !getPrompts.map(p => p.q).includes(prompt as string))
                             .map((prompt: any, index: number) => (
-                                <AccordionItem
-                                    key={index}
-                                    title={prompt}
-                                    titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                                    subtitle=""
-                                    Content={() => {
-                                        const [text, setText] = useState('');
-                                        return (
-                                            <View style={{ gap: 8, paddingTop: 4 }}>
-                                                <TextInput
-                                                    style={[styles.editprofile_input, pgStyles.promptSheetInput]}
-                                                    value={text}
-                                                    onChangeText={setText}
-                                                    placeholder={prompt}
-                                                    placeholderTextColor="#bbb"
-                                                    maxLength={140}
-                                                    multiline
-                                                />
-                                                <Pressable
-                                                    style={pgStyles.sheetSaveBtn}
-                                                    onPress={() => {
-                                                        if (!getPrompts.map(p => p.q).includes(prompt)) {
-                                                            const now = new Date();
-                                                            const d =
-                                                                `${now.getFullYear()}` +
-                                                                `${String(now.getMonth() + 1).padStart(2, '0')}` +
-                                                                `${String(now.getDate()).padStart(2, '0')}` +
-                                                                `${String(now.getHours()).padStart(2, '0')}` +
-                                                                `${String(now.getMinutes()).padStart(2, '0')}` +
-                                                                `${String(now.getSeconds()).padStart(2, '0')}`;
-                                                            setPrompts(prev => [...prev, { q: prompt, a: text.trim(), d }]);
-                                                        }
-                                                        addNewPrompt_ref.current?.close();
-                                                    }}
-                                                >
-                                                    <Text style={pgStyles.sheetSaveBtnText}>Save Prompt</Text>
-                                                </Pressable>
-                                            </View>
-                                        );
-                                    }}
-                                />
+                                <View key={index} style={pgStyles.promptPickerCard}>
+                                    <Text style={pgStyles.promptQuestion}>{prompt}</Text>
+                                    <PromptDraft
+                                        prompt={prompt}
+                                        onSave={(answer) => {
+                                            if (!getPrompts.map(p => p.q).includes(prompt)) {
+                                                const now = new Date();
+                                                const d =
+                                                    `${now.getFullYear()}` +
+                                                    `${String(now.getMonth() + 1).padStart(2, '0')}` +
+                                                    `${String(now.getDate()).padStart(2, '0')}` +
+                                                    `${String(now.getHours()).padStart(2, '0')}` +
+                                                    `${String(now.getMinutes()).padStart(2, '0')}` +
+                                                    `${String(now.getSeconds()).padStart(2, '0')}`;
+                                                setPrompts(prev => [...prev, { q: prompt, a: answer.trim(), d }]);
+                                            }
+                                            addNewPrompt_ref.current?.close();
+                                        }}
+                                    />
+                                </View>
                             ))}
-                    </ScrollView>
+                    </BottomSheetScrollView>
                 </BottomSheetView>
             </BottomSheet>}
 
@@ -1143,81 +1129,311 @@ export function Screen_editprofile({ navigation }: { navigation: any }) {
                 backdropComponent={bottomsheet_renderBackdrop}
                 onClose={() => setShowAddInterestsSheet(false)}
             >
-                <BottomSheetView style={{ flex: 1, padding: 20 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <BottomSheetView style={pgStyles.sheetBody}>
+                    <View style={pgStyles.sheetHeader}>
                         <Text style={pgStyles.sheetTitle}>Your Interests</Text>
                         <Text style={pgStyles.countBadge}>{getInterests.length}/{MAX_INTERESTS} selected</Text>
                     </View>
-                    <ScrollView
-                        contentContainerStyle={{ gap: 10, paddingBottom: 16 }}
+                    <BottomSheetScrollView
+                        contentContainerStyle={pgStyles.sheetScrollContent}
                         showsVerticalScrollIndicator={false}
                     >
                         {Object.entries((__MAPPER?.bio_interests as Record<string, string[]>) ?? {}).map(([category, items]) => (
                             <View key={category} style={pgStyles.interestCategory}>
-                                <AccordionItem
-                                    title={category}
-                                    titleStyle={[styles.editprofile_inputtitle, { paddingLeft: 0 }]}
-                                    subtitle=""
-                                    Content={() => (
-                                        <View style={pgStyles.chipRow}>
-                                            {items.map((item: string, idx: number) => {
-                                                const selected = getInterests.includes(item);
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={idx}
-                                                        style={[pgStyles.chip, selected && pgStyles.chipSelected]}
-                                                        onPress={() => toggleInterest(item)}
-                                                        activeOpacity={0.75}
-                                                    >
-                                                        <Text style={[pgStyles.chipText, selected && pgStyles.chipTextSelected]}>
-                                                            {item}
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                );
-                                            })}
-                                        </View>
-                                    )}
-                                />
+                                <Text style={pgStyles.interestCategoryTitle}>{category}</Text>
+                                <View style={pgStyles.chipRow}>
+                                    {items.map((item: string, idx: number) => {
+                                        const selected = getInterests.includes(item);
+                                        return (
+                                            <TouchableOpacity
+                                                key={idx}
+                                                style={[pgStyles.chip, selected && pgStyles.chipSelected]}
+                                                onPress={() => toggleInterest(item)}
+                                                activeOpacity={0.75}
+                                            >
+                                                <Text style={[pgStyles.chipText, selected && pgStyles.chipTextSelected]}>
+                                                    {item}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
                             </View>
                         ))}
-                    </ScrollView>
+                    </BottomSheetScrollView>
+                </BottomSheetView>
+            </BottomSheet>}
+
+            {pickerSheet && <BottomSheet
+                ref={pickerSheet_ref}
+                index={0}
+                enablePanDownToClose
+                snapPoints={pickerSnapPoints}
+                backdropComponent={bottomsheet_renderBackdrop}
+                onClose={() => setPickerSheet(null)}
+            >
+                <BottomSheetView style={pgStyles.sheetBody}>
+                    <View style={pgStyles.sheetHeader}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={pgStyles.sheetTitle}>{pickerSheet.title}</Text>
+                            {!!pickerSheet.subtitle && <Text style={pgStyles.sectionHint}>{pickerSheet.subtitle}</Text>}
+                        </View>
+                        <Pressable style={pgStyles.sheetCloseButton} onPress={closePicker}>
+                            <IIcon name="close" size={18} color="#64748b" />
+                        </Pressable>
+                    </View>
+                    <BottomSheetScrollView contentContainerStyle={pgStyles.sheetScrollContent} showsVerticalScrollIndicator={false}>
+                        {pickerSheet.sections.map(section => (
+                            <View key={section.title} style={pgStyles.pickerSectionCard}>
+                                <Text style={pgStyles.pickerSectionTitle}>{section.title}</Text>
+                                <View style={pgStyles.pickerOptions}>
+                                    {section.options.map(option => {
+                                        const selected = String(pickerSheet.selectedId ?? '') === option.id;
+                                        return (
+                                            <TouchableOpacity
+                                                key={option.id}
+                                                style={[pgStyles.pickerOption, selected && pgStyles.pickerOptionSelected]}
+                                                activeOpacity={0.82}
+                                                onPress={() => {
+                                                    pickerSheet.onSelect(option.id);
+                                                    closePicker();
+                                                }}
+                                            >
+                                                <Text style={[pgStyles.pickerOptionText, selected && pgStyles.pickerOptionTextSelected]}>
+                                                    {option.label}
+                                                </Text>
+                                                {selected && <IIcon name="checkmark-circle" size={20} color="#e8546f" />}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        ))}
+                    </BottomSheetScrollView>
                 </BottomSheetView>
             </BottomSheet>}
         </SafeAreaView >
     );
 }
 
+const FormGroup = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) => (
+    <View style={pgStyles.groupCard}>
+        <View style={pgStyles.groupHeader}>
+            <Text style={pgStyles.groupTitle}>{title}</Text>
+            {!!hint && <Text style={pgStyles.groupHint}>{hint}</Text>}
+        </View>
+        <View style={pgStyles.groupFields}>{children}</View>
+    </View>
+);
+
+const PickerField = ({
+    label,
+    value,
+    icon,
+    onPress,
+}: {
+    label: string;
+    value?: string | null;
+    icon: string;
+    onPress: () => void;
+}) => (
+    <Pressable style={pgStyles.pickerField} onPress={onPress}>
+        <View style={pgStyles.pickerFieldIcon}>
+            <MIcons name={icon} size={18} color="#e8546f" />
+        </View>
+        <View style={{ flex: 1 }}>
+            <Text style={pgStyles.fieldLabel}>{label}</Text>
+            <Text style={[pgStyles.pickerFieldValue, !value && pgStyles.pickerFieldPlaceholder]}>
+                {value || 'Choose an option'}
+            </Text>
+        </View>
+        <MIcons name="chevron-right" size={22} color="#94a3b8" />
+    </Pressable>
+);
+
+const StaticField = ({
+    label,
+    value,
+    icon,
+}: {
+    label: string;
+    value: string;
+    icon: string;
+}) => (
+    <View style={pgStyles.inlineField}>
+        <View style={pgStyles.pickerFieldIcon}>
+            <MIcons name={icon} size={18} color="#e8546f" />
+        </View>
+        <View style={{ flex: 1 }}>
+            <Text style={pgStyles.fieldLabel}>{label}</Text>
+            <Text style={pgStyles.inlineFieldValue}>{value}</Text>
+        </View>
+    </View>
+);
+
+const InlineTextField = ({
+    label,
+    value,
+    icon,
+    placeholder,
+    maxLength,
+    onChangeText,
+}: {
+    label: string;
+    value: string;
+    icon: string;
+    placeholder: string;
+    maxLength?: number;
+    onChangeText: (text: string) => void;
+}) => (
+    <View style={pgStyles.inlineField}>
+        <View style={pgStyles.pickerFieldIcon}>
+            <MIcons name={icon} size={18} color="#e8546f" />
+        </View>
+        <View style={{ flex: 1, gap: 6 }}>
+            <Text style={pgStyles.fieldLabel}>{label}</Text>
+            <TextInput
+                style={pgStyles.inlineInput}
+                value={value}
+                onChangeText={onChangeText}
+                placeholder={placeholder}
+                placeholderTextColor="#94a3b8"
+                maxLength={maxLength}
+            />
+        </View>
+    </View>
+);
+
+const PromptDraft = ({ prompt, onSave }: { prompt: string; onSave: (answer: string) => void }) => {
+    const [text, setText] = useState('');
+
+    return (
+        <View style={pgStyles.promptSheetCard}>
+            <TextInput
+                style={[pgStyles.textInput, pgStyles.promptSheetInput]}
+                value={text}
+                onChangeText={setText}
+                placeholder={prompt}
+                placeholderTextColor="#94a3b8"
+                maxLength={140}
+                multiline
+            />
+            <Pressable style={pgStyles.sheetSaveBtn} onPress={() => onSave(text)}>
+                <Text style={pgStyles.sheetSaveBtnText}>Save Prompt</Text>
+            </Pressable>
+        </View>
+    );
+};
+
 // ─── Page-level styles ────────────────────────────────────────────────────────
 const pgStyles = StyleSheet.create({
+    screen: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+        paddingHorizontal: 0,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 14,
+        paddingBottom: 96,
+    },
+    formStack: {
+        gap: 14,
+        marginBottom: 12,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#0f172a',
+    },
+    headerActions: {
+        paddingRight: 12,
+        flexDirection: 'row',
+        gap: 10,
+        alignItems: 'center',
+    },
+    previewBtn: {
+        minHeight: 36,
+        justifyContent: 'center',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        backgroundColor: '#f1f5f9',
+    },
+    previewBtnText: {
+        fontSize: 13,
+        color: '#475569',
+        fontWeight: '800',
+    },
     saveBtn: {
-        backgroundColor: '#f95f62',
+        minHeight: 36,
+        backgroundColor: '#e8546f',
         paddingHorizontal: 16,
-        paddingVertical: 7,
-        borderRadius: 20,
+        borderRadius: 999,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#e8546f',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.18,
+        shadowRadius: 12,
+        elevation: 3,
     },
     saveBtnText: {
         color: '#fff',
-        fontWeight: '600',
+        fontWeight: '900',
         fontSize: 14,
     },
 
+    sectionCard: {
+        borderRadius: 22,
+        backgroundColor: '#fff',
+        padding: 14,
+        gap: 12,
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.06,
+        shadowRadius: 18,
+        elevation: 3,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    sectionIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#fff1f5',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     sectionLabel: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#444',
+        fontSize: 14,
+        fontWeight: '900',
+        color: '#0f172a',
         textTransform: 'uppercase',
-        letterSpacing: 0.6,
     },
     sectionHint: {
         fontSize: 12,
-        color: '#aaa',
+        color: '#64748b',
+        fontWeight: '700',
+        marginTop: 2,
     },
 
+    bannerCard: {
+        borderRadius: 22,
+        overflow: 'hidden',
+        shadowColor: '#e8546f',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.14,
+        shadowRadius: 18,
+        elevation: 3,
+    },
     bannerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 14,
+        padding: 16,
     },
     bannerBadge: {
         flexDirection: 'row',
@@ -1229,86 +1445,319 @@ const pgStyles = StyleSheet.create({
         alignSelf: 'flex-start',
         gap: 5,
     },
-    bannerBadgeText: { color: '#f95f62', fontWeight: '700', fontSize: 12 },
-    bannerTitle: { fontSize: 19, color: '#fff', fontWeight: '700', marginTop: 2 },
+    bannerBadgeText: { color: '#e8546f', fontWeight: '900', fontSize: 12 },
+    bannerTitle: { fontSize: 21, color: '#fff', fontWeight: '900', marginTop: 2 },
     bannerSubtitle: { color: '#ffe7ef', fontSize: 12, lineHeight: 17, marginTop: 2 },
 
+    formField: {
+        borderRadius: 18,
+        backgroundColor: '#fff',
+        padding: 14,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.045,
+        shadowRadius: 16,
+        elevation: 2,
+    },
+    groupCard: {
+        borderRadius: 22,
+        backgroundColor: '#fff',
+        padding: 14,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.045,
+        shadowRadius: 16,
+        elevation: 2,
+    },
+    groupHeader: {
+        gap: 3,
+    },
+    groupTitle: {
+        color: '#0f172a',
+        fontSize: 16,
+        fontWeight: '900',
+    },
+    groupHint: {
+        color: '#64748b',
+        fontSize: 12,
+        lineHeight: 17,
+        fontWeight: '700',
+    },
+    groupFields: {
+        gap: 10,
+    },
+    pickerField: {
+        minHeight: 62,
+        borderRadius: 16,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    pickerFieldIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#fff1f5',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    pickerFieldValue: {
+        color: '#0f172a',
+        fontSize: 14,
+        fontWeight: '800',
+        marginTop: 3,
+        textTransform: 'capitalize',
+    },
+    pickerFieldPlaceholder: {
+        color: '#94a3b8',
+    },
+    inlineField: {
+        minHeight: 62,
+        borderRadius: 16,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    inlineFieldValue: {
+        color: '#0f172a',
+        fontSize: 14,
+        fontWeight: '800',
+        marginTop: 3,
+    },
+    inlineInput: {
+        minHeight: 34,
+        borderRadius: 0,
+        color: '#0f172a',
+        fontSize: 14,
+        fontWeight: '800',
+        paddingHorizontal: 0,
+        paddingVertical: 0,
+    },
     inputHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 2,
+        marginBottom: 1,
     },
-    readOnlyInput: { color: '#999' },
-    charCounter: { fontSize: 11, color: '#bbb', marginTop: 4, textAlign: 'right' },
-    placeholder: { color: '#bbb', fontSize: 13, paddingHorizontal: 4, paddingVertical: 6 },
+    fieldLabel: {
+        color: '#334155',
+        fontSize: 12,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+    },
+    textInput: {
+        minHeight: 44,
+        borderRadius: 14,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        color: '#0f172a',
+        fontSize: 15,
+        fontWeight: '700',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        textTransform: 'none',
+    },
+    textArea: {
+        minHeight: 156,
+        paddingTop: 12,
+        lineHeight: 21,
+        textAlignVertical: 'top',
+    },
+    readOnlyInput: {
+        color: '#64748b',
+        backgroundColor: '#f1f5f9',
+    },
+    charCounter: {
+        fontSize: 11,
+        color: '#94a3b8',
+        textAlign: 'right',
+        fontWeight: '700',
+    },
+    placeholder: {
+        color: '#94a3b8',
+        fontSize: 14,
+        paddingHorizontal: 4,
+        paddingVertical: 6,
+        fontWeight: '700',
+    },
 
-    countBadge: { color: '#aaa', fontSize: 12, fontWeight: '400' },
+    countBadge: { color: '#94a3b8', fontSize: 12, fontWeight: '800' },
 
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 2 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 2 },
     chip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f2f2f2',
-        borderRadius: 20,
-        paddingHorizontal: 11,
-        paddingVertical: 5,
+        backgroundColor: '#f8fafc',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
         gap: 5,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
     },
-    chipSelected: { backgroundColor: '#f95f62' },
-    chipText: { fontSize: 13, color: '#333' },
-    chipTextSelected: { color: '#fff', fontWeight: '600' },
+    chipSelected: { backgroundColor: '#e8546f', borderColor: '#e8546f' },
+    chipText: { fontSize: 13, color: '#334155', fontWeight: '800' },
+    chipTextSelected: { color: '#fff', fontWeight: '900' },
     chipRemove: { marginLeft: 2 },
     chipRemoveText: { fontSize: 16, color: '#999', lineHeight: 16 },
 
     promptCard: {
-        borderRadius: 10,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#eee',
-        padding: 10,
-        gap: 6,
+        borderColor: '#e2e8f0',
+        padding: 12,
+        gap: 9,
         position: 'relative',
-        backgroundColor: '#fafafa',
+        backgroundColor: '#f8fafc',
     },
     promptRemove: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
-    promptQuestion: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, color: '#555', paddingRight: 24 },
-    promptAnswer: { minHeight: 60, borderWidth: 0, backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 },
+    promptQuestion: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', color: '#475569', paddingRight: 28 },
+    promptAnswer: {
+        minHeight: 92,
+        backgroundColor: '#fff',
+        textAlignVertical: 'top',
+        lineHeight: 20,
+        paddingTop: 12,
+    },
 
     addPromptBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        padding: 10,
-        borderRadius: 10,
+        justifyContent: 'center',
+        gap: 7,
+        minHeight: 48,
+        borderRadius: 16,
         borderWidth: 1.5,
         borderStyle: 'dashed',
-        borderColor: '#f9a0a2',
+        borderColor: '#f9a8b8',
+        backgroundColor: '#fff1f5',
     },
-    addPromptText: { fontSize: 14, fontWeight: '600', color: '#f95f62' },
+    addPromptText: { fontSize: 14, fontWeight: '900', color: '#e8546f' },
 
-    radioLabel: { fontSize: 14, textTransform: 'capitalize' },
-
-    sheetTitle: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
-    promptSheetInput: {
-        minHeight: 80,
+    sheetBody: {
+        flex: 1,
+        paddingHorizontal: 18,
+        paddingTop: 12,
+    },
+    sheetHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 12,
+    },
+    sheetCloseButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f1f5f9',
+    },
+    sheetScrollContent: {
+        gap: 10,
+        paddingBottom: 22,
+    },
+    sheetTitle: { fontSize: 20, fontWeight: '900', color: '#0f172a', marginBottom: 4 },
+    promptSheetCard: {
+        gap: 10,
+        paddingTop: 4,
+    },
+    promptPickerCard: {
+        borderRadius: 18,
+        backgroundColor: '#fff',
         borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 10,
-        backgroundColor: '#fafafa',
+        borderColor: '#e2e8f0',
+        padding: 12,
+        gap: 10,
+    },
+    promptSheetInput: {
+        minHeight: 120,
+        backgroundColor: '#f8fafc',
+        textAlignVertical: 'top',
+        lineHeight: 20,
+        paddingTop: 12,
     },
     sheetSaveBtn: {
         alignSelf: 'flex-end',
-        backgroundColor: '#f95f62',
+        backgroundColor: '#e8546f',
         paddingHorizontal: 18,
-        paddingVertical: 8,
-        borderRadius: 20,
+        minHeight: 42,
+        borderRadius: 999,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    sheetSaveBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+    sheetSaveBtnText: { color: '#fff', fontWeight: '900', fontSize: 14 },
 
     interestCategory: {
-        borderRadius: 10,
+        borderRadius: 16,
         overflow: 'hidden',
-        backgroundColor: '#fafafa',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        padding: 12,
+        gap: 10,
+    },
+    interestCategoryTitle: {
+        color: '#0f172a',
+        fontSize: 15,
+        fontWeight: '900',
+    },
+    pickerSectionCard: {
+        borderRadius: 18,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        padding: 12,
+        gap: 10,
+    },
+    pickerSectionTitle: {
+        color: '#0f172a',
+        fontSize: 15,
+        fontWeight: '900',
+    },
+    pickerOptions: {
+        gap: 8,
+    },
+    pickerOption: {
+        minHeight: 50,
+        borderRadius: 15,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
+    pickerOptionSelected: {
+        backgroundColor: '#fff1f5',
+        borderColor: '#f9a8b8',
+    },
+    pickerOptionText: {
+        flex: 1,
+        color: '#334155',
+        fontSize: 14,
+        fontWeight: '800',
+        textTransform: 'capitalize',
+    },
+    pickerOptionTextSelected: {
+        color: '#e8546f',
     },
 });
