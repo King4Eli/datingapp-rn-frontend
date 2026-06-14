@@ -105,7 +105,21 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             </View>,
 
             headerRight: () => !functs.onePersonProfile && (
-                <View style={{ paddingRight: 10, flexDirection: "row", gap: 14, alignItems: "center" }}>
+                <View style={[{ paddingRight: 10, flexDirection: "row", gap: 14, alignItems: "center" },
+                    {
+       padding: 6,
+        borderRadius: 21,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+        marginRight: 10,
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        elevation: 3,
+    }
+                ]}>
                     {getSkippedPeoples.length > 0 && <Pressable style={{ gap: 3 }} onPress={() => {
                         if (getSkippedPeoples?.length > 4) {
                             bottomSheetRef_secondview.ref.current?.expand();

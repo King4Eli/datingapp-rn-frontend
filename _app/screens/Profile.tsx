@@ -9,7 +9,7 @@ import Svg, { Circle } from 'react-native-svg';
 import IIcon from 'react-native-vector-icons/Ionicons';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { cacheStorage, help, llStorage, logReport, parseCategoryProducts, screenWidth } from '../funcs/functions';
-import { namer, resourceMap } from '../funcs/static';
+import { namer, resourceMap, styles } from '../funcs/static';
 
 const PLAN_UI: Record<string, { icon: string; color: string; cardColors: string[] }> = {
     plus: { icon: 'diamond-outline', color: '#111827', cardColors: ['#111827', '#374151'] },
@@ -111,8 +111,8 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     }
 
     return (
-        <View style={[stylesx.container, { paddingTop: headerHeight }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={stylesx.content}>
+        <View style={[styles.container, { paddingTop: headerHeight,paddingLeft:0,paddingRight:0 }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container,{gap:14,paddingTop:1,paddingBottom:10}]}>
                 <View style={stylesx.profileCard}>
                     <View style={stylesx.profileRow}>
                         <Pressable onPress={() => navigation.navigate(namer.navigation.editprofile)}>
@@ -324,11 +324,7 @@ const stylesx = StyleSheet.create({
         shadowRadius: 14,
         elevation: 3,
     },
-    content: {
-        paddingHorizontal: 16,
-        paddingBottom: 26,
-        gap: 14,
-    },
+    
     profileCard: {
         borderRadius: 24,
         backgroundColor: '#fff',
