@@ -122,6 +122,7 @@ export const help = {
     }
   },
   timeAgo: (dateString: string) => {
+    // 2026-05-12 22:41:49
     const now = new Date();
     const past = new Date(dateString.replace(' ', 'T')); // ISO fix
     const seconds = Math.floor((now.getTime() - past.getTime()) / 1000);

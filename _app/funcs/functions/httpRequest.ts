@@ -27,7 +27,7 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
             'X-omi-Hash': currentSession?.x_omi_payload_hash,
             "Accept-Encoding": "identity"
         },
-        timeout: 20000,
+        timeout: 60000, // 1 minute timeout
     } as any;
 
     try {
@@ -38,7 +38,6 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
         }
         //
         //
-
 
         if (reqType === 'POST') {
             config.data = bodyArray;
@@ -80,7 +79,7 @@ export const xxa__http_requests = async ({ reqType, bodyArray, headerArray, cust
             return null;
         } else {
 
-            Toastx.show({ type: 'error', message: 'Server Error: Network timeout' });
+            Toastx.show({ type: 'error', message: 'Client: Network timeout' });
         }
 
         logReport({ type: 'http -' + status, extra: JSON.stringify(axiosResponse ?? config), useraction: 'HTTP request error', url: apiUrlToUse, logMessage: err.message, stackTrace: err });

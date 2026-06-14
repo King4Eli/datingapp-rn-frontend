@@ -1070,14 +1070,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 value={getAllowOnlyVerified}
                 onValueChange={setAllowOnlyVerified}
                 premiumLock={!subscriptionState.isVip}
-              />
-              <ModernSwitch
-                icon="moon-outline"
-                title="Snooze Dating"
-                subtitle="Temporarily hide your profile"
-                value={getSnoozeAccount}
-                onValueChange={setSnoozeAccount}
-              />
+              /> 
             </ModernSection>
 
             {/* Privacy & Safety Section */}
@@ -1225,13 +1218,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             </Text>
 
             <View style={{ marginTop: 16 }}>
-              <ModernSwitch
-                icon="compass-outline"
-                title="Show me in discovery"
-                subtitle="Hide your profile from new people"
-                value={privacyShowInDiscovery}
-                onValueChange={setPrivacyShowInDiscovery}
-              />
+              
               <ModernSwitch
                 icon="time-outline"
                 title="Show last active"
