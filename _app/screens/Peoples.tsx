@@ -303,10 +303,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                             }).then((response) => {
                                 if (response?.code === 200) {
                                     Toastx.show({ type: 'success', message: "Location updated successfully!" });
-
-
                                     setProfile(cacheStorage.getCurrentUserProfile(true));
-
 
                                     sptmd(!gptmd); // Refresh the peoples list
                                 } else {
