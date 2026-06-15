@@ -172,7 +172,8 @@ export const Screen_PurchaseSubscribe = ({ route, navigation }: { route: any; na
       Alert.alert('Info', 'IAP payment method is currently unavailable. Please try the credit card option or contact support.');
       return;
     }
-
+console.log(productDetails?.sku,productDetails)
+    if(paymentMethod === 'card') {
     _http_request({
       customApiUrl: `${hostServer()}/api/secure/gateway/subscribe`,
       reqType: 'POST',
@@ -190,6 +191,7 @@ export const Screen_PurchaseSubscribe = ({ route, navigation }: { route: any; na
         Alert.alert('Payment Error', fg?.message ?? 'There has been an error.');
       }
     });
+    }
   };
 
   const openPaymentSheet = () => {
@@ -351,6 +353,7 @@ export const Screen_PurchaseSubscribe = ({ route, navigation }: { route: any; na
                   <TouchableOpacity
                     key={variant.id}
                     onPress={() => {
+                      console.log('currentTier', currentTier);
                       setSelectedVariantId(variant.id);
                       setProductDetails({
                         sku: currentTier?.sku,

@@ -91,7 +91,7 @@ export const Screen_PurchaseConsumable = ({ route, navigation }: any) => {
 
     Loaderx.show();
     _http_request({
-      customApiUrl: `${hostServer()}/api/secure/gateway/purchase`,
+      customApiUrl: `${hostServer()}/api/secure/gateway/onetime`,
       reqType: 'POST',
       bodyArray: {
         sku: selectedProduct.sku,

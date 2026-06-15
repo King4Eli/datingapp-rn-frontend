@@ -21,7 +21,9 @@ export const hostServer = () => {
   let h_0 = "https://api.q1-site.site"; //live server
 
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
-    h_0 = "https://api.dating.local"; // if android emulator
+    // if android emulator
+    // h_0 = "https://api.dating.local";
+     h_0 = "http://10.0.2.2:2000"; 
   }
   return h_0;
 }
@@ -516,7 +518,7 @@ export const parseCategoryProducts = (productLists: any = false, categoryToGet: 
         name: item?.meta_data?.cycle ?? item?.variant_name ?? item?.name,
         price: item?.price,
         metadata: item?.meta_data ?? {},
-        interval_days: item?.interval_days,
+        billing_cycle: item?.billing_cycle,
         store_product_id: item?.store_product_id ?? '',
       })),
     };
