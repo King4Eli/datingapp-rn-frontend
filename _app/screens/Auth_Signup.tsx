@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {Animated,Image,KeyboardAvoidingView,Platform,ScrollView,StyleSheet,Text,TextInput,TouchableOpacity,View,} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RNFS from 'react-native-fs';
 import { launchImageLibrary } from 'react-native-image-picker';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
-import { __init__app, cacheStorage, getCurrentLocation, hostServer, navigationRef, screenWidth } from '../funcs/functions';
+import { __init__app, cacheStorage, getCurrentLocation, hostServer, navigationRef, screenWidth, uploadHandler } from '../funcs/functions';
 import { Toastx } from '../funcs/customNotification';
 import { Loaderx } from '../funcs/functions_stateful';
 import { namer } from '../funcs/static';
@@ -41,6 +42,12 @@ type MapperOption = {
   value: string;
 };
 
+type SignupPhotoUpload = {
+  status: 'uploading' | 'uploaded' | 'failed';
+  uploadedPath?: string;
+  error?: string;
+};
+
 const mapLabelsToOptions = (labels: string[]): MapperOption[] =>
   labels.map(label => ({ label, value: label }));
 
@@ -72,6 +79,29 @@ const promptExamples = [
   'Green flags I love...',
   "I'll fall for you if...",
 ];
+
+const getFileExtension = (path: string) => {
+  const cleanPath = path.split('?')[0].split('#')[0];
+  const ext = cleanPath.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return ext || 'jpg';
+};
+
+const getMimeTypeFromExt = (ext: string) => {
+  switch (ext.toLowerCase()) {
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'bmp':
+      return 'image/bmp';
+    case 'jpg':
+    case 'jpeg':
+    default:
+      return 'image/jpeg';
+  }
+};
 
 const mapperToOptions = (mapper: any, keys: string[], fallback: MapperOption[]) => {
   const mapperGroup = keys.map(key => mapper?.[key]).find(Boolean);
@@ -130,6 +160,8 @@ export const Auth_Signup = ({route}:{route: any}) => {
   const [verificationSendCount, setVerificationSendCount] = useState(0);
   const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoUploads, setPhotoUploads] = useState<Record<string, SignupPhotoUpload>>({});
+  const photoUploadPromises = useRef<Record<string, Promise<string>>>({});
 
  
  
@@ -305,7 +337,13 @@ export const Auth_Signup = ({route}:{route: any}) => {
       .filter((uri): uri is string => Boolean(uri));
 
     if (selectedUris.length > 0) {
-      updateSignupData('photos', [...signupData.photos, ...selectedUris].slice(0, 6));
+      const nextPhotos = [...signupData.photos, ...selectedUris].slice(0, 6);
+      updateSignupData('photos', nextPhotos);
+      selectedUris.forEach((uri, selectedIndex) => {
+        uploadSignupPhoto(uri, signupData.photos.length + selectedIndex).catch(() => {
+          Toastx.show({ type: 'error', message: 'A signup photo failed to upload. We will retry before signup.' });
+        });
+      });
     }
   };
 
@@ -348,6 +386,79 @@ export const Auth_Signup = ({route}:{route: any}) => {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   };
 
+  const uploadSignupPhoto = (uri: string, index: number) => {
+    if (photoUploadPromises.current[uri]) return photoUploadPromises.current[uri];
+
+    const uploadPromise = (async () => {
+      setPhotoUploads(prev => ({
+        ...prev,
+        [uri]: { status: 'uploading' },
+      }));
+
+      try {
+        const ext = getFileExtension(uri);
+        const contentType = getMimeTypeFromExt(ext);
+        const presigned = await uploadHandler.requestPresignedURL_Upload(ext, 'signup-void');
+        const uploadFilePath = uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+
+        const uploadResult = await RNFS.uploadFiles({
+          toUrl: presigned.uploadUrl,
+          files: [
+            {
+              name: 'file',
+              filename: `signup_${Date.now()}_${index}.${ext}`,
+              filepath: uploadFilePath,
+              filetype: contentType,
+            },
+          ],
+          method: presigned.method || 'PUT',
+          headers: {
+            'Content-Type': contentType,
+          },
+          binaryStreamOnly: true,
+        }).promise;
+
+        if (uploadResult.statusCode < 200 || uploadResult.statusCode >= 300) {
+          throw new Error('Photo upload failed.');
+        }
+
+        const uploadedPath = "/" + uploadHandler.joinPath(presigned.bucket, presigned.fileKey);
+        setPhotoUploads(prev => ({
+          ...prev,
+          [uri]: {
+            status: 'uploaded',
+            uploadedPath,
+          },
+        }));
+        return uploadedPath;
+      } catch (error: any) {
+        delete photoUploadPromises.current[uri];
+        setPhotoUploads(prev => ({
+          ...prev,
+          [uri]: {
+            status: 'failed',
+            error: error?.message ?? 'Photo upload failed.',
+          },
+        }));
+        throw error;
+      }
+    })();
+
+    photoUploadPromises.current[uri] = uploadPromise;
+    return uploadPromise;
+  };
+
+  const ensureSignupPhotoUploads = async () => {
+    const uploadedPhotos = await Promise.all(
+      signupData.photos.map((photoUri, index) => {
+        const uploadedPath = photoUploads[photoUri]?.uploadedPath;
+        return uploadedPath ? Promise.resolve(uploadedPath) : uploadSignupPhoto(photoUri, index);
+      }),
+    );
+
+    return uploadedPhotos;
+  };
+
   const getSignupPhoneNumber = () => {
     const digits = signupData.phoneNumber.replace(/\D/g, '');
     return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
@@ -370,7 +481,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
     timestamp: position?.timestamp,
   });
 
-  const signupPayload = (vcode?: string) => ({
+  const signupPayload = (vcode?: string, photos?: string[]) => ({
     user_phone: getSignupPhoneNumber(),
     vcode,
     first_name: signupData.firstName,
@@ -378,7 +489,7 @@ export const Auth_Signup = ({route}:{route: any}) => {
     gender: signupData.gender,
     interested_in: signupData.interestedIn,
     intent: signupData.intent,
-    photos: signupData.photos,
+    photos: photos ?? signupData.photos,
     bio: signupData.bio,
     // interests: signupData.interests,
     location: signupData.location,
@@ -431,10 +542,11 @@ export const Auth_Signup = ({route}:{route: any}) => {
     setIsSubmitting(true);
     Loaderx.show();
     try {
+      const uploadedPhotos = await ensureSignupPhotoUploads();
       const response = await fetch(`${hostServer()}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(signupPayload(signupData.verificationCode)),
+        body: JSON.stringify(signupPayload(signupData.verificationCode, uploadedPhotos)),
       });
       const result = await response.json();
 
@@ -463,13 +575,13 @@ export const Auth_Signup = ({route}:{route: any}) => {
 
       updateSignupData('phoneVerified', true);
       Toastx.show({ type: 'success', message: 'Signup complete.' });
-      navigation.reset({
+      navigationRef.reset({
         index: 0,
         routes: [{ name: namer.navigation.home }],
       });
       return true;
-    } catch {
-      Toastx.show({ type: 'error', message: 'Signup failed.' });
+    } catch (error: any) {
+      Toastx.show({ type: 'error', message: error?.message ?? 'Signup failed.' });
       return false;
     } finally {
       Loaderx.hide();
