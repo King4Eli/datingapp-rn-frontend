@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { View, Text, Pressable, Dimensions, StyleSheet, Animated, Easing, FlatList, ScrollView, Image, ActivityIndicator } from 'react-native';
-import { _http_request, cacheStorage, help, hostServer, llStorage, logReport, screenWidth } from '../funcs/functions';
+import { _http_request, cacheStorage, help, hostServer, llStorage, logReport } from '../funcs/functions';
 import { useFocusEffect } from '@react-navigation/native';
 import { styles, namer, resourceMap } from '../funcs/static';
 import IIcon from 'react-native-vector-icons/Ionicons';
@@ -84,22 +84,24 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
 
 
-    // Calculate responsive layout
-    const calculateLayout = (screenWidth: number) => {
-        const padding = 24; // Total horizontal padding (12 + 12)
-        const gap = 12; // Gap between items
-        const minItemWidth = 160; // Minimum width for each item
+    // Calculate responsive layout based on orientation and device width
+    const calculateLayout = useCallback((width: number, height: number) => {
+        const isLandscape = width > height;
+        const padding = 24;
+        const gap = 12;
 
-        const numColumns = Math.max(2, Math.floor((screenWidth - padding) / (minItemWidth + gap)));
-        const itemWidth = (screenWidth - padding - ((numColumns - 1) * gap)) / numColumns;
-        const itemHeight = itemWidth * 1.5; // Maintain aspect ratio
+        let numColumns: number;
+        if (isLandscape) {
+            numColumns = width >= 900 ? 4 : 3;
+        } else {
+            numColumns = width >= 600 ? 3 : 2;
+        }
 
-        setLayout({
-            numColumns,
-            itemWidth,
-            itemHeight
-        });
-    };
+        const itemWidth = (width - padding - (numColumns - 1) * gap) / numColumns;
+        const itemHeight = itemWidth * 1.5;
+
+        setLayout({ numColumns, itemWidth, itemHeight });
+    }, []);
 
     const bounceAnimx = (new Animated.Value(0));
     const bounceInterpolatex = bounceAnimx.interpolate({
@@ -130,14 +132,15 @@ export function Screen_likes({ navigation }: { navigation: any }) {
 
     // Initial layout calculation and on dimension change
     useEffect(() => {
-        calculateLayout(screenWidth);
+        const { width, height } = Dimensions.get('window');
+        calculateLayout(width, height);
 
         const subscription = Dimensions.addEventListener('change', ({ window }) => {
-            calculateLayout(window.width);
+            calculateLayout(window.width, window.height);
         });
 
         return () => subscription?.remove();
-    }, []);
+    }, [calculateLayout]);
 
     const filteredLikes = useMemo(() => {
         let list = Array.isArray(getNewLikes) ? [...getNewLikes] : [];
@@ -224,6 +227,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                         keyExtractor={(item, index) => item?.likedUserId || index.toString()}
                         numColumns={layout.numColumns}
                         showsVerticalScrollIndicator={false}
+                        columnWrapperStyle={{gap:7}}
                         ListHeaderComponent={<View style={{ gap: 12, marginBottom: 12 }}>
                             <View style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 14, overflow: 'hidden' }}>
                                 <View style={styles.zcircle1} />
@@ -256,7 +260,7 @@ export function Screen_likes({ navigation }: { navigation: any }) {
                             </ScrollView>
                         </View>}
                         renderItem={({ item, index }) => (
-                            <View style={{ width: layout.itemWidth, marginRight: (index % layout.numColumns) < (layout.numColumns - 1) ? 12 : 0 }}>
+                            <View style={{ flex:1 }}>
                                 <Pressable style={[stylesoy.card, { width: '100%', height: layout.itemHeight, position: "relative" }]}
                                     onPress={() => {
                                         navigation.navigate(
