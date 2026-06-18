@@ -2831,8 +2831,6 @@ PODS:
     - RNNotifee/NotifeeCore (= 9.1.8)
   - RNNotifee/NotifeeCore (9.1.8):
     - React-Core
-  - RNQuickAction (0.3.13):
-    - React
   - RNReanimated (4.2.1):
     - boost
     - DoubleConversion
@@ -3263,7 +3261,6 @@ DEPENDENCIES:
   - RNFS (from `../node_modules/react-native-fs`)
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - "RNNotifee (from `../node_modules/@notifee/react-native`)"
-  - RNQuickAction (from `../node_modules/react-native-quick-actions`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -3471,8 +3468,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNNotifee:
     :path: "../node_modules/@notifee/react-native"
-  RNQuickAction:
-    :path: "../node_modules/react-native-quick-actions"
   RNReanimated:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
@@ -3584,7 +3579,6 @@ SPEC CHECKSUMS:
   RNFS: 4ac0f0ea233904cb798630b3c077808c06931688
   RNGestureHandler: 1f7ac76fa9d6ffedfdde38ce781442ffadac8880
   RNNotifee: 4a6ee5c7deaf00e005050052d73ee6315dff7ec9
-  RNQuickAction: 6d404a869dc872cde841ad3147416a670d13fa93
   RNReanimated: 0a23a0a9721f450580f0fdf04b9ae928cd22915a
   RNScreens: de996b48c82245c0b68c677da3334c2061e2a951
   RNSVG: 5bd1e478698eb9e5cc8f926157333ac814468064
