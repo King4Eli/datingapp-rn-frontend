@@ -69,8 +69,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
     const inputTextRef = useRef<TextInput>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [reloadIfRealtimeData_File, setReloadIfRealtimeData_File] = useState<boolean>(false);
-    const [bottomSheet_convotools_visible, setShowConvoToolsSheet] = useState(false);
-
+ 
     const bottomSheet_convotools = {
         ref: useRef<BottomSheet>(null), snap: useMemo(() => ['35%'], [])
     };
@@ -814,7 +813,7 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
                 <Pressable
                     style={{ padding: 4 }}
                     onPress={() => {
-                        setShowConvoToolsSheet(true);
+                        bottomSheet_convotools.ref.current?.expand();
                     }}
                 >
                     <IonIcon name="ellipsis-horizontal" size={25} color="#4F8EF7" />
@@ -1469,15 +1468,14 @@ export function Screen_conversation({ navigation, route }: { navigation: any, ro
         </SafeAreaView>
 
 
-        {bottomSheet_convotools_visible && <BottomSheet ref={bottomSheet_convotools?.ref}
-            index={0} enablePanDownToClose
+        <BottomSheet ref={bottomSheet_convotools?.ref}
+            index={-1} enablePanDownToClose
             snapPoints={bottomSheet_convotools?.snap}
-            backdropComponent={ajjj}
-            onClose={() => setShowConvoToolsSheet(false)} >
+            backdropComponent={ajjj} >
             <BottomSheetView>
                 <SafeAreaView edges={['bottom']}>{funt.convoTools}</SafeAreaView>
             </BottomSheetView>
-        </BottomSheet>}
+        </BottomSheet> 
 
         <ImageViewing
             images={[{ uri: getFullscreenClickImage }]}

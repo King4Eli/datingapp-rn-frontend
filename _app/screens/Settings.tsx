@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react';
 import { View, Text,  StyleSheet, Linking, Alert, Share, TouchableOpacity, TextInput, Platform,  ActivityIndicator, KeyboardAvoidingView, ScrollView } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
@@ -56,11 +56,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   };  
   const bottomSheetRef_email = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['60%', '90%'], []) // Increased for keyboard
+    snap: useMemo(() => ['60%', '80%'], []) // Increased for keyboard
   };
   const bottomSheetRef_phone = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['60%', '90%'], []) // Increased for keyboard
+    snap: useMemo(() => ['60%', '80%'], []) // Increased for keyboard
   }; 
 
   const PRIVACY_STORAGE_KEY = 'privacy_settings_v1';
@@ -129,6 +129,13 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     loadNotificationSettings();
   }, []);
 
+
+      useLayoutEffect(() => {
+          navigation.setOptions({
+              headerTransparent: true,
+              headerTitle: ''
+          });
+      }, []);
 
 
  
@@ -951,8 +958,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   // Main render
   return (
     <>
-      <SafeAreaView style={{ backgroundColor:"#fff" ,  paddingTop: headerHeight}} edges={["bottom"]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
+      <SafeAreaView style={{ backgroundColor:"#fff" , flex:1, paddingTop: headerHeight}} edges={["bottom"]}>
+        <ScrollView
+          style={modernStyles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={modernStyles.scrollContent}
+        >
           <ProfileHeader />
 
           <View style={[ { paddingVertical: 20, }]}>
@@ -1106,7 +1117,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
       </SafeAreaView>
 
       {/* Bottom Sheets with keyboard configuration */}
-      <BottomSheet 
+     <BottomSheet 
         ref={bottomSheetRef_email.ref} 
         enablePanDownToClose 
         index={-1}
@@ -1115,6 +1126,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
       >
+      <BottomSheetView style={{ padding: 20 }}>
         <EmailChangeFlow 
           currentEmail={profileEmail}
           onCancel={() => bottomSheetRef_email.ref.current?.close()}
@@ -1122,8 +1134,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             await __init__app();
             bottomSheetRef_email.ref.current?.close();
             setProfile(await cacheStorage.getCurrentUserProfile(true));
-          }} 
+          }}  
         />
+        </BottomSheetView>
       </BottomSheet>
 
       <BottomSheet 
@@ -1134,7 +1147,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         backdropComponent={bottomsheet_renderBackdrop}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
-      >
+      > 
+      <BottomSheetView style={{ padding: 20 }}>
+      
         <PhoneChangeFlow 
           currentPhone={profilePhone}
           onComplete={async () => {
@@ -1144,6 +1159,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           }}
           onCancel={() => bottomSheetRef_phone.ref.current?.close()} 
         />
+        </BottomSheetView>
       </BottomSheet>
 
 
@@ -1203,6 +1219,14 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
 // Modern Styles
 const modernStyles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
+    paddingHorizontal: 7,
+    paddingBottom: 24,
+  },
     
   profileGradient: {
     borderRadius: 24,

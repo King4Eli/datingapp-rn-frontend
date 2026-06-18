@@ -71,11 +71,11 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
     };
     const bottomSheetRef_reportUser = {
         ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => [], [])
+        snap: useMemo(() => ['80%'], [])
     };
     const bottomSheetRef_location = {
         ref: useRef<BottomSheet>(null),
-        snap: useMemo(() => [], [])
+        snap: useMemo(() => ['35%'], [])
     };
 
     const functs = {
@@ -434,7 +434,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
 
 
     return (
-        <View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight }]}>
+        <><View style={[styles.container, { paddingHorizontal: 0, paddingTop: headerHeight }]}>
 
             {getPeopleToMatch?.length === 0 ? (
                 <View style={deckStyles.emptyStateWrap}>
@@ -703,6 +703,8 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
             {getLoading && <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.31)', zIndex: 1011, }}><LottieView ref={lottieRef} source={resourceMap.lottie.heartpop} loop autoPlay style={{ width: 250, height: 250 }} /></View>}
 
 
+        </View>
+
             <BottomSheet ref={bottomSheetRef_secondview.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_secondview.snap} backdropComponent={bottomsheet_renderBackdrop}>
                 <BottomSheetView style={{}}>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10 }}>
@@ -753,7 +755,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
                     <LocationContent />
                 </BottomSheetView>
             </BottomSheet>
-        </View >
+        </>
     );
 }
 

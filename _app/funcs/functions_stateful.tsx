@@ -30,10 +30,8 @@ Loaderx.hide = () => { if (showLoaderFunc) { showLoaderFunc(false); } else { con
 
 export const bottomsheet_renderBackdrop =  (props: any) =>
 (<BottomSheetBackdrop {...props}
-  appearsOnIndex={0}
-  disappearsOnIndex={-1}
-  enableTouchThrough={true}
-  pressBehavior="close"
+    appearsOnIndex={0}
+    disappearsOnIndex={-0.9}
 />) ;
 //*****************************
 //
