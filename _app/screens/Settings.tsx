@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Linking, Alert, Share, TouchableOpacity, TextInput, Platform, Animated, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { View, Text,  StyleSheet, Linking, Alert, Share, TouchableOpacity, TextInput, Platform,  ActivityIndicator, KeyboardAvoidingView, ScrollView } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,31 +14,26 @@ import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { Toastx } from '../funcs/customNotification';
 import { CarouselRef, ControlledCarousel } from '../funcs/customCarousel';
 import { bottomsheet_renderBackdrop } from '../funcs/functions_stateful';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 // Modern color palette
 const MODERN_COLORS = {
-  primary: '#FF3B6B',
-  secondary: '#6C63FF',
-  accent: '#4ECDC4',
-  background: '#F8F9FF',
-  surface: '#FFFFFF',
+  primary: '#FF3B6B', 
+  surface: '#FFFFFF',  
   text: '#1F1F1F',
   textSecondary: '#666666',
   textTertiary: '#999999',
   border: '#E8E9FF',
-  success: '#34C759',
-  warning: '#FF9500',
+  success: '#34C759', 
   error: '#FF3B30',
-  premium: '#FFD166',
-  dark: '#121212',
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  premium: '#FFD166', 
 };
 
 export function Screen_settings({ navigation }: { navigation: any }) {
   const [getProfile, setProfile] = useState<any>(null);
+  const headerHeight = useHeaderHeight();
 
   const [getAllowOnlyVerified, setAllowOnlyVerified] = useState(getProfile?.messagefromonlyverified ?? false);
-  const [getSnoozeAccount, setSnoozeAccount] = useState(getProfile?.snooze ?? false);
   const [privacyShowInDiscovery, setPrivacyShowInDiscovery] = useState(true);
   const [privacyShowLastActive, setPrivacyShowLastActive] = useState(true);
   const [privacyShowDistance, setPrivacyShowDistance] = useState(true);
@@ -53,30 +48,12 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const profilePhone = profileDetails?.phonenumber ?? getProfile?.user_phonenumber ?? '';
   const profileName = profileDetails?.fullname ?? getProfile?.user_fullname ?? 'User';
   
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerOpacity = scrollY.interpolate({ inputRange: [0, 100], outputRange: [1, 0.9], extrapolate: 'clamp' });
 
   // Bottom sheet refs with larger snap points for keyboard
   const bottomSheetRef_push = {
     ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['50%', '85%'], [])
-  };
-  const bottomSheetRef_feedback = {
-    ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['50%', '85%'], [])
-  };
-  const bottomSheetRef_support = {
-    ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['50%', '85%'], [])
-  };
-  const bottomSheetRef_payment = {
-    ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['50%', '85%'], [])
-  };
-  const bottomSheetRef_debug = {
-    ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['50%', '85%'], [])
-  };
+    snap: useMemo(() => ['65%'], [])
+  };  
   const bottomSheetRef_email = {
     ref: useRef<BottomSheet>(null),
     snap: useMemo(() => ['60%', '90%'], []) // Increased for keyboard
@@ -84,11 +61,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const bottomSheetRef_phone = {
     ref: useRef<BottomSheet>(null),
     snap: useMemo(() => ['60%', '90%'], []) // Increased for keyboard
-  };
-  const bottomSheetRef_privacy = {
-    ref: useRef<BottomSheet>(null),
-    snap: useMemo(() => ['50%', '85%'], [])
-  };
+  }; 
 
   const PRIVACY_STORAGE_KEY = 'privacy_settings_v1';
   const NOTIFICATION_STORAGE_KEY = 'notification_settings_v1';
@@ -156,46 +129,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     loadNotificationSettings();
   }, []);
 
-  const savePrivacySettings = async () => {
-    try {
-      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify({
-        showInDiscovery: privacyShowInDiscovery,
-        showLastActive: privacyShowLastActive,
-        showDistance: privacyShowDistance,
-        allowMessageRequests: privacyAllowMessageRequests,
-      }));
-      Toastx.show({ type: "success", message: "Privacy settings saved" });
-      bottomSheetRef_privacy.ref.current?.close();
-    } catch (err) {
-      Toastx.show({ type: "error", message: "Failed to save privacy settings" });
-      logReport({
-        type: "function",
-        useraction: "savePrivacySettings",
-        logMessage: "Failed to save privacy settings",
-        stackTrace: err
-      });
-    }
-  };
 
-  const resetPrivacySettings = async () => {
-    setPrivacyShowInDiscovery(privacyDefaults.showInDiscovery);
-    setPrivacyShowLastActive(privacyDefaults.showLastActive);
-    setPrivacyShowDistance(privacyDefaults.showDistance);
-    setPrivacyAllowMessageRequests(privacyDefaults.allowMessageRequests);
-    try {
-      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify(privacyDefaults));
-      Toastx.show({ type: "success", message: "Privacy settings reset" });
-    } catch (err) {
-      Toastx.show({ type: "error", message: "Failed to reset privacy settings" });
-      logReport({
-        type: "function",
-        useraction: "resetPrivacySettings",
-        logMessage: "Failed to reset privacy settings",
-        stackTrace: err
-      });
-    }
-  };
 
+ 
   const saveNotificationSettings = async () => {
     try {
       await AsyncStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify({
@@ -234,7 +170,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
   // Profile header with modern design
   const ProfileHeader = () => (
-    <Animated.View style={[modernStyles.profileHeader, { opacity: headerOpacity }]}>
+    <View style={ {}}>
       <LinearGradient
         colors={['#FF3B6B', '#FF6B8B']}
         style={modernStyles.profileGradient}
@@ -259,7 +195,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
           </View>
         </View>
       </LinearGradient>
-    </Animated.View>
+    </View>
   );
 
   // Modern card component
@@ -333,9 +269,10 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     subtitle,
     value,
     onValueChange,
-    premiumLock = false
+    premiumLock = false,
+    hr=true
   }: any) => (
-    <View style={modernStyles.switchItem}>
+    <View style={[modernStyles.switchItem, hr && { borderBottomWidth: 1, borderBottomColor: MODERN_COLORS.border }]}>
       <View style={modernStyles.switchLeft}>
         <View style={modernStyles.switchIcon}>
           <IIcon name={icon} size={20} color={MODERN_COLORS.primary} />
@@ -395,7 +332,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     <View style={modernStyles.quickActions}>
       <TouchableOpacity
         style={modernStyles.quickAction}
-        onPress={() => bottomSheetRef_support.ref.current?.expand()}
       >
         <LinearGradient
           colors={['#6C63FF', '#8B63FF']}
@@ -410,7 +346,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-        onPress={() => bottomSheetRef_feedback.ref.current?.expand()}
       >
         <LinearGradient
           colors={['#34C759', '#4CD964']}
@@ -445,7 +380,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-        onPress={() => bottomSheetRef_payment.ref.current?.expand()}
       >
         <LinearGradient
           colors={['#FFD166', '#FFB347']}
@@ -1017,18 +951,11 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   // Main render
   return (
     <>
-      <SafeAreaView style={modernStyles.container} edges={["bottom"]}>
-        <Animated.ScrollView
-          showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          scrollEventThrottle={16}
-        >
+      <SafeAreaView style={{ backgroundColor:"#fff" ,  paddingTop: headerHeight}} edges={["bottom"]}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
           <ProfileHeader />
 
-          <View style={[styles.container, { paddingBottom: 30, backgroundColor: MODERN_COLORS.background }]}>
+          <View style={[ { paddingVertical: 20, }]}>
             {/* Quick Actions */}
             <QuickActions />
 
@@ -1071,6 +998,15 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 onValueChange={setAllowOnlyVerified}
                 premiumLock={!subscriptionState.isVip}
               /> 
+              <ModernSwitch
+                icon=""
+                title="Snooze discovery"
+                subtitle="Prevent people from seeing your profile on discoverys"
+                value={getAllowOnlyVerified}
+                onValueChange={setAllowOnlyVerified}
+                premiumLock={!subscriptionState.isVip}
+                hr={false}
+                />
             </ModernSection>
 
             {/* Privacy & Safety Section */}
@@ -1079,7 +1015,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 icon="lock-closed-outline"
                 title="Privacy Settings"
                 subtitle="Control who sees your profile"
-                onPress={() => bottomSheetRef_privacy.ref.current?.expand()}
               />
               <ModernOption
                 icon="flag-outline"
@@ -1125,31 +1060,39 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                     sessionManager.updateSession({ x_omi_payload: null, x_omi_payload_hash: null });
                     navigation.canGoBack() ? navigation.goBack() : null;
                   }}
-                  danger
-                hr={false}/>
-              </ModernCard>
-              <Pressable onPress={() => {
-                Alert.alert(
-                  "Delete Account?",
-                  "This action cannot be undone. All your data will be permanently deleted.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Delete",
-                      style: "destructive",
-                      onPress: () => {
-                        Toastx.show({ type: "error", message: "Account deletion requested" });
-                      }
-                    },
-                  ]
-                );
-              }} style={{ alignSelf: "flex-start" }}><Text style={{ color: "#ff7a7aff", marginTop: 20, fontSize: 12 }}>delete account</Text></Pressable>
-            </View>
+                  danger />
 
-            {/* Developer Options */}
-            <ModernOption icon="code-slash-outline" title="Debug Tools"
-             hr={false}
-             onPress={() => navigation.push("zz_devv")} />
+                <ModernOption
+                icon="trash-outline"
+                title="Delete Account"
+                onPress={() => {
+                  Alert.alert(
+                    "Delete Account?",
+                    "This action cannot be undone. All your data will be permanently deleted.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: () => {
+                          Toastx.show({ type: "success", message: "Account deletion requested" });
+                        }
+                      },
+                    ]
+                  );
+                }}
+                danger
+                />
+
+              <ModernOption
+                icon="help-circle-outline"
+                title="DEV Tool"
+                onPress={() => { navigation.push("zz_devv"); }}
+                hr={false}
+              />
+              </ModernCard>
+
+            </View>
 
             {/* App Version */}
             <View style={modernStyles.versionContainer}>
@@ -1159,7 +1102,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               </Text>
             </View>
           </View>
-        </Animated.ScrollView>
+        </ScrollView>
       </SafeAreaView>
 
       {/* Bottom Sheets with keyboard configuration */}
@@ -1203,86 +1146,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         />
       </BottomSheet>
 
-      <BottomSheet 
-        ref={bottomSheetRef_privacy.ref} 
-        index={-1} 
-        enablePanDownToClose
-        snapPoints={bottomSheetRef_privacy.snap}
-        backdropComponent={bottomsheet_renderBackdrop}
-      >
-        <BottomSheetView style={{ padding: 23 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={modernStyles.sectionTitle}>Privacy Settings</Text>
-            <Text style={[modernStyles.optionSubtitle, { marginTop: 6 }]}>
-              Choose what other people can see on your profile.
-            </Text>
-
-            <View style={{ marginTop: 16 }}>
-              
-              <ModernSwitch
-                icon="time-outline"
-                title="Show last active"
-                subtitle="Let matches see when you were last online"
-                value={privacyShowLastActive}
-                onValueChange={setPrivacyShowLastActive}
-              />
-              <ModernSwitch
-                icon="location-outline"
-                title="Show distance"
-                subtitle="Display your distance on your profile"
-                value={privacyShowDistance}
-                onValueChange={setPrivacyShowDistance}
-              />
-              <ModernSwitch
-                icon="chatbubble-ellipses-outline"
-                title="Allow message requests"
-                subtitle="People can message you before matching"
-                value={privacyAllowMessageRequests}
-                onValueChange={setPrivacyAllowMessageRequests}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[modernStyles.secondaryButton, { marginTop: 12 }]}
-              onPress={() => {
-                Alert.alert(
-                  "Download Data",
-                  "Your data will be prepared and sent to your email. This may take a few minutes.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Request Download",
-                      onPress: () => {
-                        Toastx.show({
-                          type: "success",
-                          message: "Data download requested. You'll receive an email when it's ready."
-                        });
-                      }
-                    },
-                  ]
-                );
-              }}
-            >
-              <Text style={modernStyles.secondaryButtonText}>Download Your Data</Text>
-            </TouchableOpacity>
-
-            <View style={[modernStyles.buttonRow, { marginTop: 18 }]}>
-              <TouchableOpacity
-                style={[modernStyles.secondaryButton, { flex: 1 }]}
-                onPress={resetPrivacySettings}
-              >
-                <Text style={modernStyles.secondaryButtonText}>Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[modernStyles.primaryButton, { flex: 1 }]}
-                onPress={savePrivacySettings}
-              >
-                <Text style={modernStyles.primaryButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
 
       <BottomSheet 
         ref={bottomSheetRef_push.ref} 
@@ -1315,7 +1178,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
               />
             </View>
 
-            <View style={[modernStyles.buttonRow, { marginTop: 18 }]}>
+            <View style={[modernStyles.buttonRow, { marginTop: 40 }]}>
               <TouchableOpacity
                 style={[modernStyles.secondaryButton, { flex: 1 }]}
                 onPress={resetNotificationSettings}
@@ -1333,62 +1196,14 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-      <BottomSheet
-        ref={bottomSheetRef_payment.ref}
-        index={-1}
-        snapPoints={bottomSheetRef_payment.snap}
-        backdropComponent={bottomsheet_renderBackdrop}
-        enablePanDownToClose
-      >
-        <BottomSheetView style={{ padding: 23 }}>
-          <View style={{ flex: 1, paddingHorizontal: 20 }}>
-            <Text style={modernStyles.sectionTitle}>Payments</Text>
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
-
-      <BottomSheet
-        ref={bottomSheetRef_feedback.ref}
-        index={-1}
-        snapPoints={bottomSheetRef_feedback.snap}
-        backdropComponent={bottomsheet_renderBackdrop}
-        enablePanDownToClose
-      >
-        <BottomSheetView style={{ padding: 23 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={modernStyles.sectionTitle}>Feedback</Text>
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
-
-      <BottomSheet
-        ref={bottomSheetRef_support.ref}
-        index={-1}
-        snapPoints={bottomSheetRef_support.snap}
-        backdropComponent={bottomsheet_renderBackdrop}
-        enablePanDownToClose
-      >
-        <BottomSheetView style={{ padding: 23 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={modernStyles.sectionTitle}>Support</Text>
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
+    
     </>
   );
 }
 
 // Modern Styles
 const modernStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: MODERN_COLORS.background,
-  },
-  profileHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
-  },
+    
   profileGradient: {
     borderRadius: 24,
     padding: 20,
@@ -1425,7 +1240,7 @@ const modernStyles = StyleSheet.create({
   },
   currentInfo: {
     backgroundColor: MODERN_COLORS.border,
-    padding: 16,
+    padding: 11,
     borderRadius: 12,
     marginBottom: 16,
   },
@@ -1793,7 +1608,7 @@ const modernStyles = StyleSheet.create({
   },
   versionContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingTop: 10,
   },
   versionText: {
     fontSize: 14,

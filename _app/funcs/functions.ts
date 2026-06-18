@@ -22,8 +22,8 @@ export const hostServer = () => {
 
   if (Platform.OS === "android" && DeviceInfo.isEmulatorSync()) {
     // if android emulator
-    // h_0 = "https://api.dating.local";
-     h_0 = "http://10.0.2.2:2000"; 
+    h_0 = "https://api.dating.local";
+    h_0 = "http://10.0.2.2:2000"; 
   }
   return h_0;
 }

@@ -119,7 +119,7 @@ const MainApp: React.FC = () => {
         }} />
  
       <TabBottom.Screen name={namer.navigation.profile} component={Screen_profile} options={{
-        tabBarIcon: () => <IIcon name="person-outline" size={30} color="#4F8EF7" />,
+        tabBarIcon: () => <IIcon name="person-outline" size={30} color="#4F8EF7" />, headerTransparent: true 
       }} />
     </TabBottom.Navigator>
   );
