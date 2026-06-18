@@ -706,7 +706,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         </View>
 
             <BottomSheet ref={bottomSheetRef_secondview.ref} index={-1} enablePanDownToClose snapPoints={bottomSheetRef_secondview.snap} backdropComponent={bottomsheet_renderBackdrop}>
-                <BottomSheetView style={{}}>
+                <BottomSheetView>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10 }}>
                         <Text style={styles.title}>Previously Skipped Profiles</Text>
                         <View style={{ gap: 10 }}>
