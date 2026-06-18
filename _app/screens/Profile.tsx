@@ -109,7 +109,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     }
 
     return (
-        <View style={[styles.container, {paddingTop: headerHeight+12,paddingLeft:0,paddingRight:0 }]}>
+        <View style={[styles.container, {paddingTop: headerHeight,paddingLeft:0,paddingRight:0 }]}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container,{gap:14, paddingBottom:10}]}>
                 <View style={stylesx.profileCard}>
                     <View style={stylesx.profileRow}>
