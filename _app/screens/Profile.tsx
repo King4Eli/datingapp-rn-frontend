@@ -94,9 +94,9 @@ export function Screen_profile({ navigation }: { navigation: any }) {
         navigation.setOptions({
             headerTransparent: true,
             headerTitle: '',
-            headerRight:()=>  {<Pressable style={stylesx.headerButton} onPress={() => navigation.navigate(namer.navigation.settings)}>
+            headerRight:()=>  <Pressable style={stylesx.headerButton} onPress={() => navigation.navigate(namer.navigation.settings)}>
                     <MIcon name="cog-outline" size={25} color="#263238" />
-                </Pressable>}
+                </Pressable>
         });
     }, [navigation]);
 
@@ -109,7 +109,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
     }
 
     return (
-        <View style={[styles.container, {paddingTop: headerHeight,paddingLeft:0,paddingRight:0 }]}>
+        <View style={[styles.container, {paddingTop: headerHeight+12,paddingLeft:0,paddingRight:0 }]}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container,{gap:14, paddingBottom:10}]}>
                 <View style={stylesx.profileCard}>
                     <View style={stylesx.profileRow}>
