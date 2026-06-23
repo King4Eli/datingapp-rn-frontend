@@ -4,7 +4,7 @@ import { hostServer, cacheStorage } from "../functions.ts";
 import { sessionManager } from "../SessionContext";
 
 // Log function for debugging
-export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, stackTrace, reporteduserId }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any, reporteduserId?: string }): void => {
+export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, reporteduserId }: { type: string, extra?: string, useraction: string, url?: string, logMessage: string, stackTrace?: any, reporteduserId?: string }): void => {
     async function getAppMeta() {
         const [FirstInstallTime, LastUpdateTime] = await Promise.all([
             DeviceInfo.getFirstInstallTime(),
@@ -33,7 +33,6 @@ export const xxa_logggingReport = ({ type, extra, useraction, url, logMessage, s
                     "useraction": useraction,
                     "description": logMessage,
                     "extras": extra,
-                    "stackMessage": stackTrace
                 },
                 "user": {},
                 "device": await cacheStorage.getDeviceData(),

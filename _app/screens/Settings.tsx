@@ -1,7 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react';
 import { View, Text,  StyleSheet, Linking, Alert, Share, TouchableOpacity, TextInput, Platform,  ActivityIndicator, KeyboardAvoidingView, ScrollView } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import { sessionManager } from '../funcs/SessionContext';
+ import { sessionManager } from '../funcs/SessionContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { namer, styles } from '../funcs/static';
 import { __init__app, _http_request, cacheStorage, help, hostServer, logReport } from '../funcs/functions';
@@ -37,6 +36,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   const [privacyShowInDiscovery, setPrivacyShowInDiscovery] = useState(true);
   const [privacyShowLastActive, setPrivacyShowLastActive] = useState(true);
   const [privacyShowDistance, setPrivacyShowDistance] = useState(true);
+  const [privacyShowAge, setPrivacyShowAge] = useState(true);
+  const [privacyIncognitoMode, setPrivacyIncognitoMode] = useState(false);
   const [privacyAllowMessageRequests, setPrivacyAllowMessageRequests] = useState(true);
   const [notifyPushEnabled, setNotifyPushEnabled] = useState(true);
   const [notifyEmailEnabled, setNotifyEmailEnabled] = useState(true);
@@ -62,6 +63,10 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     ref: useRef<BottomSheet>(null),
     snap: useMemo(() => ['60%', '80%'], []) // Increased for keyboard
   }; 
+  const bottomSheetRef_privacy = {
+    ref: useRef<BottomSheet>(null),
+    snap: useMemo(() => ['75%', '95%'], [])
+  };
 
   const PRIVACY_STORAGE_KEY = 'privacy_settings_v1';
   const NOTIFICATION_STORAGE_KEY = 'notification_settings_v1';
@@ -69,6 +74,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     showInDiscovery: true,
     showLastActive: true,
     showDistance: true,
+    showAge: true,
+    incognitoMode: false,
     allowMessageRequests: true,
   };
   const notificationDefaults = {
@@ -99,6 +106,8 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         setPrivacyShowInDiscovery(parsed?.showInDiscovery ?? privacyDefaults.showInDiscovery);
         setPrivacyShowLastActive(parsed?.showLastActive ?? privacyDefaults.showLastActive);
         setPrivacyShowDistance(parsed?.showDistance ?? privacyDefaults.showDistance);
+        setPrivacyShowAge(parsed?.showAge ?? privacyDefaults.showAge);
+        setPrivacyIncognitoMode(parsed?.incognitoMode ?? privacyDefaults.incognitoMode);
         setPrivacyAllowMessageRequests(parsed?.allowMessageRequests ?? privacyDefaults.allowMessageRequests);
       } catch (err) {
         logReport({
@@ -175,17 +184,54 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     }
   };
 
+  const savePrivacySettings = async () => {
+    try {
+      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify({
+        showInDiscovery: privacyShowInDiscovery,
+        showLastActive: privacyShowLastActive,
+        showDistance: privacyShowDistance,
+        showAge: privacyShowAge,
+        incognitoMode: privacyIncognitoMode,
+        allowMessageRequests: privacyAllowMessageRequests,
+      }));
+      Toastx.show({ type: "success", message: "Privacy settings saved" });
+      bottomSheetRef_privacy.ref.current?.close();
+    } catch (err) {
+      Toastx.show({ type: "error", message: "Failed to save privacy settings" });
+      logReport({
+        type: "function",
+        useraction: "savePrivacySettings",
+        logMessage: "Failed to save privacy settings",
+        stackTrace: err
+      });
+    }
+  };
+
+  const resetPrivacySettings = async () => {
+    setPrivacyShowInDiscovery(privacyDefaults.showInDiscovery);
+    setPrivacyShowLastActive(privacyDefaults.showLastActive);
+    setPrivacyShowDistance(privacyDefaults.showDistance);
+    setPrivacyShowAge(privacyDefaults.showAge);
+    setPrivacyIncognitoMode(privacyDefaults.incognitoMode);
+    setPrivacyAllowMessageRequests(privacyDefaults.allowMessageRequests);
+    try {
+      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify(privacyDefaults));
+      Toastx.show({ type: "success", message: "Privacy settings reset" });
+    } catch (err) {
+      Toastx.show({ type: "error", message: "Failed to reset privacy settings" });
+      logReport({
+        type: "function",
+        useraction: "resetPrivacySettings",
+        logMessage: "Failed to reset privacy settings",
+        stackTrace: err
+      });
+    }
+  };
+
   // Profile header with modern design
   const ProfileHeader = () => (
-    <View style={ {}}>
-      <LinearGradient
-        colors={['#FF3B6B', '#FF6B8B']}
-        style={modernStyles.profileGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={modernStyles.profileInfo}>
-          <View style={modernStyles.avatarContainer}>
+    <View style={{backgroundColor:"red",padding:10,marginTop:2, borderRadius:15, flexDirection: 'row',alignItems: 'center',flex: 1,}}> 
+           <View style={modernStyles.avatarContainer}>
             <View style={modernStyles.avatar}>
               <Text style={modernStyles.avatarText}>
                 {profileName?.charAt(0) || 'U'}
@@ -198,29 +244,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             )}
           </View>
           <View style={modernStyles.profileDetails}>
-            <Text style={modernStyles.profileName}>{profileName}</Text>
+            <Text style={{fontSize: 22,fontWeight: 'bold',color: '#FFFFFF',marginBottom: 4,textTransform:"capitalize"}}>{profileName}</Text>
           </View>
-        </View>
-      </LinearGradient>
-    </View>
+     </View>
   );
 
   // Modern card component
-  const ModernCard = ({ children, style, gradient = false }: any) => (
-    gradient ? (
-      <LinearGradient
-        colors={['#6C63FF', '#8B63FF']}
-        style={[modernStyles.card, modernStyles.cardGradient, style]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        {children}
-      </LinearGradient>
-    ) : (
-      <View style={[modernStyles.card, style]}>
-        {children}
-      </View>
-    )
+  const ModernCard = ({ children, style }: any) => (
+    <View style={[modernStyles.card, style]}>
+      {children}
+    </View>
   );
 
   // Modern option item
@@ -339,30 +372,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
     <View style={modernStyles.quickActions}>
       <TouchableOpacity
         style={modernStyles.quickAction}
-      >
-        <LinearGradient
-          colors={['#6C63FF', '#8B63FF']}
-          style={modernStyles.quickActionIcon}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+      > 
           <Feather name="help-circle" size={20} color="#FFF" />
-        </LinearGradient>
-        <Text style={modernStyles.quickActionText}>Support</Text>
+         <Text style={modernStyles.quickActionText}>Support</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-      >
-        <LinearGradient
-          colors={['#34C759', '#4CD964']}
-          style={modernStyles.quickActionIcon}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+      > 
           <Feather name="message-square" size={20} color="#FFF" />
-        </LinearGradient>
-        <Text style={modernStyles.quickActionText}>Feedback</Text>
+         <Text style={modernStyles.quickActionText}>Feedback</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -373,30 +392,16 @@ export function Screen_settings({ navigation }: { navigation: any }) {
             message: `I'm using ${appJson?.displayName} to meet amazing people. Join me!`,
           });
         }}
-      >
-        <LinearGradient
-          colors={['#FF3B6B', '#FF6B8B']}
-          style={modernStyles.quickActionIcon}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+      > 
           <Feather name="share-2" size={20} color="#FFF" />
-        </LinearGradient>
-        <Text style={modernStyles.quickActionText}>Share</Text>
+         <Text style={modernStyles.quickActionText}>Share</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={modernStyles.quickAction}
-      >
-        <LinearGradient
-          colors={['#FFD166', '#FFB347']}
-          style={modernStyles.quickActionIcon}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+      > 
           <Feather name="crown" size={20} color="#FFF" />
-        </LinearGradient>
-        <Text style={modernStyles.quickActionText}>Premium</Text>
+         <Text style={modernStyles.quickActionText}>Premium</Text>
       </TouchableOpacity>
     </View>
   );
@@ -416,7 +421,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         title: "Change Email",
         subtitle: "Enter your new email address",
         content: (
-          <View style={modernStyles.flowContainer}>
+          <View style={{}}>
             <View style={modernStyles.currentInfo}>
               <Text style={modernStyles.currentLabel}>Current Email</Text>
               <Text style={modernStyles.currentValue}>{currentEmail}</Text>
@@ -515,7 +520,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         title: "Verify Email",
         subtitle: "Enter the 6-digit code sent to your new email",
         content: (
-          <View style={modernStyles.flowContainer}>
+          <View style={{}}>
             <View style={modernStyles.infoBox}>
               <IIcon name="mail-outline" size={24} color={MODERN_COLORS.primary} />
               <Text style={modernStyles.infoText}>
@@ -702,7 +707,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         title: "Change Phone",
         subtitle: "Enter your new phone number",
         content: (
-          <View style={modernStyles.flowContainer}>
+          <View style={{}}>
             <View style={modernStyles.currentInfo}>
               <Text style={modernStyles.currentLabel}>Current Phone</Text>
               <Text style={modernStyles.currentValue}>{currentPhone}</Text>
@@ -797,7 +802,7 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         title: "Verify Phone",
         subtitle: "Enter the 6-digit code sent to your new phone",
         content: (
-          <View style={modernStyles.flowContainer}>
+          <View style={{}}>
             <View style={modernStyles.infoBox}>
               <IIcon name="call-outline" size={24} color={MODERN_COLORS.primary} />
               <Text style={modernStyles.infoText}>
@@ -959,10 +964,9 @@ export function Screen_settings({ navigation }: { navigation: any }) {
   return (
     <>
       <SafeAreaView style={{ backgroundColor:"#fff" , flex:1, paddingTop: headerHeight}} edges={["bottom"]}>
-        <ScrollView
-          style={modernStyles.scrollView}
+        <ScrollView 
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={modernStyles.scrollContent}
+          contentContainerStyle={styles.conainerScrollView}
         >
           <ProfileHeader />
 
@@ -987,6 +991,25 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                 onPress={() => {
                   bottomSheetRef_phone.ref.current?.expand();
                 }}
+                hr={false}
+              />
+            </ModernSection>
+ 
+
+            {/* Privacy & Safety Section */}
+            <ModernSection title="Privacy & Safety" icon="shield-outline">
+              <ModernOption
+                icon="lock-closed-outline"
+                title="Privacy Settings"
+                subtitle="Control who sees your profile"
+                onPress={() => bottomSheetRef_privacy.ref.current?.expand()}
+              />
+              <ModernOption
+                icon="warning-outline"
+                title="Safety Center"
+                subtitle="Learn about dating safely"
+                onPress={() => Linking.openURL(hostServer() + "/static_page/tnc.php")}
+                rightElement={<IIcon size={20} name='open-outline' />}
               />
               <ModernOption
                 icon="notifications-outline"
@@ -996,50 +1019,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
                   bottomSheetRef_push.ref.current?.expand();
                 }}
                 hr={false}
-              />
-            </ModernSection>
-
-            {/* Discovery & Preferences Section */}
-            <ModernSection title="Discovery" icon="compass-outline">
-              <ModernSwitch
-                icon="shield-checkmark-outline"
-                title="Verified Users Only"
-                subtitle="Only receive messages from verified accounts"
-                value={getAllowOnlyVerified}
-                onValueChange={setAllowOnlyVerified}
-                premiumLock={!subscriptionState.isVip}
-              /> 
-              <ModernSwitch
-                icon=""
-                title="Snooze discovery"
-                subtitle="Prevent people from seeing your profile on discoverys"
-                value={getAllowOnlyVerified}
-                onValueChange={setAllowOnlyVerified}
-                premiumLock={!subscriptionState.isVip}
-                hr={false}
-                />
-            </ModernSection>
-
-            {/* Privacy & Safety Section */}
-            <ModernSection title="Privacy & Safety" icon="shield-outline">
-              <ModernOption
-                icon="lock-closed-outline"
-                title="Privacy Settings"
-                subtitle="Control who sees your profile"
-              />
-              <ModernOption
-                icon="flag-outline"
-                title="Blocked Users"
-                subtitle="Manage your block list"
-                onPress={() => Toastx.show({ type: "info", message: "Blocked users list coming soon!" })}
-              />
-              <ModernOption
-                icon="warning-outline"
-                title="Safety Center"
-                subtitle="Learn about dating safely"
-                onPress={() => Linking.openURL(hostServer() + "/static_page/tnc.php")}
-                rightElement={<IIcon size={20} name='open-outline' />}
-              hr={false}
               />
             </ModernSection>
 
@@ -1149,7 +1128,6 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         keyboardBlurBehavior="restore"
       > 
       <BottomSheetView style={{ padding: 20 }}>
-      
         <PhoneChangeFlow 
           currentPhone={profilePhone}
           onComplete={async () => {
@@ -1212,51 +1190,78 @@ export function Screen_settings({ navigation }: { navigation: any }) {
         </BottomSheetView>
       </BottomSheet>
 
-    
+      <BottomSheet 
+        ref={bottomSheetRef_privacy.ref} 
+        index={-1} 
+        enablePanDownToClose
+        snapPoints={bottomSheetRef_privacy.snap}
+        backdropComponent={bottomsheet_renderBackdrop}
+      >
+        <BottomSheetView style={{ flex: 1 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ padding: 23, paddingBottom: 40 }}
+          >
+            <Text style={modernStyles.sectionTitle}>Privacy Settings</Text>
+            <Text style={[modernStyles.optionSubtitle, { marginTop: 6 }]}> 
+              Control what information is visible on your profile.
+            </Text>
+ 
+            <View style={{ marginTop: 16 }}>
+              <ModernSwitch
+                icon="location-outline"
+                title="Show my distance"
+                subtitle="Allow people to see how far away you are"
+                value={privacyShowDistance}
+                onValueChange={setPrivacyShowDistance}
+              />
+              <ModernSwitch
+                icon="calendar-outline"
+                title="Show my age"
+                subtitle="Display your age on your profile"
+                value={privacyShowAge}
+                onValueChange={setPrivacyShowAge}
+              />
+              <ModernSwitch
+                icon="eye-off-outline"
+                title="Incognito mode"
+                subtitle="Only people you liked can see you"
+                value={privacyIncognitoMode}
+                onValueChange={setPrivacyIncognitoMode}
+                hr={false}
+              />
+            </View>
+
+            <View style={[modernStyles.buttonRow, { marginTop: 40 }]}> 
+              <TouchableOpacity
+                style={[modernStyles.secondaryButton, { flex: 1 }]}
+                onPress={resetPrivacySettings}
+              >
+                <Text style={modernStyles.secondaryButtonText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[modernStyles.primaryButton, { flex: 1 }]}
+                onPress={savePrivacySettings}
+              >
+                <Text style={modernStyles.primaryButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </BottomSheetView>
+      </BottomSheet>
     </>
   );
 }
 
-// Modern Styles
 const modernStyles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    paddingHorizontal: 7,
-    paddingBottom: 24,
-  },
-    
-  profileGradient: {
-    borderRadius: 24,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    ...Platform.select({
-      ios: {
-        shadowColor: MODERN_COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  flowContainer: {
-    gap: 20,
-  },
   flowHeader: {
-    marginBottom: 24,
+    marginBottom: 18,
   },
   flowTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     color: MODERN_COLORS.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   flowSubtitle: {
     fontSize: 16,
@@ -1382,12 +1387,7 @@ const modernStyles = StyleSheet.create({
   stepDotActive: {
     backgroundColor: MODERN_COLORS.primary,
     width: 12,
-  },
-  profileInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
+  }, 
   avatarContainer: {
     position: 'relative',
   },
@@ -1422,13 +1422,7 @@ const modernStyles = StyleSheet.create({
   profileDetails: {
     marginLeft: 16,
     flex: 1,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
+  }, 
   profileSubtitle: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
@@ -1506,7 +1500,7 @@ const modernStyles = StyleSheet.create({
   card: {
     backgroundColor: MODERN_COLORS.surface,
     borderRadius: 18,
-    padding: 16,
+    paddingHorizontal: 16, 
     ...Platform.select({
       ios: {
         shadowColor: MODERN_COLORS.text,
@@ -1518,10 +1512,7 @@ const modernStyles = StyleSheet.create({
         elevation: 3,
       },
     }),
-  },
-  cardGradient: {
-    borderWidth: 0,
-  },
+  }, 
   hr:{// Horizontal divider style
     height: 1,
     backgroundColor: MODERN_COLORS.border,
@@ -1530,7 +1521,7 @@ const modernStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14 
+    paddingVertical: 12
   },
   optionLeft: {
     flexDirection: 'row',
@@ -1572,9 +1563,7 @@ const modernStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: MODERN_COLORS.border,
+    paddingVertical: 14
   },
   switchLeft: {
     flexDirection: 'row',

@@ -110,7 +110,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
 
     return (
         <View style={[styles.container, {paddingTop: headerHeight,paddingLeft:0,paddingRight:0 }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container,{gap:14, paddingBottom:10}]}>
+            <ScrollView style={{flex:1}} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container,{gap:14, paddingBottom:10}]}>
                 <View style={stylesx.profileCard}>
                     <View style={stylesx.profileRow}>
                         <Pressable onPress={() => navigation.navigate(namer.navigation.editprofile)}>
@@ -192,14 +192,18 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                 </View>
 
                 {visibleMainSubProducts.length > 0 && (
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={[
-                            stylesx.planCardsContent,
-                            visibleMainSubProducts.length === 1 && stylesx.singlePlanCardsContent,
-                        ]}>
-                        {visibleMainSubProducts.map((tier: any, index: number) => {
+                    // show items
+                    <View style={stylesx.planCardsWrapper}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={[
+                                stylesx.planCardsContent,
+                                visibleMainSubProducts.length === 1 && stylesx.singlePlanCardsContent,
+                            ]}
+                            style={stylesx.planCardsScroll}
+                        >
+                            {visibleMainSubProducts.map((tier: any, index: number) => {
                             const tierName = String(tier?.name ?? '').trim();
                             const tierUi = getPlanUi(tierName);
                             const isCurrentTier = activeSubscription && subscriptionState.tier === tierName.toLowerCase();
@@ -241,6 +245,7 @@ export function Screen_profile({ navigation }: { navigation: any }) {
                             );
                         })}
                     </ScrollView>
+                    </View>
                 )}
 
                 {!activeSubscription && (
@@ -518,9 +523,17 @@ const stylesx = StyleSheet.create({
         marginTop: 2,
         fontWeight: '600',
     },
+    planCardsWrapper: {
+        minHeight: 240,
+        marginTop: 8,
+    },
+    planCardsScroll: {
+        flexGrow: 0,
+    },
     planCardsContent: {
         gap: 10,
         paddingRight: 16,
+        alignItems: 'stretch',
     },
     singlePlanCardsContent: {
         flexGrow: 1,

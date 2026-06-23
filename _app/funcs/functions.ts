@@ -7,7 +7,7 @@ import { namer } from './static';
 import { Asset, ImageLibraryOptions, launchImageLibrary } from 'react-native-image-picker';
 import { Toastx } from './customNotification';
 import { SocketClient } from './socket_realtimeData';
-import { createNavigationContainerRef, StackActions } from '@react-navigation/native';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import { xxa_logggingReport } from './functions/logging';
 import { xxa__http_requests } from './functions/httpRequest';
 import { cacheStorage } from './functions/llstorage';
@@ -15,7 +15,7 @@ import { cacheStorage } from './functions/llstorage';
 export { cacheStorage as cacheStorage }
 export { xxa_logggingReport as logReport };
 export { xxa__http_requests as _http_request };
-
+ 
 // Define API URL
 export const hostServer = () => {
   let h_0 = "https://api.q1-site.site"; //live server
@@ -79,7 +79,7 @@ export const help = {
       }
       return age.toString();
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: "yyyymmdd" + yyyymmdd, useraction: 'getageFromDOB', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: "yyyymmdd" + yyyymmdd, useraction: 'getageFromDOB', logMessage: e?.message });
       return null;
     }
   },
@@ -93,7 +93,7 @@ export const help = {
 
       return `${year}${month}${day}`;
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: 'age: ' + age, useraction: 'getDOBFromAge', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: 'age: ' + age, useraction: 'getDOBFromAge', logMessage: e?.message });
       return null;
     }
   },
@@ -107,7 +107,7 @@ export const help = {
 
       return (`${feet}ft' ${remainingInches}in`);
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: 'cmValue ' + cmValue, useraction: 'cmToFtIn', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: 'cmValue ' + cmValue, useraction: 'cmToFtIn', logMessage: e?.message  });
       return null;
     }
   },
@@ -119,7 +119,7 @@ export const help = {
 
       return km;
     } catch (e: any) {
-      xxa_logggingReport({ type: 'function', extra: 'milesToKM: ' + milesValue, useraction: 'milestokm', logMessage: e?.message, stackTrace: e });
+      xxa_logggingReport({ type: 'function', extra: 'milesToKM: ' + milesValue, useraction: 'milestokm', logMessage: e?.message });
       return null;
     }
   },
@@ -176,15 +176,49 @@ export const help = {
 export const __init__app = async (): Promise<void> => {
 
   await llStorage.CONFIG.getMapper();
-
   const getSession_omi = sessionManager.getCurrentSession()?.x_omi_payload;
   const getSession_hash = sessionManager.getCurrentSession()?.x_omi_payload_hash;
+  const notSessionAndNavigation = (!getSession_omi || !getSession_hash || navigationRef === null)
+  
+  // 111111
+  // update location
+  await (async ()=>{
+    await getCurrentLocation().then(async (location: any) => {
+          if (location) {
+              let cords = {
+                  latd: location?.coords?.latitude,
+                  long: location?.coords?.longitude,
+                  accuracy: location.coords.accuracy,
+                  altitude: location.coords.altitude,
+                  altitudeAccuracy: location.coords.altitudeAccuracy,
+                  heading: location.coords.heading,
+                  speed: location.coords.speed,
+                  timestamp: location.timestamp,
+              };
+              // Update the current user profile with the new location
+              await xxa__http_requests({
+                  customApiUrl: hostServer() + "/api/core/v1/pushLocation",
+                  reqType: 'POST', bodyArray: {
+                      longlatd: JSON.stringify(cords),
+                  }
+                }).then(()=>{
+                  cacheStorage.getCurrentUserProfile(true)
+                });
+          }
+    });                  
+  })();
 
-
+  // 222222
   // connect with socket for realtime info
-  if (!getSession_omi || !getSession_hash || navigationRef === null) return;
-
   (async () => {
+    if (notSessionAndNavigation){ 
+      Toastx.show({
+        message: "Session not found.",
+        type: 'info'
+      });
+      return;
+    }
+
     const getProfile = await cacheStorage.getCurrentUserProfile();
     //console.log("For socket", getProfile)
     const userId = getProfile?.user_id;
@@ -228,10 +262,6 @@ export const __init__app = async (): Promise<void> => {
             //displsyNotification(nmessage, "Tap to view message");
           }
         }
-
-
-
-
       }
     });
   })();
@@ -475,7 +505,7 @@ export class llStorage {
         await AsyncStorage.setItem(namer.storage.mapper_payload, JSON.stringify(server?.mapper_payload));
         this.tempMapper = server?.mapper_payload;
       } else {
-        xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data", stackTrace: "" });
+        xxa_logggingReport({ type: "function", extra: server, useraction: "CONFIG.generateFromServer", url: `${hostServer()}/api/core/v1/getVersioning`, logMessage: "Failed to fetch versioning data"  });
       }
 
     }
@@ -536,8 +566,8 @@ export class mediaHandler {
         return media;
       }
       return null;
-    } catch (error) {
-      xxa_logggingReport({ type: "media", useraction: "select media error", logMessage: 'Error selecting media:', stackTrace: error });
+    } catch (error:any) {
+      xxa_logggingReport({ type: "media", useraction: "select media error", logMessage: error?.message  });
       Toastx.show({ type: 'error', message: 'Failed to select media' });
       return null;
     }
