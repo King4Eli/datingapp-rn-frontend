@@ -123,30 +123,32 @@ export const help = {
       return null;
     }
   },
-  timeAgo: (dateString: string) => {
-    // 2026-05-12 22:41:49
-    const now = new Date();
-    const past = new Date(dateString.replace(' ', 'T')); // ISO fix
-    const seconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+  timeAgo: (unixSeconds:string) => {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const pastSeconds = Number(unixSeconds);
+  const seconds = nowSeconds - pastSeconds;
 
-    const intervals = {
-      year: 31536000,
-      month: 2592000,
-      day: 86400,
-      hour: 3600,
-      minute: 60,
-    };
+console.log(nowSeconds, unixSeconds, seconds)
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
 
-    if (seconds < 5) return 'just now';
-    if (seconds < 60) return `${seconds}s ago`;
+  const intervals = {
+    year: 31536000,
+    month: 2592000,
+    day: 86400,
+    hour: 3600,
+    minute: 60,
+  };
 
-    for (const [unit, value] of Object.entries(intervals)) {
-      const count = Math.floor(seconds / value);
-      if (count >= 1) return `${count} ${unit}${count > 1 ? 's' : ''} ago`;
+  for (const [unit, value] of Object.entries(intervals)) {
+    const count = Math.floor(seconds / value);
+    if (count >= 1) {
+      return `${count} ${unit}${count > 1 ? 's' : ''} ago`;
     }
+  }
 
-    return 'just now';
-  },
+  return 'just now';
+},
   getSubscriptionState: (profile: any) => {
     const rawPlan =
       profile?.subscription?.product_name ??
