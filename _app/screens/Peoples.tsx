@@ -78,7 +78,7 @@ export default function Peoples_Screen({ route, navigation }: { route: any, navi
         likedMatchId: route?.params?.likedMatchedId,//str
         refreshPeoples: () => {
             const j = getPeopleToMatch?.filter((v: any) => v.user_id !== getPeopleToMatch?.[0]?.user_id);
-            console.log("remove last---", getPeopleToMatch?.length, j?.length)
+            // console.log("remove last---", getPeopleToMatch?.length, j?.length)
             setPeopleToMatch(j ?? null);
         }
     }
